@@ -1,0 +1,474 @@
+{
+  "blogPosts": [
+    {
+      "id": "1",
+      "title": "Project: Maniya - The Ultimate Glass Loop Build Log",
+      "excerpt": "We break down the component choices, custom loop challenges, and thermal performance metrics of this month's top-rated community submission.",
+      "author": "@cyber_architect",
+      "date": "Oct 24, 2023",
+      "comments": 42,
+      "category": "Build Log",
+      "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuDH2rJHMDjOLbiDqqSgz11fMCG7YrDjJm2IpFV8hMir43IrhXy7POMb1VnpMikqC7g8VzH4-eeftbSZND0SzXK-IE02BWTyuGlZ6GXvnOMTTXn1gsaeICcc25_DwPBdwv34FvjLS_NixDBbvB3cf5_Bn40uTIP1H0EeIRzO8fXbniVx0pOFccJYBeW0tm8YwH84GyHTrrXzVF-rI5LALC3rdFxbBipcNWwra6UPtUN-DyTxLBXg6TpPeUnTdW4yrqPUJA7hPytRdNM",
+      "featured": true,
+      "content": "Full blog post content goes here..."
+    },
+    {
+      "id": "2",
+      "title": "The Evolution of PC Gaming Performance in 2024",
+      "excerpt": "Analyzing how modern GPUs and CPUs have changed the gaming landscape",
+      "author": "@tech_reviewer",
+      "date": "Oct 22, 2023",
+      "comments": 28,
+      "category": "Analysis",
+      "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuDH2rJHMDjOLbiDqqSgz11fMCG7YrDjJm2IpFV8hMir43IrhXy7POMb1VnpMikqC7g8VzH4-eeftbSZND0SzXK-IE02BWTyuGlZ6GXvnOMTTXn1gsaeICcc25_DwPBdwv34FvjLS_NixDBbvB3cf5_Bn40uTIP1H0EeIRzO8fXbniVx0pOFccJYBeW0tm8YwH84GyHTrrXzVF-rI5LALC3rdFxbBipcNWwra6UPtUN-DyTxLBXg6TpPeUnTdW4yrqPUJA7hPytRdNM",
+      "featured": false,
+      "content": "Full blog post content goes here..."
+    },
+    {
+      "id": "3",
+      "title": "Water Cooling 101: Everything You Need to Know",
+      "excerpt": "A comprehensive guide to setting up your first custom loop",
+      "author": "@cooling_expert",
+      "date": "Oct 20, 2023",
+      "comments": 35,
+      "category": "Guide",
+      "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuDH2rJHMDjOLbiDqqSgz11fMCG7YrDjJm2IpFV8hMir43IrhXy7POMb1VnpMikqC7g8VzH4-eeftbSZND0SzXK-IE02BWTyuGlZ6GXvnOMTTXn1gsaeICcc25_DwPBdwv34FvjLS_NixDBbvB3cf5_Bn40uTIP1H0EeIRzO8fXbniVx0pOFccJYBeW0tm8YwH84GyHTrrXzVF-rI5LALC3rdFxbBipcNWwra6UPtUN-DyTxLBXg6TpPeUnTdW4yrqPUJA7hPytRdNM",
+      "featured": false,
+      "content": "Full blog post content goes here..."
+    }
+  ],
+  "products": [
+    {
+      "id": "1",
+      "name": "GeForce RTX 4080",
+      "description": "Founders Edition • 16GB GDDR6X",
+      "price": 1199,
+      "category": "components",
+      "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuDbD2NXhjg7g39BjWrURYOm72gK6rz3SQ8KX5gWyMeBZYy-KndUDpq8yPmiss0j3w7pu8Ymebums1btyvFXe3aoKOEpRxaxOfphTafKMOfnLLIoHNvpNnzgG37P6TKWPuvCeJ7EagzJOI7jCfsXytmGMuzXUJJ1K1CaWsUxtJjnA-FHAGuqmuJhs2KDsEWhhxDKUr0vs-xVfiiPfDVeT5BD9GBDUaA0ZyOeg3Q7kp_zn28wQ7AVTPx4L6in_JS_v_fS9Pf_Rn0JQo8",
+      "status": "IN STOCK",
+      "statusColor": "bg-black/60",
+      "inStock": true
+    },
+    {
+      "id": "2",
+      "name": "Ryzen 9 7950X",
+      "description": "16 Cores • 32 Threads • 5.7GHz",
+      "price": 599,
+      "category": "components",
+      "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuBxoWJ7Lho3BypQnh1kVTrbKGl640c1h_8Ox06UlTIUWyY4Wtg-4V39_H749ar0FN81ssF4j3kvtyeAjtSMb6WLya8fKU0Zc0_2NNX2dJDVs3N1O7l6eqx8T-gypV_hmQ9QuxryfKRikaGtD2s_S9_3Sg5AuuijKoT6DdvsUTaJZpQ7tLKQ1uTMbWk1N_M2jIx9uxCIm6vvTydCS8xg-VJL0iUj4hccdqIxA1kM7ouUPB9mfLIPvBP9Zth0aym6zcu4pFwfwp4N9Xc",
+      "status": "HOT",
+      "statusColor": "bg-accent-purple/20 text-accent-purple border-accent-purple/30",
+      "inStock": true
+    },
+    {
+      "id": "3",
+      "name": "Trident Z5 RGB",
+      "description": "32GB (2x16GB) • DDR5-6400",
+      "price": 289,
+      "category": "components",
+      "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuC2-a8rFMiZQfDJQwiizPspbROWahf2U4wTkJeRosm7JMFcd-71qCiL0vZgk9Odt334ZILJQpyqNz01LkfvcZ8Q4Q0Zgv5lSoiAMU9jPYfecfPdpM8PAEGTBS0p6Apmvx7O8yBMZUZjGIi41DDoWMjIlugaduqXaO6WlzR-ddQOUmYE6QpkvL8nvWk9-3FZw_ZnfYN6ygBncBhD5SZkptLDkAFCRlIhjYEqmDoOJvtxpe0XIXiehQGpN0Cne5168rOaTaJ2CCObs4A",
+      "status": "IN STOCK",
+      "statusColor": "bg-black/60",
+      "inStock": true
+    },
+    {
+      "id": "4",
+      "name": "Kraken Elite 360",
+      "description": "RGB AIO • LCD Display • White",
+      "price": 279,
+      "category": "components",
+      "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuABz41AvLnb-d-IQXdinIf5ON8MQtBlg8w6quGXapkbJ5TlJc1aaD5KnXc7uWw4sWFswuCb0vUi-JXx1uXz-dBnGgrxbEL681Eq_d98O5fGLUED8Rq2pnRCV9M4KV1N8kxL1nTcN-drrcZLOqFytbdADS_XWzw4B8wXBhlcgJMyV5-i8xpe_jp26CLaRkQ8Adg9nSV38uFRez_4vreGiRie36fUnOGYQsmq7uu2E5euidB9sjenu0f0gNs5As8f2QT0CmqhgpAxX9Y",
+      "status": "LIMITED",
+      "statusColor": "bg-orange-500/20 text-orange-400 border-orange-500/30",
+      "inStock": false
+    }
+  ],
+  "communityPosts": [
+    {
+      "id": "1",
+      "title": "Best practices for 360mm AIO mounting - RTX 4090 Edition",
+      "author": "@cooling_master",
+      "category": "hardware",
+      "replies": 28,
+      "views": 1250,
+      "lastActivity": "2 hours ago",
+      "isPinned": true,
+      "content": "Discussion content here..."
+    },
+    {
+      "id": "2",
+      "title": "New RTX 5090 compatibility issues with older PSUs?",
+      "author": "@hardware_guru",
+      "category": "hardware",
+      "replies": 42,
+      "views": 3420,
+      "lastActivity": "30 minutes ago",
+      "isPinned": false,
+      "content": "Discussion content here..."
+    },
+    {
+      "id": "3",
+      "title": "Custom Loop Planning - First Timer Questions",
+      "author": "@water_curious",
+      "category": "loops",
+      "replies": 15,
+      "views": 650,
+      "lastActivity": "4 hours ago",
+      "isPinned": false,
+      "content": "Discussion content here..."
+    },
+    {
+      "id": "4",
+      "title": "Best Linux distros for gaming workstations?",
+      "author": "@linux_builder",
+      "category": "software",
+      "replies": 31,
+      "views": 2100,
+      "lastActivity": "1 hour ago",
+      "isPinned": false,
+      "content": "Discussion content here..."
+    },
+    {
+      "id": "5",
+      "title": "Showcase: Dual Loop SFF Build Completed!",
+      "author": "@sff_enthusiast",
+      "category": "builds",
+      "replies": 56,
+      "views": 4850,
+      "lastActivity": "45 minutes ago",
+      "isPinned": true,
+      "content": "Discussion content here..."
+    },
+    {
+      "id": "6",
+      "title": "Selling: Unopened RTX 4080 Super Bundle",
+      "author": "@parts_seller",
+      "category": "marketplace",
+      "replies": 8,
+      "views": 1200,
+      "lastActivity": "3 hours ago",
+      "isPinned": false,
+      "content": "Discussion content here..."
+    }
+  ],
+  "userBuilds": [
+    {
+      "id": "1",
+      "name": "4K Gaming Beast",
+      "status": "published",
+      "components": 12,
+      "budget": 2499,
+      "createdDate": "2 days ago",
+      "thumbnail": null
+    },
+    {
+      "id": "2",
+      "name": "Streaming Workstation",
+      "status": "completed",
+      "components": 15,
+      "budget": 3200,
+      "createdDate": "1 week ago",
+      "thumbnail": null
+    },
+    {
+      "id": "3",
+      "name": "Budget Indie Gaming",
+      "status": "draft",
+      "components": 8,
+      "budget": 799,
+      "createdDate": "Just now",
+      "thumbnail": null
+    }
+  ],
+  "users": [
+    {
+      "id": "1",
+      "name": "Muhammad Murtaza",
+      "email": "business@neurobuilds.com",
+      "username": "@murtaza",
+      "avatar": null,
+      "joinDate": "Jan 15, 2024"
+    }
+  ],
+  "trendingTopics": [
+    {
+      "title": "NVIDIA RTX 5090 leaked specifications analysis and power requirements",
+      "category": "Hardware",
+      "timeAgo": "4 hours ago",
+      "color": "text-accent-purple"
+    },
+    {
+      "title": "TSMC announces breakthrough in 2nm process yield rates for next-gen CPUs",
+      "category": "Industry",
+      "timeAgo": "6 hours ago",
+      "color": "text-blue-400"
+    },
+    {
+      "title": "Custom water cooling maintenance guide for beginners",
+      "category": "Guides",
+      "timeAgo": "8 hours ago",
+      "color": "text-green-400"
+    }
+  ],
+  "navLinks": [
+    {
+      "label": "Home",
+      "path": "/"
+    },
+    {
+      "label": "Blog",
+      "path": "/blog"
+    },
+    {
+      "label": "Marketplace",
+      "path": "/marketplace"
+    },
+    {
+      "label": "Community",
+      "path": "/community"
+    }
+  ],
+  "footerColumns": [
+    {
+      "title": "Product",
+      "links": [
+        { "label": "Features", "path": "#features" },
+        { "label": "Pricing", "path": "/pricing" },
+        { "label": "Security", "path": "/security" },
+        { "label": "Status", "path": "/status" }
+      ]
+    },
+    {
+      "title": "Resources",
+      "links": [
+        { "label": "Blog", "path": "/blog" },
+        { "label": "Documentation", "path": "/docs" },
+        { "label": "Guides", "path": "/guides" },
+        { "label": "API", "path": "/api" }
+      ]
+    },
+    {
+      "title": "Community",
+      "links": [
+        { "label": "Discord", "path": "https://discord.com" },
+        { "label": "Forums", "path": "/forums" },
+        { "label": "Twitter", "path": "https://twitter.com" },
+        { "label": "Newsletter", "path": "/newsletter" }
+      ]
+    },
+    {
+      "title": "Legal",
+      "links": [
+        { "label": "Privacy", "path": "/privacy" },
+        { "label": "Terms", "path": "/terms" },
+        { "label": "Cookies", "path": "/cookies" },
+        { "label": "Contact", "path": "/contact" }
+      ]
+    }
+  ],
+  "howItWorksSteps": [
+    {
+      "id": 1,
+      "title": "Answer Questions",
+      "description": "Tell us about your budget, use case, and preferences through our guided questionnaire.",
+      "iconName": "Zap"
+    },
+    {
+      "id": 2,
+      "title": "Get AI Recommendations",
+      "description": "Our AI analyzes your inputs and generates personalized component recommendations.",
+      "iconName": "Lightbulb"
+    },
+    {
+      "id": 3,
+      "title": "Verify Compatibility",
+      "description": "Automatically check that all components work together without bottlenecks or conflicts.",
+      "iconName": "CheckCircle"
+    },
+    {
+      "id": 4,
+      "title": "Compare & Customize",
+      "description": "Browse alternative options, adjust specs, and customize your build to perfection.",
+      "iconName": "ShoppingCart"
+    },
+    {
+      "id": 5,
+      "title": "Purchase & Build",
+      "description": "Buy components directly or from our marketplace, then assemble with our guides.",
+      "iconName": "Wrench"
+    }
+  ],
+  "pricingTiers": [
+    {
+      "id": "starter",
+      "name": "Starter",
+      "price": 0,
+      "period": "/month",
+      "description": "Perfect for beginners exploring PC building",
+      "buttonText": "Get Started",
+      "buttonVariant": "secondary",
+      "highlighted": false,
+      "features": [
+        { "name": "Basic PC Builder", "included": true },
+        { "name": "Limited Component Database", "included": true },
+        { "name": "Basic Compatibility Check", "included": true },
+        { "name": "Community Access", "included": true },
+        { "name": "AI Recommendations", "included": false },
+        { "name": "Advanced Analytics", "included": false },
+        { "name": "Priority Support", "included": false }
+      ]
+    },
+    {
+      "id": "pro",
+      "name": "Pro",
+      "price": 9.99,
+      "period": "/month",
+      "description": "For serious builders and enthusiasts",
+      "buttonText": "Start Free Trial",
+      "buttonVariant": "primary",
+      "highlighted": true,
+      "features": [
+        { "name": "Full PC Builder", "included": true },
+        { "name": "Complete Component Database", "included": true },
+        { "name": "Advanced Compatibility Check", "included": true },
+        { "name": "Community Access", "included": true },
+        { "name": "AI Recommendations", "included": true },
+        { "name": "Advanced Analytics", "included": true },
+        { "name": "Priority Support", "included": false }
+      ]
+    },
+    {
+      "id": "enterprise",
+      "name": "Enterprise",
+      "price": 29.99,
+      "period": "/month",
+      "description": "For teams and businesses",
+      "buttonText": "Contact Sales",
+      "buttonVariant": "secondary",
+      "highlighted": false,
+      "features": [
+        { "name": "Full PC Builder", "included": true },
+        { "name": "Complete Component Database", "included": true },
+        { "name": "Advanced Compatibility Check", "included": true },
+        { "name": "Community Access", "included": true },
+        { "name": "AI Recommendations", "included": true },
+        { "name": "Advanced Analytics", "included": true },
+        { "name": "Priority Support", "included": true }
+      ]
+    }
+  ],
+  "faqItems": [
+    {
+      "id": "1",
+      "question": "What is Neuro Builds?",
+      "answer": "Neuro Builds is an AI-powered PC builder platform that helps you configure the perfect computer for your needs. Our intelligent system recommends components, checks compatibility, and connects you with a thriving community of PC enthusiasts."
+    },
+    {
+      "id": "2",
+      "question": "Is there a free version?",
+      "answer": "Yes! Our Starter plan is completely free and includes basic PC builder tools, limited component database, and community access. Upgrade to Pro or Enterprise for advanced features like AI recommendations and priority support."
+    },
+    {
+      "id": "3",
+      "question": "How does the AI recommendation work?",
+      "answer": "Simply answer a few questions about your budget, use case (gaming, streaming, editing), and preferences. Our AI analyzes millions of hardware combinations and recommends the best components for your specific needs."
+    },
+    {
+      "id": "4",
+      "question": "Can I buy components through Neuro Builds?",
+      "answer": "Yes! We have a secure peer-to-peer marketplace where you can buy, sell, and trade components with other users. You can also find direct purchase links to retailers for all recommended parts."
+    },
+    {
+      "id": "5",
+      "question": "Is compatibility checking really automatic?",
+      "answer": "Absolutely. Our system automatically verifies that all components work together—checking power supply compatibility, motherboard socket types, RAM speed, GPU cooling, case dimensions, and more. We catch issues before they become problems."
+    },
+    {
+      "id": "6",
+      "question": "Do you offer customer support?",
+      "answer": "All plans include community support. Pro and Enterprise customers also get priority email support. We respond to questions within 24 hours and offer detailed guides, video tutorials, and live chat assistance."
+    }
+  ],
+  "features": [
+    {
+      "id": "ai-builder",
+      "title": "AI-Powered Builder",
+      "description": "Get personalized PC build recommendations based on your budget and use case with our intelligent AI assistant.",
+      "iconName": "Zap",
+      "gradient": "gradient-cyan"
+    },
+    {
+      "id": "hardware-db",
+      "title": "Massive Hardware Database",
+      "description": "Access 50K+ components from all major manufacturers with real-time pricing and availability updates.",
+      "iconName": "Cpu",
+      "gradient": "gradient-purple"
+    },
+    {
+      "id": "compatibility",
+      "title": "Smart Compatibility Check",
+      "description": "Instant compatibility verification ensures all components work together without conflicts or bottlenecks.",
+      "iconName": "Layers",
+      "gradient": "gradient-blue"
+    },
+    {
+      "id": "marketplace",
+      "title": "Thriving Marketplace",
+      "description": "Buy, sell, and trade components with other builders in our secure peer-to-peer marketplace platform.",
+      "iconName": "Globe",
+      "gradient": "gradient-green"
+    },
+    {
+      "id": "performance",
+      "title": "Performance Benchmarks",
+      "description": "Real benchmark data and FPS metrics for gaming, streaming, and content creation workflows.",
+      "iconName": "BarChart3",
+      "gradient": "gradient-orange"
+    },
+    {
+      "id": "community",
+      "title": "Active Community",
+      "description": "Connect with thousands of PC enthusiasts, share builds, ask questions, and get expert advice anytime.",
+      "iconName": "Lock",
+      "gradient": "gradient-pink"
+    }
+  ],
+  "testimonials": [
+    {
+      "id": "1",
+      "name": "Alex Chen",
+      "role": "Gaming Enthusiast",
+      "content": "Neuro Builds saved me hours of research! The AI recommendations were spot-on, and I saved $200 on my gaming PC. Best tool ever!",
+      "avatar": "AC",
+      "rating": 5
+    },
+    {
+      "id": "2",
+      "name": "Jordan Martinez",
+      "role": "Content Creator",
+      "content": "As a video editor, I needed a powerful workstation. The compatibility checker caught issues I would have missed. Worth every penny!",
+      "avatar": "JM",
+      "rating": 5
+    },
+    {
+      "id": "3",
+      "name": "Sarah Williams",
+      "role": "PC Builder",
+      "content": "The community here is amazing. Got personalized advice from experts, and the marketplace helped me upgrade my old rig affordably.",
+      "avatar": "SW",
+      "rating": 5
+    },
+    {
+      "id": "4",
+      "name": "Mike Johnson",
+      "role": "Tech Streamer",
+      "content": "Building a streaming PC was intimidating, but Neuro Builds made it so easy. The step-by-step guides are excellent!",
+      "avatar": "MJ",
+      "rating": 5
+    }
+  ],
+  "appConfig": {
+    "brandName": "NEURO BUILDS",
+    "footerBrandName": "NEURO BUILDS"
+  }
+}

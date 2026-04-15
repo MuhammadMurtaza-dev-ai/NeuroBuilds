@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RTX 4090 Cable Melting Concern? - Neuro Builds</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0df2f2",
+                        "primary-dim": "rgba(13, 242, 242, 0.1)",
+                        "accent-purple": "#bf00ff",
+                        "bg-dark": "#121212","bg-panel": "#1e1e1e",
+                        "border-glass": "rgba(255, 255, 255, 0.08)",
+                        "code-bg": "#0d0d0d",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "mono": ["monospace"]
+                    },
+                    borderRadius: {
+                        "bento": "2rem",
+                        "pill": "9999px"
+                    },
+                    boxShadow: {
+                        "neon": "0 0 10px rgba(13, 242, 242, 0.3), 0 0 20px rgba(13, 242, 242, 0.1)",
+                        "glow-purple": "0 0 25px rgba(191, 0, 255, 0.3)",
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444; 
+        }
+        .glass-panel {
+            background: rgba(30, 30, 30, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-nav {
+            background: rgba(18, 18, 18, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .neon-border {
+            border: 1px solid rgba(13, 242, 242, 0.5);
+            box-shadow: 0 0 10px rgba(13, 242, 242, 0.1);
+        }
+        .purple-accent {
+            border: 1px solid rgba(191, 0, 255, 0.5);
+            box-shadow: 0 0 15px rgba(191, 0, 255, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-bg-dark text-white font-display overflow-x-hidden selection:bg-primary selection:text-black min-h-screen flex flex-col relative">
+<div class="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-accent-purple/10 blur-[120px] rounded-full pointer-events-none z-0"></div>
+<div class="fixed bottom-[-20%] right-[-10%] w-[40%] h-[60%] bg-primary/5 blur-[100px] rounded-full pointer-events-none z-0"></div>
+<div class="fixed top-6 left-0 right-0 z-50 flex justify-center px-4">
+<nav class="glass-nav rounded-pill px-2 py-2 flex items-center gap-2 shadow-2xl shadow-black/50 max-w-5xl w-full justify-between">
+<div class="flex items-center gap-3 pl-4">
+<span class="material-symbols-outlined text-primary">terminal</span>
+<span class="font-bold tracking-tight text-lg">NEURO BUILDS</span>
+</div>
+<div class="hidden md:flex items-center gap-1 bg-black/20 rounded-pill p-1 border border-white/5">
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Home</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Blog</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Parts</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium bg-white/10 text-white shadow-sm ring-1 ring-white/5" href="#">Community</a>
+</div>
+<div class="flex items-center gap-2 pr-2">
+<button class="size-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-gray-400 text-[20px]">notifications</span>
+</button>
+<div class="size-10 rounded-full bg-gradient-to-tr from-primary to-accent-purple p-[2px]">
+<div class="w-full h-full bg-bg-dark rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[20px]">person</span>
+</div>
+</div>
+</div>
+</nav>
+</div>
+<main class="relative z-10 flex-grow pt-32 pb-20 px-4 md:px-8 max-w-[1400px] mx-auto w-full">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-8">
+<div>
+<div class="flex items-center flex-wrap gap-2 text-sm text-gray-500 font-mono mb-4 pl-1">
+<a class="hover:text-primary transition-colors" href="#">COMMUNITY</a>
+<span class="material-symbols-outlined text-[12px]">chevron_right</span>
+<a class="hover:text-primary transition-colors" href="#">HARDWARE</a>
+<span class="material-symbols-outlined text-[12px]">chevron_right</span>
+<span class="text-white">THREAD #8492</span>
+</div>
+<div class="flex items-start gap-4">
+<div class="flex flex-col gap-2">
+<h1 class="text-3xl md:text-5xl font-bold text-white tracking-tight leading-tight">RTX 4090 12VHPWR Cable Melting Concern?</h1>
+<div class="flex items-center gap-3 mt-2">
+<span class="bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] font-bold px-3 py-1 rounded-pill uppercase tracking-wide">Hardware</span>
+<span class="bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 text-[10px] font-bold px-3 py-1 rounded-pill uppercase tracking-wide">Question</span>
+</div>
+</div>
+</div>
+</div>
+<div class="flex gap-3 w-full md:w-auto">
+<button class="flex items-center gap-2 px-6 py-2.5 border border-white/10 bg-white/5 hover:bg-white/10 text-white font-medium rounded-pill transition-all whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px]">notifications_none</span>
+                    Subscribe
+                </button>
+<button class="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-cyan-300 text-bg-dark font-bold rounded-pill transition-all shadow-[0_0_15px_rgba(13,242,242,0.4)] whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px]">reply</span>
+                    Reply
+                </button>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<div class="lg:col-span-8 space-y-6">
+<div class="glass-panel p-6 md:p-8 rounded-[2rem] border-t-4 border-t-primary relative overflow-hidden shadow-neon">
+<div class="absolute right-0 top-0 p-4 opacity-30">
+<span class="material-symbols-outlined text-6xl text-primary -rotate-12">forum</span>
+</div>
+<div class="flex flex-col md:flex-row gap-6">
+<div class="flex-shrink-0 flex md:flex-col items-center gap-3 md:w-32">
+<div class="relative">
+<div class="size-16 md:size-20 rounded-full bg-gray-700 flex items-center justify-center border border-white/10 text-xl font-bold text-white shadow-lg">MK</div>
+<div class="absolute -bottom-1 -right-1 size-5 bg-green-500 border-2 border-[#1e1e1e] rounded-full"></div>
+</div>
+<div class="text-center">
+<div class="font-bold text-white">MikeK_88</div>
+<div class="text-xs text-primary font-mono mt-1">VETERAN</div>
+<div class="text-[10px] text-gray-500 mt-2 font-mono">
+                                    POSTS: 482<br/>
+                                    JOINED: 2021
+                                </div>
+</div>
+</div>
+<div class="flex-grow relative z-10">
+<div class="flex justify-between items-start mb-4 border-b border-white/5 pb-4">
+<div class="text-xs text-gray-500 font-mono flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span> Oct 24, 2023 at 4:32 PM
+                                </div>
+<div class="flex gap-2">
+<button class="p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[18px]">share</span>
+</button>
+<button class="p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[18px]">flag</span>
+</button>
+</div>
+</div>
+<div class="prose prose-invert max-w-none text-gray-300 leading-relaxed">
+<p class="mb-4">Hey everyone,</p>
+<p class="mb-4">I've been hearing mixed reports about the new 12VHPWR adapters for the RTX 4090. I just picked up a Founders Edition card and I'm planning a vertical mount in my O11 Dynamic XL, but the clearance is tight.</p>
+<p class="mb-4">Is the CableMod 90-degree adapter safe to use? I've seen some concerning posts on Reddit about melting connectors even when fully seated. I really don't want to risk a $1600 card.</p>
+<p class="mb-4">Also, has anyone here had issues with the stock NVIDIA adapter? It looks so stiff and ugly, I'd prefer not to use it if I don't have to.</p>
+<div class="my-6 p-4 bg-black/30 rounded-xl border border-white/5">
+<h4 class="text-sm font-bold text-gray-400 mb-2 uppercase tracking-wider">My System Specs:</h4>
+<ul class="list-disc list-inside text-sm text-gray-500 space-y-1 font-mono">
+<li>Case: Lian Li O11 Dynamic XL</li>
+<li>PSU: Corsair HX1200</li>
+<li>GPU: NVIDIA RTX 4090 FE</li>
+<li>Motherboard: ASUS ROG Maximus Z790 Hero</li>
+</ul>
+</div>
+<p>Thanks for any advice!</p>
+</div>
+<div class="flex flex-wrap gap-2 mt-6">
+<div class="relative group cursor-pointer overflow-hidden rounded-xl border border-white/10 w-32 h-24 bg-black/40">
+<div class="absolute inset-0 bg-cover bg-center opacity-70 group-hover:opacity-100 transition-opacity duration-300" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCoLHXx4TaHv2AZHd9TeNOYYSB-UNpyqZmCa5Iwg5yVxNRsUuhqQOkZl1xPdPfczzAs9IuvEz4J-mOKxtD04yX5h3ZBVYwZ84FNe0ycU9fUvv9jPmnioh3WANKfcEv8IoUVHQdpdwBJ3Inmc6nOTMEBZcjxLa7M4vBNealTC_8W8GypCKCQK1rKyRZq3YTsmh5eNkaL_JgtzHcF_tvlbk01ebNI9WwkZxst2xYSM0XkKegqMCCN9aMvrT4o0Ub8yeZ0x_5S62zT1mM");'></div>
+</div>
+<div class="relative group cursor-pointer overflow-hidden rounded-xl border border-white/10 w-32 h-24 bg-black/40">
+<div class="absolute inset-0 bg-cover bg-center opacity-70 group-hover:opacity-100 transition-opacity duration-300" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA6Aw9fAwExfHcR8BD2Ar3gQVuBiXRN8k5NvzzdeFCAZG-k_-hb3-XB1YGKNf3ZWxkunCTCpsnxX-w8d4KV3xOV1xlmEKi9zhWJwbC-K8h8eIIwA0OjD3P_8DqD4FAhall95BsxKnZQMIb8EpRVdYK2VSiFyzEHqfQ9LMasPSb4RYlrUEE-a93UewwDzHVDbKvCJiCSE6JkUXTu2nrpm6ZwEk-c-LjwHAp0XdSaBvU9S3PxiL0FHyjZDLaeGY6n1gdLsmBUfFlsuJo");'></div>
+<div class="absolute inset-0 flex items-center justify-center bg-black/30">
+<span class="material-symbols-outlined text-white opacity-80">zoom_in</span>
+</div>
+</div>
+</div>
+<div class="mt-8 flex items-center justify-between pt-4 border-t border-white/5">
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-primary/20 hover:text-primary transition-all text-gray-400">
+<span class="material-symbols-outlined text-[18px]">thumb_up</span>
+<span class="text-sm font-bold">42</span>
+</button>
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-accent-purple/20 hover:text-accent-purple transition-all text-gray-400">
+<span class="material-symbols-outlined text-[18px]">favorite</span>
+<span class="text-sm font-bold">12</span>
+</button>
+</div>
+<button class="text-sm text-primary font-bold hover:underline">Quote Reply</button>
+</div>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between py-2">
+<h3 class="text-xl font-bold text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-accent-purple">chat</span>
+                        86 Replies
+                    </h3>
+<div class="flex items-center gap-2 bg-black/20 rounded-pill p-1 border border-white/5">
+<button class="px-3 py-1 rounded-pill bg-white/10 text-xs font-bold text-white">Oldest</button>
+<button class="px-3 py-1 rounded-pill hover:bg-white/5 text-xs font-bold text-gray-400 transition-colors">Newest</button>
+<button class="px-3 py-1 rounded-pill hover:bg-white/5 text-xs font-bold text-gray-400 transition-colors">Best</button>
+</div>
+</div>
+<div class="glass-panel p-6 rounded-[2rem] border border-primary/30 relative shadow-[0_0_15px_rgba(13,242,242,0.05)]">
+<div class="absolute -left-[1px] top-8 bottom-8 w-[3px] bg-primary rounded-r-full"></div>
+<div class="absolute top-4 right-4 bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold px-2 py-1 rounded-pill flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">check_circle</span> HELPFUL
+                </div>
+<div class="flex flex-col md:flex-row gap-6">
+<div class="flex-shrink-0 flex md:flex-col items-center gap-3 md:w-24">
+<div class="size-12 md:size-14 rounded-full bg-cover bg-center border border-white/10" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDbD2NXhjg7g39BjWrURYOm72gK6rz3SQ8KX5gWyMeBZYy-KndUDpq8yPmiss0j3w7pu8Ymebums1btyvFXe3aoKOEpRxaxOfphTafKMOfnLLIoHNvpNnzgG37P6TKWPuvCeJ7EagzJOI7jCfsXytmGMuzXUJJ1K1CaWsUxtJjnA-FHAGuqmuJhs2KDsEWhhxDKUr0vs-xVfiiPfDVeT5BD9GBDUaA0ZyOeg3Q7kp_zn28wQ7AVTPx4L6in_JS_v_fS9Pf_Rn0JQo8");'></div>
+<div class="text-center">
+<div class="font-bold text-white text-sm">SarahTech</div>
+<div class="text-[10px] text-accent-purple font-mono mt-1 font-bold">MODERATOR</div>
+</div>
+</div>
+<div class="flex-grow">
+<div class="flex justify-between items-start mb-3">
+<div class="text-xs text-gray-500 font-mono">
+                                    Oct 24, 2023 at 5:15 PM
+                                </div>
+</div>
+<div class="text-gray-300 text-sm leading-relaxed">
+<p class="mb-3">Hi Mike,</p>
+<p class="mb-3">I've been using the CableMod 12VHPWR cable (not the adapter, but the full replacement cable for Corsair PSUs) for about 6 months now on my 4090 without any issues. The key is to make sure it's fully seated until you hear a distinct "click" and there's no gap between the connector and the GPU header.</p>
+<p>Regarding the 90-degree adapters specifically, there is an active recall/replacement program for the V1.0 adapters. If you buy one now, make sure it's the V1.1 version which has fixed the sense pin issues.</p>
+<p>Also, since you have a Corsair PSU, I'd highly recommend just getting their official 12VHPWR cable. It's much more flexible than the NVIDIA octopus adapter and eliminates failure points.</p>
+</div>
+<div class="mt-4 flex items-center justify-between pt-3 border-t border-white/5">
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 text-gray-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">thumb_up</span>
+<span class="text-xs font-bold">156</span>
+</button>
+</div>
+<button class="text-xs text-gray-400 font-bold hover:text-white transition-colors">Reply</button>
+</div>
+</div>
+</div>
+</div>
+<div class="glass-panel p-6 rounded-[2rem] border border-white/5 hover:border-white/10 transition-colors">
+<div class="flex flex-col md:flex-row gap-6">
+<div class="flex-shrink-0 flex md:flex-col items-center gap-3 md:w-24">
+<div class="size-12 md:size-14 rounded-full bg-indigo-600 flex items-center justify-center border border-white/10 text-sm font-bold text-white">JS</div>
+<div class="text-center">
+<div class="font-bold text-white text-sm">JustStartin</div>
+<div class="text-[10px] text-gray-500 font-mono mt-1">MEMBER</div>
+</div>
+</div>
+<div class="flex-grow">
+<div class="flex justify-between items-start mb-3">
+<div class="text-xs text-gray-500 font-mono">
+                                    Oct 24, 2023 at 6:42 PM
+                                </div>
+</div>
+<div class="text-gray-300 text-sm leading-relaxed">
+<p>I'm using the stock adapter in my O11 Dynamic (non-XL) and I can't close the side panel properly. It's ridiculous that we spend this much money and have to deal with this.</p>
+<p>Does anyone know if the cooler master vertical mount kit fits with a 4090 FE in the regular O11?</p>
+</div>
+<div class="mt-4 flex items-center justify-between pt-3 border-t border-white/5">
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 text-gray-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">thumb_up</span>
+<span class="text-xs font-bold">8</span>
+</button>
+</div>
+<button class="text-xs text-gray-400 font-bold hover:text-white transition-colors">Reply</button>
+</div>
+</div>
+</div>
+</div>
+<div class="glass-panel p-6 rounded-[2rem] border border-white/5 hover:border-white/10 transition-colors">
+<div class="flex flex-col md:flex-row gap-6">
+<div class="flex-shrink-0 flex md:flex-col items-center gap-3 md:w-24">
+<div class="size-12 md:size-14 rounded-full bg-cover bg-center border border-white/10" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBxoWJ7Lho3BypQnh1kVTrbKGl640c1h_8Ox06UlTIUWyY4Wtg-4V39_H749ar0FN81ssF4j3kvtyeAjtSMb6WLya8fKU0Zc0_2NNX2dJDVs3N1O7l6eqx8T-gypV_hmQ9QuxryfKRikaGtD2s_S9_3Sg5AuuijKoT6DdvsUTaJZpQ7tLKQ1uTMbWk1N_M2jIx9uxCIm6vvTydCS8xg-VJL0iUj4hccdqIxA1kM7ouUPB9mfLIPvBP9Zth0aym6zcu4pFwfwp4N9Xc");'></div>
+<div class="text-center">
+<div class="font-bold text-white text-sm">NeuroBot</div>
+<div class="text-[10px] text-primary font-mono mt-1 font-bold">BOT</div>
+</div>
+</div>
+<div class="flex-grow">
+<div class="flex justify-between items-start mb-3">
+<div class="text-xs text-gray-500 font-mono">
+                                    Oct 24, 2023 at 4:33 PM
+                                </div>
+</div>
+<div class="bg-black/30 border border-primary/20 p-4 rounded-xl mb-3">
+<div class="text-xs text-primary font-bold mb-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">smart_toy</span>
+                                    AUTOMATED RESPONSE
+                                </div>
+<p class="text-gray-400 text-sm">It looks like you're asking about the 12VHPWR connector. We have a dedicated mega-thread for cable safety and melting concerns pinned at the top of the Hardware section. Please check there for the latest safety bulletins from NVIDIA and PCI-SIG.</p>
+</div>
+<div class="mt-4 flex items-center justify-between pt-3 border-t border-white/5">
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 text-gray-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">thumb_down</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="glass-panel p-6 rounded-[2rem] border border-white/5 mt-4">
+<h3 class="font-bold text-white mb-4">Post a Reply</h3>
+<div class="bg-code-bg rounded-xl border border-white/10 overflow-hidden">
+<div class="flex items-center gap-1 p-2 border-b border-white/10 bg-white/5">
+<button class="p-1.5 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors"><span class="material-symbols-outlined text-[18px]">format_bold</span></button>
+<button class="p-1.5 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors"><span class="material-symbols-outlined text-[18px]">format_italic</span></button>
+<button class="p-1.5 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors"><span class="material-symbols-outlined text-[18px]">link</span></button>
+<button class="p-1.5 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors"><span class="material-symbols-outlined text-[18px]">image</span></button>
+<button class="p-1.5 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors"><span class="material-symbols-outlined text-[18px]">code</span></button>
+</div>
+<textarea class="w-full bg-transparent border-none text-white p-4 h-32 focus:ring-0 placeholder:text-gray-600 text-sm" placeholder="Write your reply here... use markdown for formatting"></textarea>
+</div>
+<div class="flex justify-end mt-4">
+<button class="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-cyan-300 text-bg-dark font-bold rounded-pill transition-all shadow-[0_0_15px_rgba(13,242,242,0.4)]">
+<span class="material-symbols-outlined text-[18px]">send</span>
+                        Post Reply
+                    </button>
+</div>
+</div>
+</div>
+<div class="lg:col-span-4 space-y-6">
+<div class="glass-panel p-6 rounded-[2rem] border border-white/5">
+<h3 class="font-bold text-white mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">analytics</span>
+                        Thread Stats
+                    </h3>
+<div class="grid grid-cols-2 gap-4">
+<div class="p-3 bg-black/20 rounded-xl border border-white/5 text-center">
+<div class="text-xs text-gray-500 uppercase font-mono mb-1">Views</div>
+<div class="text-xl font-bold text-white">12.4k</div>
+</div>
+<div class="p-3 bg-black/20 rounded-xl border border-white/5 text-center">
+<div class="text-xs text-gray-500 uppercase font-mono mb-1">Replies</div>
+<div class="text-xl font-bold text-primary">86</div>
+</div>
+<div class="p-3 bg-black/20 rounded-xl border border-white/5 text-center">
+<div class="text-xs text-gray-500 uppercase font-mono mb-1">Participants</div>
+<div class="text-xl font-bold text-white">42</div>
+</div>
+<div class="p-3 bg-black/20 rounded-xl border border-white/5 text-center">
+<div class="text-xs text-gray-500 uppercase font-mono mb-1">Last Reply</div>
+<div class="text-xl font-bold text-white text-xs py-1.5">15m ago</div>
+</div>
+</div>
+</div>
+<div class="glass-panel p-6 rounded-[2rem] border border-white/5 relative">
+<h3 class="font-bold text-white mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-accent-purple">content_copy</span>
+                        Related Topics
+                    </h3>
+<div class="space-y-4">
+<a class="block group" href="#">
+<h4 class="text-sm font-medium text-gray-300 group-hover:text-primary transition-colors mb-1">Which 1000W PSU for 4090?</h4>
+<div class="flex items-center gap-2 text-[10px] text-gray-500 font-mono">
+<span class="bg-green-500/10 text-green-400 px-1.5 rounded">SOLVED</span>
+<span>24 replies</span>
+</div>
+</a>
+<div class="h-[1px] bg-white/5 w-full"></div>
+<a class="block group" href="#">
+<h4 class="text-sm font-medium text-gray-300 group-hover:text-primary transition-colors mb-1">CableMod vs Corsair Premium Cable</h4>
+<div class="flex items-center gap-2 text-[10px] text-gray-500 font-mono">
+<span>156 replies</span>
+</div>
+</a>
+<div class="h-[1px] bg-white/5 w-full"></div>
+<a class="block group" href="#">
+<h4 class="text-sm font-medium text-gray-300 group-hover:text-primary transition-colors mb-1">Vertical Mount Kit O11 XL Clearance</h4>
+<div class="flex items-center gap-2 text-[10px] text-gray-500 font-mono">
+<span>12 replies</span>
+</div>
+</a>
+</div>
+</div>
+<div class="glass-panel p-6 rounded-[2rem] border border-white/5">
+<div class="flex justify-between items-center mb-4">
+<h3 class="font-bold text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-gray-400">group</span>
+                            In This Thread
+                        </h3>
+</div>
+<div class="flex flex-wrap gap-2 mb-2">
+<div class="size-8 rounded-full bg-cover bg-center border border-white/10" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBxoWJ7Lho3BypQnh1kVTrbKGl640c1h_8Ox06UlTIUWyY4Wtg-4V39_H749ar0FN81ssF4j3kvtyeAjtSMb6WLya8fKU0Zc0_2NNX2dJDVs3N1O7l6eqx8T-gypV_hmQ9QuxryfKRikaGtD2s_S9_3Sg5AuuijKoT6DdvsUTaJZpQ7tLKQ1uTMbWk1N_M2jIx9uxCIm6vvTydCS8xg-VJL0iUj4hccdqIxA1kM7ouUPB9mfLIPvBP9Zth0aym6zcu4pFwfwp4N9Xc");' title="NeuroBot"></div>
+<div class="size-8 rounded-full bg-gray-700 flex items-center justify-center border border-white/10 text-[10px] font-bold" title="MikeK_88">MK</div>
+<div class="size-8 rounded-full bg-cover bg-center border-2 border-primary" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDbD2NXhjg7g39BjWrURYOm72gK6rz3SQ8KX5gWyMeBZYy-KndUDpq8yPmiss0j3w7pu8Ymebums1btyvFXe3aoKOEpRxaxOfphTafKMOfnLLIoHNvpNnzgG37P6TKWPuvCeJ7EagzJOI7jCfsXytmGMuzXUJJ1K1CaWsUxtJjnA-FHAGuqmuJhs2KDsEWhhxDKUr0vs-xVfiiPfDVeT5BD9GBDUaA0ZyOeg3Q7kp_zn28wQ7AVTPx4L6in_JS_v_fS9Pf_Rn0JQo8");' title="SarahTech"></div>
+<div class="size-8 rounded-full bg-indigo-600 flex items-center justify-center border border-white/10 text-[10px] font-bold">JS</div>
+<div class="size-8 rounded-full bg-green-900 flex items-center justify-center border border-white/10 text-[10px] font-bold">XL</div>
+<div class="size-8 rounded-full bg-white/5 flex items-center justify-center border border-white/10 text-[10px] font-bold text-gray-400">+37</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="fixed bottom-0 left-0 w-full bg-[#111] border-t border-white/5 py-1 px-4 z-50 text-[10px] md:text-xs font-mono text-gray-500 flex justify-between items-center select-none">
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-2 text-primary hover:text-white cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-[14px]">wifi</span> CONNECTED
+            </span>
+<span class="hidden md:inline">PING: 14ms</span>
+<span class="hidden md:inline">REGION: US-EAST-1</span>
+</div>
+<div class="flex items-center gap-4">
+<span>NEURO BUILDS © 2024</span>
+<span class="hidden md:inline">v2.4.1 (COMMUNITY)</span>
+<span class="flex items-center gap-1 hover:text-white cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-[14px]">code</span>
+                SOURCE
+            </span>
+</div>
+</footer>
+</body></html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Create New Post - Neuro Builds</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0df2f2",
+                        "primary-dim": "rgba(13, 242, 242, 0.1)",
+                        "accent-purple": "#bf00ff",
+                        "bg-dark": "#121212","bg-panel": "#1e1e1e",
+                        "border-glass": "rgba(255, 255, 255, 0.08)",
+                        "code-bg": "#0d0d0d",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "mono": ["monospace"]
+                    },
+                    borderRadius: {
+                        "bento": "2rem",
+                        "pill": "9999px"
+                    },
+                    boxShadow: {
+                        "neon": "0 0 10px rgba(13, 242, 242, 0.3), 0 0 20px rgba(13, 242, 242, 0.1)",
+                        "glow-purple": "0 0 25px rgba(191, 0, 255, 0.3)",
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444; 
+        }
+        .glass-panel {
+            background: rgba(30, 30, 30, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-nav {
+            background: rgba(18, 18, 18, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .neon-border {
+            border: 1px solid rgba(13, 242, 242, 0.5);
+            box-shadow: 0 0 10px rgba(13, 242, 242, 0.1);
+        }
+        .purple-accent {
+            border: 1px solid rgba(191, 0, 255, 0.5);
+            box-shadow: 0 0 15px rgba(191, 0, 255, 0.15);
+        }input[type="text"], textarea, select {
+            background: transparent;
+            color: white;
+        }
+        input::placeholder, textarea::placeholder {
+            color: #666;
+        }
+        .editor-content {
+            min-height: 400px;
+        }
+    </style>
+</head>
+<body class="bg-bg-dark text-white font-display overflow-x-hidden selection:bg-primary selection:text-black min-h-screen flex flex-col relative">
+<div class="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-accent-purple/10 blur-[120px] rounded-full pointer-events-none z-0"></div>
+<div class="fixed bottom-[-20%] right-[-10%] w-[40%] h-[60%] bg-primary/5 blur-[100px] rounded-full pointer-events-none z-0"></div>
+<div class="fixed top-6 left-0 right-0 z-50 flex justify-center px-4">
+<nav class="glass-nav rounded-pill px-2 py-2 flex items-center gap-2 shadow-2xl shadow-black/50 max-w-5xl w-full justify-between">
+<div class="flex items-center gap-3 pl-4">
+<span class="material-symbols-outlined text-primary">terminal</span>
+<span class="font-bold tracking-tight text-lg">NEURO BUILDS</span>
+</div>
+<div class="hidden md:flex items-center gap-1 bg-black/20 rounded-pill p-1 border border-white/5">
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Home</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Blog</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Parts</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium bg-white/10 text-white shadow-sm ring-1 ring-white/5" href="#">Community</a>
+</div>
+<div class="flex items-center gap-2 pr-2">
+<button class="size-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-gray-400 text-[20px]">notifications</span>
+</button>
+<div class="size-10 rounded-full bg-gradient-to-tr from-primary to-accent-purple p-[2px]">
+<div class="w-full h-full bg-bg-dark rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[20px]">person</span>
+</div>
+</div>
+</div>
+</nav>
+</div>
+<main class="relative z-10 flex-grow pt-32 pb-20 px-4 md:px-8 max-w-[1400px] mx-auto w-full">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-8">
+<div>
+<div class="flex items-center flex-wrap gap-2 text-sm text-gray-500 font-mono mb-4 pl-1">
+<a class="hover:text-primary transition-colors" href="#">COMMUNITY</a>
+<span class="material-symbols-outlined text-[12px]">chevron_right</span>
+<span class="text-white">CREATE POST</span>
+</div>
+<h1 class="text-3xl md:text-5xl font-bold text-white tracking-tight leading-tight">Create New Post</h1>
+</div>
+<div class="flex gap-3 w-full md:w-auto">
+<button class="flex items-center gap-2 px-6 py-2.5 border border-white/10 bg-white/5 hover:bg-white/10 text-white font-medium rounded-pill transition-all whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px]">draft</span>
+                    Save Draft
+                </button>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<div class="lg:col-span-8 space-y-6">
+<div class="glass-panel p-6 md:p-8 rounded-[2rem] border-t-4 border-t-primary relative shadow-neon">
+<div class="mb-6 relative">
+<label class="sr-only" for="post-title">Post Title</label>
+<input class="w-full bg-transparent border-0 border-b-2 border-white/10 text-2xl md:text-3xl font-bold text-white placeholder-gray-600 focus:ring-0 focus:border-primary px-0 py-4 transition-colors" id="post-title" placeholder="e.g., Assassin's Creed Valhalla Performance Discussion" type="text"/>
+</div>
+<div class="flex flex-col md:flex-row gap-4 mb-6">
+<div class="w-full md:w-1/3">
+<label class="block text-xs font-mono text-gray-500 mb-2 uppercase tracking-wide">Category</label>
+<div class="relative">
+<select class="w-full bg-black/20 border border-white/10 rounded-xl text-white px-4 py-3 appearance-none focus:ring-1 focus:ring-primary focus:border-primary text-sm font-medium cursor-pointer">
+<option>General Discussion</option>
+<option>Hardware Help</option>
+<option>Gaming</option>
+<option>Build Showcase</option>
+<option>Software &amp; Coding</option>
+</select>
+<div class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
+<span class="material-symbols-outlined text-gray-400">expand_more</span>
+</div>
+</div>
+</div>
+<div class="w-full md:w-2/3">
+<label class="block text-xs font-mono text-gray-500 mb-2 uppercase tracking-wide">Tags</label>
+<div class="bg-black/20 border border-white/10 rounded-xl px-2 py-2 flex items-center flex-wrap gap-2 focus-within:ring-1 focus-within:ring-primary focus-within:border-primary min-h-[46px]">
+<span class="bg-primary/10 text-primary border border-primary/20 text-xs font-bold px-2 py-1 rounded-md flex items-center gap-1">
+                                    Gaming <button class="hover:text-white"><span class="material-symbols-outlined text-[12px]">close</span></button>
+</span>
+<span class="bg-accent-purple/10 text-accent-purple border border-accent-purple/20 text-xs font-bold px-2 py-1 rounded-md flex items-center gap-1">
+                                    Discussion <button class="hover:text-white"><span class="material-symbols-outlined text-[12px]">close</span></button>
+</span>
+<input class="bg-transparent border-none text-sm text-white focus:ring-0 p-1 placeholder-gray-600 flex-grow min-w-[100px]" placeholder="Add a tag..." type="text"/>
+</div>
+</div>
+</div>
+<div class="border border-white/10 rounded-xl overflow-hidden bg-bg-panel/50">
+<div class="flex flex-wrap items-center gap-1 p-2 border-b border-white/10 bg-white/5">
+<div class="flex items-center border-r border-white/10 pr-2 mr-1">
+<button class="p-2 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors" title="Bold"><span class="material-symbols-outlined text-[20px]">format_bold</span></button>
+<button class="p-2 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors" title="Italic"><span class="material-symbols-outlined text-[20px]">format_italic</span></button>
+<button class="p-2 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors" title="Underline"><span class="material-symbols-outlined text-[20px]">format_underlined</span></button>
+</div>
+<div class="flex items-center border-r border-white/10 pr-2 mr-1">
+<button class="p-2 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors" title="Link"><span class="material-symbols-outlined text-[20px]">link</span></button>
+<button class="p-2 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors" title="Image"><span class="material-symbols-outlined text-[20px]">image</span></button>
+<button class="p-2 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors" title="Code"><span class="material-symbols-outlined text-[20px]">code</span></button>
+<button class="p-2 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors" title="Quote"><span class="material-symbols-outlined text-[20px]">format_quote</span></button>
+</div>
+<div class="flex items-center">
+<button class="p-2 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors" title="List"><span class="material-symbols-outlined text-[20px]">format_list_bulleted</span></button>
+<button class="p-2 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors" title="Ordered List"><span class="material-symbols-outlined text-[20px]">format_list_numbered</span></button>
+</div>
+<div class="ml-auto flex items-center">
+<button class="px-3 py-1 rounded hover:bg-white/10 text-xs font-bold text-gray-400 hover:text-white transition-colors font-mono">MARKDOWN</button>
+</div>
+</div>
+<div class="relative w-full">
+<textarea class="w-full h-[400px] bg-transparent border-none p-6 text-gray-300 focus:ring-0 leading-relaxed resize-y font-mono text-sm" placeholder="Write your post content here..."></textarea>
+</div>
+<div class="border-t border-white/10 bg-black/20 p-3 flex items-center justify-between">
+<button class="flex items-center gap-2 text-sm text-gray-400 hover:text-primary transition-colors group">
+<span class="p-1.5 rounded-full bg-white/5 group-hover:bg-primary/20 border border-white/10 group-hover:border-primary/50 transition-colors">
+<span class="material-symbols-outlined text-[18px]">add_photo_alternate</span>
+</span>
+                                Attach images or files
+                            </button>
+<span class="text-xs text-gray-600 font-mono">Markdown supported</span>
+</div>
+</div>
+<div class="flex flex-col-reverse sm:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-white/5">
+<div class="flex items-center gap-2 w-full sm:w-auto">
+<div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-mono">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                                Draft Saved 14:02
+                             </div>
+</div>
+<div class="flex items-center gap-3 w-full sm:w-auto">
+<button class="flex-1 sm:flex-none py-2.5 px-6 rounded-pill border border-white/10 hover:bg-white/5 text-white font-medium transition-all">
+                                Preview
+                            </button>
+<button class="flex-1 sm:flex-none flex items-center justify-center gap-2 py-2.5 px-8 bg-primary hover:bg-cyan-300 text-bg-dark font-bold rounded-pill transition-all shadow-[0_0_15px_rgba(13,242,242,0.4)]">
+<span class="material-symbols-outlined text-[20px]">send</span>
+                                Post
+                            </button>
+</div>
+</div>
+</div>
+</div>
+<div class="lg:col-span-4 space-y-6">
+<div class="glass-panel p-6 rounded-[2rem] border border-white/5">
+<h3 class="font-bold text-white mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-accent-purple">menu_book</span>
+                        Posting Guidelines
+                    </h3>
+<ul class="space-y-4">
+<li class="flex gap-3 text-sm text-gray-400">
+<span class="flex-shrink-0 size-6 rounded-full bg-white/5 flex items-center justify-center text-xs font-bold text-primary border border-white/10">1</span>
+<span><strong class="text-white block mb-0.5">Be Respectful</strong> Treat others with respect. Toxicity and harassment are not tolerated in the IDE.</span>
+</li>
+<li class="flex gap-3 text-sm text-gray-400">
+<span class="flex-shrink-0 size-6 rounded-full bg-white/5 flex items-center justify-center text-xs font-bold text-primary border border-white/10">2</span>
+<span><strong class="text-white block mb-0.5">Search First</strong> Before posting, please search to ensure your topic hasn't already been discussed.</span>
+</li>
+<li class="flex gap-3 text-sm text-gray-400">
+<span class="flex-shrink-0 size-6 rounded-full bg-white/5 flex items-center justify-center text-xs font-bold text-primary border border-white/10">3</span>
+<span><strong class="text-white block mb-0.5">Format Code</strong> Use code blocks (```) for any code snippets or log outputs to maintain readability.</span>
+</li>
+</ul>
+</div>
+<div class="glass-panel p-6 rounded-[2rem] border border-white/5">
+<h3 class="font-bold text-white mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-gray-400">markdown</span>
+                        Markdown Cheatsheet
+                    </h3>
+<div class="space-y-2 text-sm font-mono text-gray-400">
+<div class="flex justify-between items-center p-2 rounded bg-black/20 border border-white/5">
+<span>**bold**</span>
+<span class="text-gray-600">Bold</span>
+</div>
+<div class="flex justify-between items-center p-2 rounded bg-black/20 border border-white/5">
+<span>*italic*</span>
+<span class="text-gray-600">Italic</span>
+</div>
+<div class="flex justify-between items-center p-2 rounded bg-black/20 border border-white/5">
+<span>[Link](url)</span>
+<span class="text-gray-600">Link</span>
+</div>
+<div class="flex justify-between items-center p-2 rounded bg-black/20 border border-white/5">
+<span>`code`</span>
+<span class="text-gray-600">Inline Code</span>
+</div>
+<div class="flex justify-between items-center p-2 rounded bg-black/20 border border-white/5">
+<span>```block```</span>
+<span class="text-gray-600">Code Block</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="fixed bottom-0 left-0 w-full bg-[#111] border-t border-white/5 py-1 px-4 z-50 text-[10px] md:text-xs font-mono text-gray-500 flex justify-between items-center select-none">
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-2 text-primary hover:text-white cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-[14px]">wifi</span> CONNECTED
+            </span>
+<span class="hidden md:inline">PING: 14ms</span>
+<span class="hidden md:inline">REGION: US-EAST-1</span>
+</div>
+<div class="flex items-center gap-4">
+<span>NEURO BUILDS © 2024</span>
+<span class="hidden md:inline">v2.4.1 (COMMUNITY)</span>
+<span class="flex items-center gap-1 hover:text-white cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-[14px]">code</span>
+                SOURCE
+            </span>
+</div>
+</footer>
+
+</body></html>

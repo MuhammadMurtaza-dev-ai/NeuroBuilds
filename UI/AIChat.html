@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Neuro Builds</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0df2f2",
+                        "primary-dim": "rgba(13, 242, 242, 0.1)",
+                        "accent-purple": "#bf00ff",
+                        "bg-dark": "#1e1e1e",
+                        "bg-panel": "#252526",
+                        "border-glass": "rgba(255, 255, 255, 0.08)",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "mono": ["monospace"] // Fallback for terminal
+                    },
+                    borderRadius: {
+                        "bento": "2rem",
+                        "pill": "9999px"
+                    },
+                    boxShadow: {
+                        "neon": "0 0 10px rgba(13, 242, 242, 0.3), 0 0 20px rgba(13, 242, 242, 0.1)",
+                        "glow-purple": "0 0 40px rgba(191, 0, 255, 0.15)",
+                    }
+                },
+            },
+        }
+    </script>
+<style>::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(30, 30, 30, 0.5); 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #444; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #0df2f2; 
+        }.glass-panel {
+            background: rgba(37, 37, 38, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-nav {
+            background: rgba(30, 30, 30, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }.scanline {
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.2) 50%,
+                rgba(0,0,0,0.2)
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+        }
+        .typing-cursor::after {
+            content: '|';
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body class="bg-bg-dark text-white font-display overflow-hidden selection:bg-primary selection:text-black min-h-screen flex flex-col relative">
+<div class="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-accent-purple/10 blur-[120px] rounded-full pointer-events-none z-0"></div>
+<div class="fixed bottom-[-20%] right-[-10%] w-[40%] h-[60%] bg-primary/5 blur-[100px] rounded-full pointer-events-none z-0"></div>
+<div class="fixed top-6 left-0 right-0 z-50 flex justify-center px-4">
+<nav class="glass-nav rounded-pill px-2 py-2 flex items-center gap-2 shadow-2xl shadow-black/50 max-w-3xl w-full justify-between">
+<div class="flex items-center gap-3 pl-4">
+<span class="material-symbols-outlined text-primary">terminal</span>
+<span class="font-bold tracking-tight text-lg">NEURO BUILDS</span>
+</div>
+<div class="hidden md:flex items-center gap-1 bg-black/20 rounded-pill p-1 border border-white/5">
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-white" href="#">Builder AI</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Discover</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Parts</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Community</a>
+</div>
+<div class="flex items-center gap-2 pr-2">
+<button class="size-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-gray-400 text-[20px]">search</span>
+</button>
+<button class="h-10 px-5 bg-primary hover:bg-cyan-300 text-bg-dark text-sm font-bold rounded-pill transition-all shadow-[0_0_15px_rgba(13,242,242,0.4)]">
+                    Login
+                </button>
+</div>
+</nav>
+</div>
+<main class="relative z-10 pt-28 pb-10 px-4 md:px-6 max-w-[1600px] mx-auto w-full h-screen flex flex-col md:flex-row gap-4 md:gap-6">
+<aside class="hidden md:flex flex-col w-1/4 h-full glass-panel rounded-bento overflow-hidden border border-white/5">
+<div class="p-6 border-b border-white/5 bg-black/20">
+<h2 class="text-xs font-bold text-gray-400 tracking-widest font-mono flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">history</span>
+                    SESSION_LOGS
+                </h2>
+</div>
+<div class="flex-1 overflow-y-auto p-4 space-y-3">
+<div class="p-4 rounded-xl bg-primary/10 border border-primary/40 cursor-pointer relative group">
+<div class="absolute right-3 top-3 w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+<div class="text-sm font-bold text-white mb-1 group-hover:text-primary transition-colors">Valorant Budget Build</div>
+<div class="text-[10px] text-primary/80 font-mono uppercase">Status: Analyzing</div>
+<div class="text-[10px] text-gray-500 font-mono mt-2">Started: Just now</div>
+</div>
+<div class="p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 cursor-pointer transition-colors group">
+<div class="text-sm font-bold text-gray-300 mb-1 group-hover:text-white">Video Editing Workstation</div>
+<div class="text-[10px] text-gray-500 font-mono uppercase">Status: Completed</div>
+<div class="text-[10px] text-gray-600 font-mono mt-2">2 days ago</div>
+</div>
+<div class="p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 cursor-pointer transition-colors group">
+<div class="text-sm font-bold text-gray-300 mb-1 group-hover:text-white">White RGB Streaming PC</div>
+<div class="text-[10px] text-gray-500 font-mono uppercase">Status: Completed</div>
+<div class="text-[10px] text-gray-600 font-mono mt-2">1 week ago</div>
+</div>
+</div>
+<div class="p-4 border-t border-white/5">
+<button class="w-full py-3 rounded-xl border border-white/10 hover:bg-white/5 text-xs font-mono text-gray-400 flex items-center justify-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-sm">add</span>
+                    NEW_SESSION
+                </button>
+</div>
+</aside>
+<section class="flex flex-col w-full md:w-1/2 h-full gap-4 pb-8 md:pb-0">
+<div class="flex-1 glass-panel rounded-bento flex flex-col overflow-hidden border border-primary/20 shadow-[0_0_30px_rgba(13,242,242,0.05)] relative">
+<div class="absolute inset-0 scanline pointer-events-none z-20 opacity-30"></div>
+<div class="bg-[#111] px-4 py-3 flex items-center justify-between border-b border-white/5 z-30">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+<div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+<div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+</div>
+<div class="text-[10px] font-mono text-gray-500 tracking-widest">NEURO_CORE_V2.4.exe</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-gray-600 text-sm">settings</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-6 space-y-6 bg-[#151515] relative z-10">
+<div class="flex gap-4">
+<div class="w-8 h-8 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0 mt-1">
+<span class="material-symbols-outlined text-primary text-sm">smart_toy</span>
+</div>
+<div class="flex flex-col gap-1 max-w-[85%]">
+<span class="text-[10px] font-mono text-primary/70 mb-1">NEURO_AI &lt;SYSTEM&gt;</span>
+<div class="bg-white/5 border border-white/5 rounded-2xl rounded-tl-none p-4 text-gray-300 text-sm leading-relaxed">
+<p>System initialized. I am Neuro, your AI hardware architect. Describe your needs, budget, and performance targets.</p>
+</div>
+</div>
+</div>
+<div class="flex gap-4 flex-row-reverse">
+<div class="w-8 h-8 rounded-full bg-accent-purple/10 border border-accent-purple/30 flex items-center justify-center shrink-0 mt-1">
+<span class="material-symbols-outlined text-accent-purple text-sm">person</span>
+</div>
+<div class="flex flex-col gap-1 max-w-[85%] items-end">
+<span class="text-[10px] font-mono text-accent-purple/70 mb-1">USER_01</span>
+<div class="bg-accent-purple/10 border border-accent-purple/20 rounded-2xl rounded-tr-none p-4 text-white text-sm leading-relaxed shadow-[0_0_15px_rgba(191,0,255,0.05)]">
+<p>I want a PC for Valorant which can give me 60 fps easily in 500 USD</p>
+</div>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="w-8 h-8 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0 mt-1">
+<span class="material-symbols-outlined text-primary text-sm">smart_toy</span>
+</div>
+<div class="flex flex-col gap-1 max-w-[85%]">
+<span class="text-[10px] font-mono text-primary/70 mb-1">NEURO_AI &lt;RESPONSE&gt;</span>
+<div class="bg-white/5 border border-white/5 rounded-2xl rounded-tl-none p-4 text-gray-300 text-sm leading-relaxed">
+<p class="mb-3"><span class="text-primary font-bold">ACKNOWLEDGED.</span> Target: Valorant @ 60FPS+ | Budget: $500.</p>
+<p class="mb-3">This is a tight budget, but achievable for eSports titles. I can suggest a build using an APU (Integrated Graphics) to save money for future upgrades, or a budget dedicated GPU combo.</p>
+<div class="p-3 bg-black/30 rounded-lg border border-white/5 font-mono text-xs text-gray-400 mb-2">
+<p class="text-primary mb-1">&gt; QUERY_REQUIRED:</p>
+<ul class="list-disc pl-4 space-y-1">
+<li>Do you need a monitor, keyboard, and mouse included in this $500?</li>
+<li>Are you open to buying used parts, or strictly new?</li>
+</ul>
+</div>
+<p class="typing-cursor">Awaiting input...</p>
+</div>
+</div>
+</div>
+</div>
+<div class="p-4 bg-[#111] border-t border-white/5 z-30">
+<div class="relative flex items-end gap-2 bg-[#1e1e1e] p-2 rounded-xl border border-white/10 focus-within:border-primary/50 focus-within:shadow-[0_0_15px_rgba(13,242,242,0.1)] transition-all">
+<button class="p-2 text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors" title="Speech to Text">
+<span class="material-symbols-outlined">mic</span>
+</button>
+<textarea id="messageInput" class="w-full bg-transparent border-none focus:ring-0 text-sm font-mono text-white placeholder-gray-600 resize-none h-10 py-2.5" placeholder="Reply to Neuro..."></textarea>
+<button class="p-2 text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors" title="Text to Speech">
+<span class="material-symbols-outlined">volume_up</span>
+</button>
+<button id="sendBtn" class="p-2 bg-primary hover:bg-cyan-300 text-black rounded-lg transition-colors shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined">send</span>
+</button>
+</div>
+</div>
+</div>
+<button class="w-full py-4 rounded-bento bg-gradient-to-r from-accent-purple/80 to-purple-900/80 hover:from-accent-purple hover:to-purple-800 border border-accent-purple/30 text-white font-bold tracking-widest flex items-center justify-center gap-3 transition-all shadow-[0_0_20px_rgba(191,0,255,0.2)] hover:shadow-[0_0_30px_rgba(191,0,255,0.4)] group z-10 backdrop-blur-md">
+<span class="material-symbols-outlined group-hover:rotate-12 transition-transform">construction</span>
+                GENERATE PC PART PICKER LIST
+                <span class="material-symbols-outlined text-sm opacity-50">open_in_new</span>
+</button>
+</section>
+<aside class="hidden md:flex flex-col w-1/4 h-full glass-panel rounded-bento overflow-hidden border border-white/5">
+<div class="p-6 border-b border-white/5 bg-black/20">
+<h2 class="text-xs font-bold text-gray-400 tracking-widest font-mono flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">memory</span>
+                    DETECTED_COMPONENTS
+                </h2>
+</div>
+<div class="flex-1 overflow-y-auto p-4 space-y-4">
+<p class="text-[10px] text-gray-500 font-mono mb-2">BASED ON CHAT CONTEXT:</p>
+<div class="group relative bg-bg-panel rounded-2xl p-3 border border-white/5 hover:border-accent-purple/50 transition-all cursor-pointer overflow-hidden">
+<div class="absolute inset-0 bg-accent-purple/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="flex gap-3 relative z-10">
+<div class="w-16 h-16 rounded-xl bg-black/50 bg-cover bg-center shrink-0 border border-white/10" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBxoWJ7Lho3BypQnh1kVTrbKGl640c1h_8Ox06UlTIUWyY4Wtg-4V39_H749ar0FN81ssF4j3kvtyeAjtSMb6WLya8fKU0Zc0_2NNX2dJDVs3N1O7l6eqx8T-gypV_hmQ9QuxryfKRikaGtD2s_S9_3Sg5AuuijKoT6DdvsUTaJZpQ7tLKQ1uTMbWk1N_M2jIx9uxCIm6vvTydCS8xg-VJL0iUj4hccdqIxA1kM7ouUPB9mfLIPvBP9Zth0aym6zcu4pFwfwp4N9Xc");'></div>
+<div class="flex flex-col justify-center">
+<div class="text-[10px] font-bold text-accent-purple uppercase mb-1">Best Value APU</div>
+<h4 class="text-sm font-bold text-white leading-tight">AMD Ryzen 5 5600G</h4>
+<div class="flex items-center justify-between mt-1 w-full gap-4">
+<span class="text-xs text-gray-300">$124.00</span>
+<span class="material-symbols-outlined text-xs text-gray-500 group-hover:text-white">add_circle</span>
+</div>
+</div>
+</div>
+</div>
+<div class="group relative bg-bg-panel rounded-2xl p-3 border border-white/5 hover:border-primary/50 transition-all cursor-pointer overflow-hidden">
+<div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="flex gap-3 relative z-10">
+<div class="w-16 h-16 rounded-xl bg-black/50 bg-cover bg-center shrink-0 border border-white/10" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC2-a8rFMiZQfDJQwiizPspbROWahf2U4wTkJeRosm7JMFcd-71qCiL0vZgk9Odt334ZILJQpyqNz01LkfvcZ8Q4Q0Zgv5lSoiAMU9jPYfecfPdpM8PAEGTBS0p6Apmvx7O8yBMZUZjGIi41DDoWMjIlugaduqXaO6WlzR-ddQOUmYE6QpkvL8nvWk9-3FZw_ZnfYN6ygBncBhD5SZkptLDkAFCRlIhjYEqmDoOJvtxpe0XIXiehQGpN0Cne5168rOaTaJ2CCObs4A");'></div>
+<div class="flex flex-col justify-center">
+<div class="text-[10px] font-bold text-primary uppercase mb-1">Recommended RAM</div>
+<h4 class="text-sm font-bold text-white leading-tight">G.SKILL Ripjaws V</h4>
+<div class="flex items-center justify-between mt-1 w-full gap-4">
+<span class="text-xs text-gray-300">$39.99</span>
+<span class="material-symbols-outlined text-xs text-gray-500 group-hover:text-white">add_circle</span>
+</div>
+</div>
+</div>
+</div>
+<div class="group relative bg-bg-panel rounded-2xl p-3 border border-white/5 hover:border-green-400/50 transition-all cursor-pointer overflow-hidden">
+<div class="absolute inset-0 bg-green-400/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="flex gap-3 relative z-10">
+<div class="w-16 h-16 rounded-xl bg-black/50 flex items-center justify-center shrink-0 border border-white/10">
+<span class="material-symbols-outlined text-gray-600">graphic_eq</span>
+</div>
+<div class="flex flex-col justify-center">
+<div class="text-[10px] font-bold text-green-400 uppercase mb-1">Alt GPU Option</div>
+<h4 class="text-sm font-bold text-white leading-tight">Radeon RX 6600</h4>
+<div class="flex items-center justify-between mt-1 w-full gap-4">
+<span class="text-xs text-gray-300">$199.00</span>
+<span class="material-symbols-outlined text-xs text-gray-500 group-hover:text-white">add_circle</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="p-4 border-t border-white/5 bg-black/10">
+<div class="flex items-center justify-between text-xs text-gray-400 mb-2">
+<span>Current Total</span>
+<span class="text-white font-mono">$362.99</span>
+</div>
+<div class="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+<div class="bg-gradient-to-r from-primary to-accent-purple h-full w-[72%]"></div>
+</div>
+<div class="text-[10px] text-right text-gray-500 mt-1 font-mono">72% of $500 Budget</div>
+</div>
+</aside>
+</main>
+<footer class="fixed bottom-0 left-0 w-full bg-[#111] border-t border-white/5 py-1 px-4 z-50 text-[10px] md:text-xs font-mono text-gray-500 flex justify-between items-center select-none">
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-2 text-primary hover:text-white cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-[14px]">wifi</span> CONNECTED
+            </span>
+<span class="hidden md:inline">PING: 12ms</span>
+<span class="hidden md:inline">REGION: US-EAST-1</span>
+</div>
+<div class="flex items-center gap-4">
+<span>NEURO BUILDS © 2024</span>
+<span class="hidden md:inline">v2.4.0 (STABLE)</span>
+<span class="flex items-center gap-1 hover:text-white cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-[14px]">code</span>
+                SOURCE
+            </span>
+</div>
+</footer>
+
+<script>
+const messageInput = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
+const chatContainer = document.querySelector('.flex-1.overflow-y-auto.p-6.space-y-6');
+
+function sendMessage() {
+  const message = messageInput.value.trim();
+  
+  if (!message) return;
+
+  // Create user message element
+  const userMessageDiv = document.createElement('div');
+  userMessageDiv.className = 'flex gap-4 flex-row-reverse';
+  userMessageDiv.innerHTML = `
+    <div class="w-8 h-8 rounded-full bg-accent-purple/10 border border-accent-purple/30 flex items-center justify-center shrink-0 mt-1">
+      <span class="material-symbols-outlined text-accent-purple text-sm">person</span>
+    </div>
+    <div class="flex flex-col gap-1 max-w-[85%] items-end">
+      <span class="text-[10px] font-mono text-accent-purple/70 mb-1">USER_01</span>
+      <div class="bg-accent-purple/10 border border-accent-purple/20 rounded-2xl rounded-tr-none p-4 text-white text-sm leading-relaxed shadow-[0_0_15px_rgba(191,0,255,0.05)]">
+        <p>${message}</p>
+      </div>
+    </div>
+  `;
+
+  // Append user message to chat
+  chatContainer.appendChild(userMessageDiv);
+  
+  // Clear input
+  messageInput.value = '';
+  messageInput.focus();
+  
+  // Scroll to bottom
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+
+  // Simulate AI response (replace with actual API call)
+  setTimeout(() => {
+    const aiMessageDiv = document.createElement('div');
+    aiMessageDiv.className = 'flex gap-4';
+    aiMessageDiv.innerHTML = `
+      <div class="w-8 h-8 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0 mt-1">
+        <span class="material-symbols-outlined text-primary text-sm">smart_toy</span>
+      </div>
+      <div class="flex flex-col gap-1 max-w-[85%]">
+        <span class="text-[10px] font-mono text-primary/70 mb-1">NEURO_AI &lt;RESPONSE&gt;</span>
+        <div class="bg-white/5 border border-white/5 rounded-2xl rounded-tl-none p-4 text-gray-300 text-sm leading-relaxed">
+          <p>Processing your request...</p>
+        </div>
+      </div>
+    `;
+    chatContainer.appendChild(aiMessageDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }, 500);
+}
+
+// Handle Enter key press (send message)
+messageInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+// Handle send button click
+sendBtn.addEventListener('click', sendMessage);
+</script>
+
+</body></html>

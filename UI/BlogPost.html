@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GeForce RTX 4080 Founders Edition Review - Neuro Builds</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0df2f2",
+                        "primary-dim": "rgba(13, 242, 242, 0.1)",
+                        "accent-purple": "#bf00ff",
+                        "bg-dark": "#1e1e1e",
+                        "bg-panel": "#252526",
+                        "border-glass": "rgba(255, 255, 255, 0.08)",
+                        "code-bg": "#0d0d0d",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "mono": ["monospace"]
+                    },
+                    borderRadius: {
+                        "bento": "2rem",
+                        "pill": "9999px"
+                    },
+                    boxShadow: {
+                        "neon": "0 0 10px rgba(13, 242, 242, 0.3), 0 0 20px rgba(13, 242, 242, 0.1)",
+                        "glow-purple": "0 0 40px rgba(191, 0, 255, 0.15)",
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444; 
+        }
+        .glass-panel {
+            background: rgba(37, 37, 38, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-nav {
+            background: rgba(30, 30, 30, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .scanline {
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.2) 50%,
+                rgba(0,0,0,0.2)
+            );
+            background-size: 100% 4px;
+        }
+        article h2 {
+            font-size: 1.875rem;
+            line-height: 2.25rem;
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.25rem;
+            color: #fff;
+        }
+        article p {
+            margin-bottom: 1.5rem;
+            line-height: 1.75;
+            color: #d1d5db;
+        }
+        article ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: #d1d5db;
+        }
+        article li {
+            margin-bottom: 0.5rem;
+        }
+        blockquote {
+            border-left: 4px solid #0df2f2;
+            padding-left: 1.5rem;
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+            font-style: italic;
+            color: #e5e7eb;
+            background: rgba(13, 242, 242, 0.05);
+            padding: 1.5rem;
+            border-radius: 0 1rem 1rem 0;
+        }
+    </style>
+</head>
+<body class="bg-bg-dark text-white font-display overflow-x-hidden selection:bg-primary selection:text-black min-h-screen flex flex-col relative">
+<div class="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-accent-purple/10 blur-[120px] rounded-full pointer-events-none z-0"></div>
+<div class="fixed bottom-[-20%] right-[-10%] w-[40%] h-[60%] bg-primary/5 blur-[100px] rounded-full pointer-events-none z-0"></div>
+<div class="fixed top-6 left-0 right-0 z-50 flex justify-center px-4">
+<nav class="glass-nav rounded-pill px-2 py-2 flex items-center gap-2 shadow-2xl shadow-black/50 max-w-5xl w-full justify-between">
+<div class="flex items-center gap-3 pl-4">
+<span class="material-symbols-outlined text-primary">terminal</span>
+<span class="font-bold tracking-tight text-lg">NEURO BUILDS</span>
+</div>
+<div class="hidden md:flex items-center gap-1 bg-black/20 rounded-pill p-1 border border-white/5">
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Home</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium bg-white/10 text-white shadow-sm" href="#">Blog</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Parts</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Community</a>
+</div>
+<div class="flex items-center gap-2 pr-2">
+<button class="size-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-gray-400 text-[20px]">search</span>
+</button>
+<button class="h-10 px-5 bg-primary hover:bg-cyan-300 text-bg-dark text-sm font-bold rounded-pill transition-all shadow-[0_0_15px_rgba(13,242,242,0.4)]">
+                Login
+            </button>
+</div>
+</nav>
+</div>
+<main class="relative z-10 flex-grow pt-32 pb-20 px-4 md:px-8 max-w-[1200px] mx-auto w-full">
+<div class="flex items-center gap-2 text-sm text-gray-500 font-mono mb-8 pl-1">
+<a class="hover:text-primary transition-colors" href="#">BLOG</a>
+<span class="material-symbols-outlined text-[12px]">chevron_right</span>
+<a class="hover:text-primary transition-colors" href="#">REVIEWS</a>
+<span class="material-symbols-outlined text-[12px]">chevron_right</span>
+<span class="text-white">RTX 4080 FE</span>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
+<div class="lg:col-span-8">
+<header class="mb-8">
+<div class="flex items-center gap-3 mb-4">
+<span class="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-bold text-primary tracking-wider uppercase">Review</span>
+<span class="flex items-center gap-1 text-xs font-mono text-gray-400"><span class="material-symbols-outlined text-[14px]">timer</span> 15 MIN READ</span>
+</div>
+<h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">GeForce RTX 4080 Founders Edition Review</h1>
+<p class="text-xl text-gray-400 leading-relaxed mb-6">Is the RTX 4080 the sweet spot for 4K gaming, or is it overshadowed by its bigger brother? We benchmark 50+ games to find out.</p>
+<div class="flex items-center justify-between border-y border-white/5 py-4">
+<div class="flex items-center gap-4">
+<div class="size-10 rounded-full bg-accent-purple/20 flex items-center justify-center border border-accent-purple/30">
+<span class="material-symbols-outlined text-accent-purple">person</span>
+</div>
+<div>
+<div class="font-bold text-white text-sm">Alex Chen</div>
+<div class="text-xs text-gray-500 font-mono">Senior Hardware Editor</div>
+</div>
+</div>
+<div class="text-right">
+<div class="text-sm text-gray-300">October 22, 2023</div>
+<div class="text-xs text-gray-500 font-mono">Updated: 2 days ago</div>
+</div>
+</div>
+</header>
+<div class="rounded-bento overflow-hidden mb-10 shadow-2xl border border-white/10 relative group">
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 pointer-events-none"></div>
+<img alt="RTX 4080 FE" class="w-full h-[400px] object-cover hover:scale-105 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDbD2NXhjg7g39BjWrURYOm72gK6rz3SQ8KX5gWyMeBZYy-KndUDpq8yPmiss0j3w7pu8Ymebums1btyvFXe3aoKOEpRxaxOfphTafKMOfnLLIoHNvpNnzgG37P6TKWPuvCeJ7EagzJOI7jCfsXytmGMuzXUJJ1K1CaWsUxtJjnA-FHAGuqmuJhs2KDsEWhhxDKUr0vs-xVfiiPfDVeT5BD9GBDUaA0ZyOeg3Q7kp_zn28wQ7AVTPx4L6in_JS_v_fS9Pf_Rn0JQo8"/>
+<div class="absolute bottom-4 right-4 z-20 flex gap-2">
+<button class="bg-black/50 backdrop-blur hover:bg-primary hover:text-black text-white p-2 rounded-full transition-colors border border-white/10">
+<span class="material-symbols-outlined text-[20px]">zoom_in</span>
+</button>
+</div>
+</div>
+<article class="glass-panel rounded-bento p-8 md:p-10 text-lg">
+<p class="first-letter:text-5xl first-letter:font-bold first-letter:text-primary first-letter:float-left first-letter:mr-3 first-letter:mt-[-6px]">
+                    The GeForce RTX 4080 has arrived, occupying that awkward middle ground between the "affordable" high-end and the absolute pinnacle of performance that is the RTX 4090. With a price tag of $1,199, it's not exactly a budget option, but it promises significant gains over the previous generation's 3080 Ti.
+                </p>
+<p>
+                    In this review, we're taking a deep dive into the Founders Edition model, looking at its architectural improvements, thermal performance, and of course, raw gaming power across a variety of resolutions.
+                </p>
+<h2>Ada Lovelace Architecture</h2>
+<p>
+                    Built on TSMC's 4N process, the AD103 silicon powering the RTX 4080 is a marvel of efficiency. It features 9,728 CUDA cores, significantly fewer than the 4090's 16,384, but clocks higher out of the box. The inclusion of 3rd Gen RT Cores and 4th Gen Tensor Cores brings DLSS 3 to the forefront, a feature NVIDIA is banking on heavily.
+                </p>
+<blockquote>
+                    "DLSS 3 Frame Generation is a game changer for CPU-bound scenarios, essentially creating frames out of thin air with minimal latency penalties thanks to NVIDIA Reflex."
+                </blockquote>
+<h2>Test Bench Specifications</h2>
+<div class="bg-code-bg rounded-xl border border-white/10 p-6 mb-8 font-mono text-sm overflow-x-auto shadow-inner">
+<span class="text-gray-500">// SYSTEM CONFIGURATION</span><br/>
+<span class="text-accent-purple">const</span> testBench = {<br/>
+  cpu: <span class="text-green-400">"Intel Core i9-13900K @ 5.8GHz"</span>,<br/>
+  motherboard: <span class="text-green-400">"ASUS ROG Maximus Z790 Hero"</span>,<br/>
+  ram: <span class="text-green-400">"32GB G.Skill Trident Z5 RGB DDR5-7200"</span>,<br/>
+  cooling: <span class="text-green-400">"Custom Loop (2x 360mm Rads)"</span>,<br/>
+  psu: <span class="text-green-400">"Corsair AX1600i"</span>,<br/>
+  os: <span class="text-green-400">"Windows 11 Pro 22H2"</span><br/>
+};
+                </div>
+<h2>Gaming Performance (4K)</h2>
+<p>
+                    At 4K resolution with Ray Tracing enabled, the RTX 4080 delivers playable frame rates without upscaling, but it truly shines when DLSS is activated. In <em>Cyberpunk 2077</em>, with RT Overdrive mode, we saw average FPS jump from 28 to over 90 with DLSS 3 Performance mode.
+                </p>
+<div class="my-8 rounded-xl overflow-hidden border border-white/10">
+<table class="w-full text-left text-sm">
+<thead class="bg-white/5 text-gray-300 font-mono uppercase">
+<tr>
+<th class="p-4">Game Title</th>
+<th class="p-4">Resolution</th>
+<th class="p-4 text-right">RTX 3080 Ti</th>
+<th class="p-4 text-right">RTX 4080</th>
+<th class="p-4 text-right text-primary">Diff</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-white/5">
+<tr class="hover:bg-white/5 transition-colors">
+<td class="p-4 font-bold">Cyberpunk 2077</td>
+<td class="p-4 text-gray-400">4K Ultra (No DLSS)</td>
+<td class="p-4 text-right font-mono">22 FPS</td>
+<td class="p-4 text-right font-mono">31 FPS</td>
+<td class="p-4 text-right font-mono text-primary">+41%</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors">
+<td class="p-4 font-bold">Call of Duty: MW2</td>
+<td class="p-4 text-gray-400">4K Extreme</td>
+<td class="p-4 text-right font-mono">78 FPS</td>
+<td class="p-4 text-right font-mono">112 FPS</td>
+<td class="p-4 text-right font-mono text-primary">+43%</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors">
+<td class="p-4 font-bold">Shadow of TR</td>
+<td class="p-4 text-gray-400">4K Highest</td>
+<td class="p-4 text-right font-mono">95 FPS</td>
+<td class="p-4 text-right font-mono">138 FPS</td>
+<td class="p-4 text-right font-mono text-primary">+45%</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2>Thermal Analysis</h2>
+<p>
+                    The Founders Edition cooler is frankly over-engineered for the AD103 chip. It shares the same physical dimensions as the 4090 cooler but has to dissipate significantly less heat (320W TGP vs 450W). As a result, the card runs exceptionally cool and quiet. Under full Furmark load for 30 minutes, the GPU core never exceeded 64°C with fans spinning at a barely audible 1300 RPM.
+                </p>
+<h2>Verdict</h2>
+<div class="bg-gradient-to-r from-bg-panel to-bg-dark border border-white/10 rounded-xl p-8 mt-6">
+<div class="flex flex-col md:flex-row gap-8 items-center">
+<div class="flex-shrink-0 text-center">
+<div class="text-6xl font-bold text-primary mb-2">8.5</div>
+<div class="flex text-primary gap-1 justify-center">
+<span class="material-symbols-outlined fill-current text-[20px]">star</span>
+<span class="material-symbols-outlined fill-current text-[20px]">star</span>
+<span class="material-symbols-outlined fill-current text-[20px]">star</span>
+<span class="material-symbols-outlined fill-current text-[20px]">star</span>
+<span class="material-symbols-outlined text-[20px]">star_half</span>
+</div>
+</div>
+<div class="flex-grow">
+<h3 class="text-xl font-bold text-white mb-2">Excellent Performance, Premium Price</h3>
+<p class="text-sm text-gray-400 mb-4">The RTX 4080 is a fantastic piece of engineering that is unfortunately held back by its aggressive pricing. If you can stomach the cost, it's a 4K monster that runs cool and quiet.</p>
+<div class="grid grid-cols-2 gap-4 text-sm">
+<div>
+<span class="text-green-400 font-bold block mb-1">+ PROS</span>
+<ul class="list-none p-0 m-0 text-gray-400 space-y-1 !ml-0">
+<li class="!m-0">• Incredible efficiency</li>
+<li class="!m-0">• DLSS 3 is magic</li>
+<li class="!m-0">• Silent operation</li>
+</ul>
+</div>
+<div>
+<span class="text-red-400 font-bold block mb-1">- CONS</span>
+<ul class="list-none p-0 m-0 text-gray-400 space-y-1 !ml-0">
+<li class="!m-0">• Very expensive</li>
+<li class="!m-0">• Massive physical size</li>
+<li class="!m-0">• Adapter cable is ugly</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</div>
+</article>
+<div class="flex items-center gap-4 py-8 border-b border-white/5">
+<span class="text-gray-400 text-sm font-mono">SHARE THIS REVIEW:</span>
+<button class="size-10 rounded-full bg-white/5 hover:bg-[#1DA1F2] hover:text-white flex items-center justify-center transition-all group">
+<span class="material-symbols-outlined text-[18px]">share</span>
+</button>
+<button class="size-10 rounded-full bg-white/5 hover:bg-[#FF4500] hover:text-white flex items-center justify-center transition-all">
+<span class="material-symbols-outlined text-[18px]">forum</span>
+</button>
+<button class="size-10 rounded-full bg-white/5 hover:bg-[#0077b5] hover:text-white flex items-center justify-center transition-all">
+<span class="material-symbols-outlined text-[18px]">link</span>
+</button>
+</div>
+<div class="mt-12">
+<h3 class="text-2xl font-bold mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">chat_bubble</span>
+                    Comments (42)
+                </h3>
+<div class="glass-panel p-6 rounded-xl mb-8 flex gap-4">
+<div class="size-10 rounded-full bg-gradient-to-br from-primary to-accent-purple flex-shrink-0"></div>
+<div class="flex-grow">
+<textarea class="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all h-24 resize-none mb-3" placeholder="Join the discussion..."></textarea>
+<div class="flex justify-end">
+<button class="bg-primary hover:bg-cyan-300 text-black px-6 py-2 rounded-lg font-bold text-sm transition-colors">Post Comment</button>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-6">
+<div class="flex gap-4 group">
+<div class="size-10 rounded-full bg-gray-700 flex-shrink-0 flex items-center justify-center text-xs font-bold border border-white/10">JD</div>
+<div class="flex-grow">
+<div class="flex items-center gap-2 mb-1">
+<span class="font-bold text-white text-sm">JohnDoe_99</span>
+<span class="text-xs text-gray-500 font-mono">2 hours ago</span>
+</div>
+<p class="text-gray-300 text-sm leading-relaxed mb-2">Great review! I'm still on a 3080 and seeing these numbers, I don't think I need to upgrade yet. The price is just too steep for me.</p>
+<div class="flex items-center gap-4 text-xs text-gray-500">
+<button class="hover:text-primary flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">thumb_up</span> 12</button>
+<button class="hover:text-white">Reply</button>
+</div>
+</div>
+</div>
+<div class="flex gap-4 group pl-14 border-l-2 border-white/5">
+<div class="size-8 rounded-full bg-accent-purple flex-shrink-0 flex items-center justify-center text-xs font-bold text-white">NB</div>
+<div class="flex-grow">
+<div class="flex items-center gap-2 mb-1">
+<span class="font-bold text-primary text-sm">NeuroBot</span>
+<span class="bg-primary/20 text-primary text-[10px] px-1.5 py-0.5 rounded border border-primary/20">MOD</span>
+<span class="text-xs text-gray-500 font-mono">1 hour ago</span>
+</div>
+<p class="text-gray-300 text-sm leading-relaxed mb-2">Agreed, the 3080 is still a powerhouse. The 4080 makes sense mostly for new builds or upgrading from 20-series or older.</p>
+<div class="flex items-center gap-4 text-xs text-gray-500">
+<button class="hover:text-primary flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">thumb_up</span> 5</button>
+<button class="hover:text-white">Reply</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="lg:col-span-4 flex flex-col gap-6">
+<div class="glass-panel rounded-bento p-6 sticky top-24">
+<h3 class="font-bold text-lg mb-4 text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">toc</span>
+                    On this page
+                </h3>
+<nav class="flex flex-col gap-2 text-sm text-gray-400">
+<a class="hover:text-primary hover:pl-2 transition-all border-l-2 border-transparent hover:border-primary pl-2 py-1" href="#">Architecture Overview</a>
+<a class="hover:text-primary hover:pl-2 transition-all border-l-2 border-transparent hover:border-primary pl-2 py-1" href="#">Test Bench Specs</a>
+<a class="text-primary pl-2 font-medium border-l-2 border-primary py-1 bg-primary/5" href="#">Gaming Benchmarks (4K)</a>
+<a class="hover:text-primary hover:pl-2 transition-all border-l-2 border-transparent hover:border-primary pl-2 py-1" href="#">Thermal Performance</a>
+<a class="hover:text-primary hover:pl-2 transition-all border-l-2 border-transparent hover:border-primary pl-2 py-1" href="#">Conclusion &amp; Verdict</a>
+</nav>
+</div>
+<div class="glass-panel rounded-bento p-6">
+<h3 class="font-bold text-lg mb-6 flex items-center gap-2 pb-4 border-b border-white/5">
+<span class="material-symbols-outlined text-accent-purple">auto_awesome</span>
+                    Related Articles
+                </h3>
+<div class="flex flex-col gap-6">
+<a class="group block flex gap-4 items-start" href="#">
+<div class="size-20 rounded-lg bg-cover bg-center flex-shrink-0 border border-white/10 group-hover:border-primary transition-colors" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBxoWJ7Lho3BypQnh1kVTrbKGl640c1h_8Ox06UlTIUWyY4Wtg-4V39_H749ar0FN81ssF4j3kvtyeAjtSMb6WLya8fKU0Zc0_2NNX2dJDVs3N1O7l6eqx8T-gypV_hmQ9QuxryfKRikaGtD2s_S9_3Sg5AuuijKoT6DdvsUTaJZpQ7tLKQ1uTMbWk1N_M2jIx9uxCIm6vvTydCS8xg-VJL0iUj4hccdqIxA1kM7ouUPB9mfLIPvBP9Zth0aym6zcu4pFwfwp4N9Xc");'></div>
+<div>
+<span class="text-[10px] tracking-wider font-bold text-accent-purple mb-1 block uppercase">Deep Dive</span>
+<h4 class="font-bold text-white text-sm leading-snug group-hover:text-primary transition-colors line-clamp-2">AMD Ryzen 9 7950X: The Productivity King?</h4>
+</div>
+</a>
+<a class="group block flex gap-4 items-start" href="#">
+<div class="size-20 rounded-lg bg-cover bg-center flex-shrink-0 border border-white/10 group-hover:border-primary transition-colors" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC2-a8rFMiZQfDJQwiizPspbROWahf2U4wTkJeRosm7JMFcd-71qCiL0vZgk9Odt334ZILJQpyqNz01LkfvcZ8Q4Q0Zgv5lSoiAMU9jPYfecfPdpM8PAEGTBS0p6Apmvx7O8yBMZUZjGIi41DDoWMjIlugaduqXaO6WlzR-ddQOUmYE6QpkvL8nvWk9-3FZw_ZnfYN6ygBncBhD5SZkptLDkAFCRlIhjYEqmDoOJvtxpe0XIXiehQGpN0Cne5168rOaTaJ2CCObs4A");'></div>
+<div>
+<span class="text-[10px] tracking-wider font-bold text-blue-400 mb-1 block uppercase">Guide</span>
+<h4 class="font-bold text-white text-sm leading-snug group-hover:text-primary transition-colors line-clamp-2">DDR5 RAM Speed vs Latency: What Matters?</h4>
+</div>
+</a>
+<a class="group block flex gap-4 items-start" href="#">
+<div class="size-20 rounded-lg bg-cover bg-center flex-shrink-0 border border-white/10 group-hover:border-primary transition-colors" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuABz41AvLnb-d-IQXdinIf5ON8MQtBlg8w6quGXapkbJ5TlJc1aaD5KnXc7uWw4sWFswuCb0vUi-JXx1uXz-dBnGgrxbEL681Eq_d98O5fGLUED8Rq2pnRCV9M4KV1N8kxL1nTcN-drrcZLOqFytbdADS_XWzw4B8wXBhlcgJMyV5-i8xpe_jp26CLaRkQ8Adg9nSV38uFRez_4vreGiRie36fUnOGYQsmq7uu2E5euidB9sjenu0f0gNs5As8f2QT0CmqhgpAxX9Y");'></div>
+<div>
+<span class="text-[10px] tracking-wider font-bold text-white mb-1 block uppercase">Cooling</span>
+<h4 class="font-bold text-white text-sm leading-snug group-hover:text-primary transition-colors line-clamp-2">NZXT Kraken Elite 360 Review</h4>
+</div>
+</a>
+</div>
+</div>
+<div class="rounded-bento p-1 bg-gradient-to-br from-primary/20 to-accent-purple/20">
+<div class="bg-bg-panel rounded-[1.8rem] p-6 text-center h-full flex flex-col items-center justify-center min-h-[250px] relative overflow-hidden group">
+<div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
+<span class="material-symbols-outlined text-5xl text-white/20 mb-4 group-hover:text-primary transition-colors duration-500">build</span>
+<h4 class="font-bold text-white text-lg relative z-10">Building a PC?</h4>
+<p class="text-xs text-gray-400 mt-2 mb-4 relative z-10 px-4">Use our custom configurator to check compatibility and get the best prices.</p>
+<button class="px-6 py-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded-full text-xs font-bold text-white transition-colors relative z-10">START BUILD</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="fixed bottom-0 left-0 w-full bg-[#111] border-t border-white/5 py-1 px-4 z-50 text-[10px] md:text-xs font-mono text-gray-500 flex justify-between items-center select-none">
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-2 text-primary hover:text-white cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-[14px]">wifi</span> CONNECTED
+        </span>
+<span class="hidden md:inline">PING: 12ms</span>
+<span class="hidden md:inline">REGION: US-EAST-1</span>
+</div>
+<div class="flex items-center gap-4">
+<span>NEURO BUILDS © 2024</span>
+<span class="hidden md:inline">v2.4.0 (STABLE)</span>
+<span class="flex items-center gap-1 hover:text-white cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-[14px]">code</span>
+            SOURCE
+        </span>
+</div>
+</footer>
+</body></html>

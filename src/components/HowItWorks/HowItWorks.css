@@ -1,0 +1,428 @@
+/* HowItWorks Container */
+.how-it-works-container {
+  position: relative;
+  width: 100%;
+  padding: 4rem 0;
+  background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%);
+  overflow: hidden;
+}
+
+/* Background Glow Effects */
+.how-it-works-bg-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.08;
+  pointer-events: none;
+}
+
+.how-it-works-bg-glow-1 {
+  top: 20%;
+  right: -10%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, #0df2f2, transparent);
+}
+
+.how-it-works-bg-glow-2 {
+  bottom: 0%;
+  left: -5%;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, #a855f7, transparent);
+}
+
+/* Main Wrapper */
+.how-it-works-wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  position: relative;
+  z-index: 10;
+}
+
+/* Section Header */
+.how-it-works-header {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.how-it-works-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 1rem 0;
+  line-height: 1.2;
+}
+
+.how-it-works-subtitle {
+  font-size: 1.125rem;
+  color: #9ca3af;
+  margin: 0;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+/* Steps Container - Vertical on Mobile */
+.how-it-works-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-bottom: 4rem;
+  align-items: stretch;
+}
+
+/* Step Card */
+.how-it-works-step {
+  position: relative;
+  padding: 2rem;
+  background: rgba(20, 20, 20, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-start;
+  transition: all 0.3s ease;
+}
+
+.how-it-works-step:hover {
+  background: rgba(20, 20, 20, 0.8);
+  border-color: rgba(13, 242, 242, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Step Number Circle */
+.how-it-works-step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #0df2f2, #0a9f9f);
+  color: #1a1a1a;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  box-shadow: 0 0 20px rgba(13, 242, 242, 0.3);
+}
+
+/* Icon Container */
+.how-it-works-step-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 70px;
+  height: 70px;
+  background: rgba(13, 242, 242, 0.1);
+  border: 1px solid rgba(13, 242, 242, 0.3);
+  border-radius: 0.875rem;
+  color: #0df2f2;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.how-it-works-step:hover .how-it-works-step-icon {
+  background: rgba(13, 242, 242, 0.15);
+  transform: scale(1.08);
+}
+
+.how-it-works-step-icon svg {
+  width: 40px;
+  height: 40px;
+}
+
+/* Step Content */
+.how-it-works-step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.how-it-works-step-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.how-it-works-step-description {
+  font-size: 0.95rem;
+  color: #d1d5db;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Connector Line */
+.how-it-works-connector {
+  display: none;
+  width: 2px;
+  height: 2rem;
+  background: linear-gradient(180deg, rgba(13, 242, 242, 0.5), transparent);
+  margin-left: 25px;
+}
+
+/* CTA Buttons Section */
+.how-it-works-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+  padding-top: 2rem;
+}
+
+.how-it-works-button {
+  padding: 1rem 2rem;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.how-it-works-button-primary {
+  background-color: #0df2f2;
+  color: #1a1a1a;
+  box-shadow: 0 0 20px rgba(13, 242, 242, 0.4);
+}
+
+.how-it-works-button-primary:hover {
+  background-color: #a8f8f8;
+  box-shadow: 0 0 30px rgba(13, 242, 242, 0.6);
+  transform: translateY(-2px);
+}
+
+.how-it-works-button-secondary {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.how-it-works-button-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(13, 242, 242, 0.5);
+  color: #0df2f2;
+}
+
+/* Tablet Breakpoint (768px - 1024px) */
+@media (min-width: 768px) {
+  .how-it-works-container {
+    padding: 5rem 0;
+  }
+
+  .how-it-works-wrapper {
+    padding: 0 2rem;
+  }
+
+  .how-it-works-header {
+    margin-bottom: 5rem;
+  }
+
+  .how-it-works-title {
+    font-size: 3rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .how-it-works-subtitle {
+    font-size: 1.25rem;
+  }
+
+  .how-it-works-steps {
+    gap: 2rem;
+  }
+
+  .how-it-works-step {
+    padding: 2.5rem;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 2rem;
+  }
+
+  .how-it-works-step-icon {
+    width: 80px;
+    height: 80px;
+  }
+
+  .how-it-works-step-icon svg {
+    width: 44px;
+    height: 44px;
+  }
+
+  .how-it-works-step-number {
+    width: 60px;
+    height: 60px;
+    font-size: 1.75rem;
+  }
+
+  .how-it-works-step-title {
+    font-size: 1.375rem;
+  }
+
+  .how-it-works-step-description {
+    font-size: 1rem;
+  }
+
+  .how-it-works-cta {
+    flex-direction: row;
+    justify-content: center;
+    gap: 1.5rem;
+  }
+
+  .how-it-works-button {
+    padding: 1.125rem 2.5rem;
+  }
+}
+
+/* Desktop Breakpoint (1024px+) */
+@media (min-width: 1024px) {
+  .how-it-works-container {
+    padding: 6rem 0;
+  }
+
+  .how-it-works-wrapper {
+    padding: 0 2rem;
+  }
+
+  .how-it-works-header {
+    margin-bottom: 6rem;
+  }
+
+  .how-it-works-title {
+    font-size: 3.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .how-it-works-subtitle {
+    font-size: 1.375rem;
+  }
+
+  .how-it-works-steps {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1.5rem;
+    align-items: stretch;
+    margin-bottom: 5rem;
+  }
+
+  .how-it-works-step {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 2.5rem 1.75rem;
+    gap: 1.25rem;
+  }
+
+  .how-it-works-step-number {
+    position: absolute;
+    top: -25px;
+    width: 50px;
+    height: 50px;
+    font-size: 1.25rem;
+  }
+
+  .how-it-works-step-icon {
+    width: 90px;
+    height: 90px;
+    margin-top: 15px;
+  }
+
+  .how-it-works-step-icon svg {
+    width: 48px;
+    height: 48px;
+  }
+
+  .how-it-works-step-title {
+    font-size: 1.375rem;
+  }
+
+  .how-it-works-step-description {
+    font-size: 0.9375rem;
+  }
+
+  .how-it-works-step-content {
+    width: 100%;
+  }
+
+  .how-it-works-connector {
+    display: block;
+  }
+
+  /* Position connectors between steps */
+  .how-it-works-steps {
+    position: relative;
+  }
+
+  .how-it-works-step {
+    position: relative;
+  }
+
+  .how-it-works-connector {
+    position: absolute;
+    left: -0.75rem;
+    top: 110px;
+    width: calc(100% + 1.5rem);
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(13, 242, 242, 0.4), transparent);
+    margin: 0;
+  }
+
+  .how-it-works-step:last-child .how-it-works-connector {
+    display: none;
+  }
+
+  .how-it-works-cta {
+    flex-direction: row;
+    justify-content: center;
+    gap: 2rem;
+  }
+
+  .how-it-works-button {
+    padding: 0.875rem 2rem;
+    font-size: 0.9375rem;
+  }
+}
+
+/* Extra Large Screens (1440px+) */
+@media (min-width: 1440px) {
+  .how-it-works-container {
+    padding: 7rem 0;
+  }
+
+  .how-it-works-title {
+    font-size: 4rem;
+  }
+
+  .how-it-works-subtitle {
+    font-size: 1.5rem;
+  }
+
+  .how-it-works-steps {
+    gap: 2rem;
+  }
+
+  .how-it-works-step {
+    padding: 3rem;
+  }
+
+  .how-it-works-step-icon {
+    width: 100px;
+    height: 100px;
+  }
+
+  .how-it-works-step-icon svg {
+    width: 52px;
+    height: 52px;
+  }
+
+  .how-it-works-connector {
+    top: 125px;
+  }
+}

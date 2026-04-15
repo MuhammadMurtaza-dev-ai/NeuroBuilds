@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Community - Neuro Builds</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0df2f2",
+                        "primary-dim": "rgba(13, 242, 242, 0.1)",
+                        "accent-purple": "#bf00ff",
+                        "bg-dark": "#121212","bg-panel": "#1e1e1e",
+                        "border-glass": "rgba(255, 255, 255, 0.08)",
+                        "code-bg": "#0d0d0d",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "mono": ["monospace"]
+                    },
+                    borderRadius: {
+                        "bento": "2rem",
+                        "pill": "9999px"
+                    },
+                    boxShadow: {
+                        "neon": "0 0 10px rgba(13, 242, 242, 0.3), 0 0 20px rgba(13, 242, 242, 0.1)",
+                        "glow-purple": "0 0 25px rgba(191, 0, 255, 0.3)",
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444; 
+        }
+        .glass-panel {
+            background: rgba(30, 30, 30, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-nav {
+            background: rgba(18, 18, 18, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .neon-border {
+            border: 1px solid rgba(13, 242, 242, 0.5);
+            box-shadow: 0 0 10px rgba(13, 242, 242, 0.1);
+        }
+        .purple-accent {
+            border: 1px solid rgba(191, 0, 255, 0.5);
+            box-shadow: 0 0 15px rgba(191, 0, 255, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-bg-dark text-white font-display overflow-x-hidden selection:bg-primary selection:text-black min-h-screen flex flex-col relative">
+<div class="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-accent-purple/10 blur-[120px] rounded-full pointer-events-none z-0"></div>
+<div class="fixed bottom-[-20%] right-[-10%] w-[40%] h-[60%] bg-primary/5 blur-[100px] rounded-full pointer-events-none z-0"></div>
+<div class="fixed top-6 left-0 right-0 z-50 flex justify-center px-4">
+<nav class="glass-nav rounded-pill px-2 py-2 flex items-center gap-2 shadow-2xl shadow-black/50 max-w-5xl w-full justify-between">
+<div class="flex items-center gap-3 pl-4">
+<span class="material-symbols-outlined text-primary">terminal</span>
+<span class="font-bold tracking-tight text-lg">NEURO BUILDS</span>
+</div>
+<div class="hidden md:flex items-center gap-1 bg-black/20 rounded-pill p-1 border border-white/5">
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Home</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Blog</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Parts</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium bg-white/10 text-white shadow-sm ring-1 ring-white/5" href="#">Community</a>
+</div>
+<div class="flex items-center gap-2 pr-2">
+<button class="size-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-gray-400 text-[20px]">notifications</span>
+</button>
+<div class="size-10 rounded-full bg-gradient-to-tr from-primary to-accent-purple p-[2px]">
+<div class="w-full h-full bg-bg-dark rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[20px]">person</span>
+</div>
+</div>
+</div>
+</nav>
+</div>
+<main class="relative z-10 flex-grow pt-32 pb-20 px-4 md:px-8 max-w-[1400px] mx-auto w-full">
+<div class="flex flex-col md:flex-row justify-between items-end gap-6 mb-10">
+<div>
+<div class="flex items-center gap-2 text-sm text-gray-500 font-mono mb-2 pl-1">
+<a class="hover:text-primary transition-colors" href="#">HOME</a>
+<span class="material-symbols-outlined text-[12px]">chevron_right</span>
+<span class="text-white">COMMUNITY HUB</span>
+</div>
+<h1 class="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tight">Community Forum</h1>
+<p class="text-gray-400 max-w-xl">Join the discussion on custom loops, hardware modding, and the latest tech.</p>
+</div>
+<div class="flex gap-3 w-full md:w-auto">
+<div class="relative flex-grow md:w-64">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">search</span>
+<input class="w-full bg-black/20 border border-white/10 rounded-pill py-2.5 pl-10 pr-4 text-sm text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-gray-600" placeholder="Search topics..." type="text"/>
+</div>
+<button class="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-cyan-300 text-bg-dark font-bold rounded-pill transition-all shadow-[0_0_15px_rgba(13,242,242,0.4)] whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                    New Topic
+                </button>
+</div>
+</div>
+<div class="flex gap-4 overflow-x-auto pb-4 mb-8 no-scrollbar mask-gradient">
+<button class="flex items-center gap-2 px-5 py-2 rounded-pill bg-white/10 border border-white/10 text-white text-sm font-medium whitespace-nowrap hover:bg-white/20 transition-all">
+<span class="material-symbols-outlined text-[18px]">view_module</span> All
+            </button>
+<button class="flex items-center gap-2 px-5 py-2 rounded-pill glass-panel text-gray-300 text-sm font-medium whitespace-nowrap hover:text-primary hover:border-primary/50 transition-all group">
+<span class="material-symbols-outlined text-[18px] group-hover:text-primary transition-colors text-accent-purple">computer</span> Hardware
+            </button>
+<button class="flex items-center gap-2 px-5 py-2 rounded-pill glass-panel text-gray-300 text-sm font-medium whitespace-nowrap hover:text-primary hover:border-primary/50 transition-all group">
+<span class="material-symbols-outlined text-[18px] group-hover:text-primary transition-colors text-blue-400">water_drop</span> Custom Loops
+            </button>
+<button class="flex items-center gap-2 px-5 py-2 rounded-pill glass-panel text-gray-300 text-sm font-medium whitespace-nowrap hover:text-primary hover:border-primary/50 transition-all group">
+<span class="material-symbols-outlined text-[18px] group-hover:text-primary transition-colors text-green-400">terminal</span> Software
+            </button>
+<button class="flex items-center gap-2 px-5 py-2 rounded-pill glass-panel text-gray-300 text-sm font-medium whitespace-nowrap hover:text-primary hover:border-primary/50 transition-all group">
+<span class="material-symbols-outlined text-[18px] group-hover:text-primary transition-colors text-orange-400">build</span> Build Logs
+            </button>
+<button class="flex items-center gap-2 px-5 py-2 rounded-pill glass-panel text-gray-300 text-sm font-medium whitespace-nowrap hover:text-primary hover:border-primary/50 transition-all group">
+<span class="material-symbols-outlined text-[18px] group-hover:text-primary transition-colors text-pink-400">shopping_bag</span> Marketplace
+            </button>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<div class="lg:col-span-8 space-y-4">
+<div class="flex items-center justify-between mb-4 px-2">
+<h2 class="text-xl font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">forum</span>
+                        Latest Activity
+                    </h2>
+<div class="flex gap-2 text-xs font-mono text-gray-500">
+<button class="text-white hover:text-primary">LATEST</button>
+<span>/</span>
+<button class="hover:text-primary">POPULAR</button>
+<span>/</span>
+<button class="hover:text-primary">UNANSWERED</button>
+</div>
+</div>
+<div class="glass-panel p-5 rounded-[2rem] border-l-4 border-l-accent-purple hover:bg-white/5 transition-colors group cursor-pointer relative overflow-hidden">
+<div class="absolute right-0 top-0 p-3 opacity-50 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-accent-purple -rotate-45">push_pin</span>
+</div>
+<div class="flex gap-4 items-start">
+<div class="flex-shrink-0">
+<div class="size-12 rounded-full bg-cover bg-center border border-white/10" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBxoWJ7Lho3BypQnh1kVTrbKGl640c1h_8Ox06UlTIUWyY4Wtg-4V39_H749ar0FN81ssF4j3kvtyeAjtSMb6WLya8fKU0Zc0_2NNX2dJDVs3N1O7l6eqx8T-gypV_hmQ9QuxryfKRikaGtD2s_S9_3Sg5AuuijKoT6DdvsUTaJZpQ7tLKQ1uTMbWk1N_M2jIx9uxCIm6vvTydCS8xg-VJL0iUj4hccdqIxA1kM7ouUPB9mfLIPvBP9Zth0aym6zcu4pFwfwp4N9Xc");'></div>
+</div>
+<div class="flex-grow">
+<h3 class="font-bold text-lg text-white mb-1 group-hover:text-primary transition-colors">Welcome to Neuro Builds: Read First!</h3>
+<p class="text-sm text-gray-400 mb-3 line-clamp-2">Before posting, please familiarize yourself with our community guidelines regarding buy/sell posts and harassment policies.</p>
+<div class="flex items-center gap-4 text-xs font-mono text-gray-500">
+<span class="text-accent-purple font-bold">Admin Announcement</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">schedule</span> 2 days ago</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">chat_bubble</span> 24 replies</span>
+</div>
+</div>
+</div>
+</div>
+<div class="glass-panel p-5 rounded-[2rem] border border-white/5 hover:border-primary/50 hover:shadow-neon transition-all duration-300 group cursor-pointer">
+<div class="flex gap-4 items-start">
+<div class="flex-shrink-0 relative">
+<div class="size-12 rounded-full bg-gray-700 flex items-center justify-center border border-white/10 text-sm font-bold text-white">MK</div>
+<div class="absolute -bottom-1 -right-1 size-4 bg-green-500 border-2 border-[#1e1e1e] rounded-full"></div>
+</div>
+<div class="flex-grow">
+<div class="flex items-start justify-between">
+<h3 class="font-bold text-lg text-white mb-1 group-hover:text-primary transition-colors">RTX 4090 12VHPWR Cable Melting Concern?</h3>
+<span class="bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] font-bold px-2 py-1 rounded-pill uppercase tracking-wide">Hardware</span>
+</div>
+<p class="text-sm text-gray-400 mb-3 line-clamp-2">I've been hearing mixed reports about the new adapters. Is the CableMod 90-degree adapter safe to use with the FE card in a vertical mount?</p>
+<div class="flex items-center gap-4 text-xs font-mono text-gray-500">
+<span class="text-white">MikeK_88</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">schedule</span> 15m ago</span>
+<span class="flex items-center gap-1 text-primary"><span class="material-symbols-outlined text-[14px]">local_fire_department</span> Hot</span>
+<span class="flex items-center gap-1 ml-auto"><span class="material-symbols-outlined text-[14px]">visibility</span> 1.2k</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">chat_bubble</span> 86</span>
+</div>
+</div>
+</div>
+</div>
+<div class="glass-panel p-5 rounded-[2rem] border border-white/5 hover:border-primary/50 hover:shadow-neon transition-all duration-300 group cursor-pointer">
+<div class="flex gap-4 items-start">
+<div class="flex-shrink-0">
+<div class="size-12 rounded-full bg-cover bg-center border border-white/10" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDbD2NXhjg7g39BjWrURYOm72gK6rz3SQ8KX5gWyMeBZYy-KndUDpq8yPmiss0j3w7pu8Ymebums1btyvFXe3aoKOEpRxaxOfphTafKMOfnLLIoHNvpNnzgG37P6TKWPuvCeJ7EagzJOI7jCfsXytmGMuzXUJJ1K1CaWsUxtJjnA-FHAGuqmuJhs2KDsEWhhxDKUr0vs-xVfiiPfDVeT5BD9GBDUaA0ZyOeg3Q7kp_zn28wQ7AVTPx4L6in_JS_v_fS9Pf_Rn0JQo8");'></div>
+</div>
+<div class="flex-grow">
+<div class="flex items-start justify-between">
+<h3 class="font-bold text-lg text-white mb-1 group-hover:text-primary transition-colors">Project: NEON DRAGON (Completed Build)</h3>
+<span class="bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold px-2 py-1 rounded-pill uppercase tracking-wide">Showcase</span>
+</div>
+<div class="flex gap-2 mb-3">
+<span class="size-16 rounded-lg bg-cover bg-center border border-white/10" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDbD2NXhjg7g39BjWrURYOm72gK6rz3SQ8KX5gWyMeBZYy-KndUDpq8yPmiss0j3w7pu8Ymebums1btyvFXe3aoKOEpRxaxOfphTafKMOfnLLIoHNvpNnzgG37P6TKWPuvCeJ7EagzJOI7jCfsXytmGMuzXUJJ1K1CaWsUxtJjnA-FHAGuqmuJhs2KDsEWhhxDKUr0vs-xVfiiPfDVeT5BD9GBDUaA0ZyOeg3Q7kp_zn28wQ7AVTPx4L6in_JS_v_fS9Pf_Rn0JQo8");'></span>
+<span class="size-16 rounded-lg bg-cover bg-center border border-white/10 opacity-60" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuABz41AvLnb-d-IQXdinIf5ON8MQtBlg8w6quGXapkbJ5TlJc1aaD5KnXc7uWw4sWFswuCb0vUi-JXx1uXz-dBnGgrxbEL681Eq_d98O5fGLUED8Rq2pnRCV9M4KV1N8kxL1nTcN-drrcZLOqFytbdADS_XWzw4B8wXBhlcgJMyV5-i8xpe_jp26CLaRkQ8Adg9nSV38uFRez_4vreGiRie36fUnOGYQsmq7uu2E5euidB9sjenu0f0gNs5As8f2QT0CmqhgpAxX9Y");'></span>
+<span class="size-16 rounded-lg bg-cover bg-center border border-white/10 opacity-60" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC2-a8rFMiZQfDJQwiizPspbROWahf2U4wTkJeRosm7JMFcd-71qCiL0vZgk9Odt334ZILJQpyqNz01LkfvcZ8Q4Q0Zgv5lSoiAMU9jPYfecfPdpM8PAEGTBS0p6Apmvx7O8yBMZUZjGIi41DDoWMjIlugaduqXaO6WlzR-ddQOUmYE6QpkvL8nvWk9-3FZw_ZnfYN6ygBncBhD5SZkptLDkAFCRlIhjYEqmDoOJvtxpe0XIXiehQGpN0Cne5168rOaTaJ2CCObs4A");'></span>
+</div>
+<div class="flex items-center gap-4 text-xs font-mono text-gray-500">
+<span class="text-white">SarahTech</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">schedule</span> 2h ago</span>
+<span class="flex items-center gap-1 ml-auto"><span class="material-symbols-outlined text-[14px]">visibility</span> 450</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">chat_bubble</span> 32</span>
+</div>
+</div>
+</div>
+</div>
+<div class="glass-panel p-5 rounded-[2rem] border border-white/5 hover:border-primary/50 hover:shadow-neon transition-all duration-300 group cursor-pointer">
+<div class="flex gap-4 items-start">
+<div class="flex-shrink-0">
+<div class="size-12 rounded-full bg-indigo-600 flex items-center justify-center border border-white/10 text-sm font-bold text-white">JS</div>
+</div>
+<div class="flex-grow">
+<div class="flex items-start justify-between">
+<h3 class="font-bold text-lg text-white mb-1 group-hover:text-primary transition-colors">Help identifying this pump noise</h3>
+<span class="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-bold px-2 py-1 rounded-pill uppercase tracking-wide">Troubleshooting</span>
+</div>
+<p class="text-sm text-gray-400 mb-3 line-clamp-2">Just finished my loop with a D5 pump and it's making a weird grinding sound at 50% speed. I've bled the air for 24h. Video attached.</p>
+<div class="flex items-center gap-4 text-xs font-mono text-gray-500">
+<span class="text-white">JustStartin</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">schedule</span> 5h ago</span>
+<span class="flex items-center gap-1 ml-auto"><span class="material-symbols-outlined text-[14px]">visibility</span> 89</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">chat_bubble</span> 4</span>
+</div>
+</div>
+</div>
+</div>
+<div class="flex justify-center pt-6">
+<button class="px-6 py-2 rounded-pill bg-white/5 hover:bg-white/10 text-sm font-bold transition-colors border border-white/10">Load More</button>
+</div>
+</div>
+<div class="lg:col-span-4 space-y-6">
+<div class="glass-panel p-6 rounded-[2rem] border border-white/5 relative">
+<div class="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-accent-purple to-transparent opacity-50"></div>
+<h3 class="font-bold text-white mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-accent-purple">trending_up</span>
+                        Popular Now
+                    </h3>
+<div class="space-y-4">
+<a class="block group" href="#">
+<h4 class="text-sm font-medium text-gray-300 group-hover:text-primary transition-colors mb-1">Best 140mm fans for radiator push/pull?</h4>
+<div class="text-[10px] text-gray-500 font-mono">34 new replies today</div>
+</a>
+<div class="h-[1px] bg-white/5 w-full"></div>
+<a class="block group" href="#">
+<h4 class="text-sm font-medium text-gray-300 group-hover:text-primary transition-colors mb-1">AMD 7800X3D vs 13900K for 1440p</h4>
+<div class="text-[10px] text-gray-500 font-mono">12 new replies today</div>
+</a>
+<div class="h-[1px] bg-white/5 w-full"></div>
+<a class="block group" href="#">
+<h4 class="text-sm font-medium text-gray-300 group-hover:text-primary transition-colors mb-1">Official O11 Dynamic EVO XL Build Thread</h4>
+<div class="text-[10px] text-gray-500 font-mono">8 new replies today</div>
+</a>
+</div>
+</div>
+<div class="glass-panel p-6 rounded-[2rem] border border-white/5">
+<div class="flex justify-between items-center mb-4">
+<h3 class="font-bold text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">groups</span>
+                            Active Builders
+                        </h3>
+<a class="text-xs text-primary hover:underline" href="#">View All</a>
+</div>
+<div class="flex flex-wrap gap-2 mb-4">
+<div class="size-10 rounded-full bg-cover bg-center border border-white/10 cursor-pointer hover:border-primary transition-colors" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBxoWJ7Lho3BypQnh1kVTrbKGl640c1h_8Ox06UlTIUWyY4Wtg-4V39_H749ar0FN81ssF4j3kvtyeAjtSMb6WLya8fKU0Zc0_2NNX2dJDVs3N1O7l6eqx8T-gypV_hmQ9QuxryfKRikaGtD2s_S9_3Sg5AuuijKoT6DdvsUTaJZpQ7tLKQ1uTMbWk1N_M2jIx9uxCIm6vvTydCS8xg-VJL0iUj4hccdqIxA1kM7ouUPB9mfLIPvBP9Zth0aym6zcu4pFwfwp4N9Xc");' title="NeuroBot"></div>
+<div class="size-10 rounded-full bg-gray-700 flex items-center justify-center border border-white/10 text-xs font-bold cursor-pointer hover:border-primary transition-colors" title="User1">JD</div>
+<div class="size-10 rounded-full bg-cover bg-center border border-white/10 cursor-pointer hover:border-primary transition-colors relative" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDbD2NXhjg7g39BjWrURYOm72gK6rz3SQ8KX5gWyMeBZYy-KndUDpq8yPmiss0j3w7pu8Ymebums1btyvFXe3aoKOEpRxaxOfphTafKMOfnLLIoHNvpNnzgG37P6TKWPuvCeJ7EagzJOI7jCfsXytmGMuzXUJJ1K1CaWsUxtJjnA-FHAGuqmuJhs2KDsEWhhxDKUr0vs-xVfiiPfDVeT5BD9GBDUaA0ZyOeg3Q7kp_zn28wQ7AVTPx4L6in_JS_v_fS9Pf_Rn0JQo8");' title="SarahTech">
+<div class="absolute -top-1 -right-1 size-3 bg-accent-purple rounded-full border border-black shadow-glow-purple"></div>
+</div>
+<div class="size-10 rounded-full bg-indigo-600 flex items-center justify-center border border-white/10 text-xs font-bold cursor-pointer hover:border-primary transition-colors">JS</div>
+<div class="size-10 rounded-full bg-green-900 flex items-center justify-center border border-white/10 text-xs font-bold cursor-pointer hover:border-primary transition-colors">XL</div>
+<div class="size-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10 text-xs font-bold cursor-pointer hover:bg-white/10 transition-colors text-gray-400">+42</div>
+</div>
+<div class="p-3 rounded-xl bg-bg-dark/50 border border-white/5 text-center">
+<div class="text-2xl font-bold text-white mb-1">1,208</div>
+<div class="text-xs text-gray-500 font-mono uppercase tracking-widest">Members Online</div>
+</div>
+</div>
+<div class="p-1 bg-gradient-to-br from-primary/20 to-accent-purple/20 rounded-[2rem]">
+<div class="bg-bg-panel rounded-[1.9rem] p-6 h-full relative overflow-hidden">
+<div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
+<h4 class="font-bold text-white text-lg relative z-10 mb-2">Need Help?</h4>
+<p class="text-xs text-gray-400 mb-4 relative z-10 leading-relaxed">
+                            Our community is driven by passion. If you're stuck on a build, post a thread with photos!
+                        </p>
+<button class="w-full py-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded-pill text-xs font-bold text-white transition-colors relative z-10">
+                            READ GUIDELINES
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="fixed bottom-0 left-0 w-full bg-[#111] border-t border-white/5 py-1 px-4 z-50 text-[10px] md:text-xs font-mono text-gray-500 flex justify-between items-center select-none">
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-2 text-primary hover:text-white cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-[14px]">wifi</span> CONNECTED
+            </span>
+<span class="hidden md:inline">PING: 14ms</span>
+<span class="hidden md:inline">REGION: US-EAST-1</span>
+</div>
+<div class="flex items-center gap-4">
+<span>NEURO BUILDS © 2024</span>
+<span class="hidden md:inline">v2.4.1 (COMMUNITY)</span>
+<span class="flex items-center gap-1 hover:text-white cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-[14px]">code</span>
+                SOURCE
+            </span>
+</div>
+</footer>
+
+</body></html>

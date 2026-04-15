@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Neuro Builds</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0df2f2",
+                        "primary-dim": "rgba(13, 242, 242, 0.1)",
+                        "accent-purple": "#bf00ff",
+                        "bg-dark": "#1e1e1e",
+                        "bg-panel": "#252526",
+                        "border-glass": "rgba(255, 255, 255, 0.08)",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "mono": ["monospace"] // Fallback for terminal
+                    },
+                    borderRadius: {
+                        "bento": "2rem",
+                        "pill": "9999px"
+                    },
+                    boxShadow: {
+                        "neon": "0 0 10px rgba(13, 242, 242, 0.3), 0 0 20px rgba(13, 242, 242, 0.1)",
+                        "glow-purple": "0 0 40px rgba(191, 0, 255, 0.15)",
+                    }
+                },
+            },
+        }
+    </script>
+<style>::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444; 
+        }.glass-panel {
+            background: rgba(37, 37, 38, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-nav {
+            background: rgba(30, 30, 30, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }.scanline {
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.2) 50%,
+                rgba(0,0,0,0.2)
+            );
+            background-size: 100% 4px;
+        }
+    </style>
+</head>
+<body class="bg-bg-dark text-white font-display overflow-x-hidden selection:bg-primary selection:text-black min-h-screen flex flex-col relative">
+<div class="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-accent-purple/10 blur-[120px] rounded-full pointer-events-none z-0"></div>
+<div class="fixed bottom-[-20%] right-[-10%] w-[40%] h-[60%] bg-primary/5 blur-[100px] rounded-full pointer-events-none z-0"></div>
+<div class="fixed top-6 left-0 right-0 z-50 flex justify-center px-4">
+<nav class="glass-nav rounded-pill px-2 py-2 flex items-center gap-2 shadow-2xl shadow-black/50 max-w-3xl w-full justify-between">
+<div class="flex items-center gap-3 pl-4">
+<span class="material-symbols-outlined text-primary">terminal</span>
+<span class="font-bold tracking-tight text-lg">NEURO BUILDS</span>
+</div>
+<div class="hidden md:flex items-center gap-1 bg-black/20 rounded-pill p-1 border border-white/5">
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-white" href="#">Home</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Discover</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Parts</a>
+<a class="px-5 py-2 rounded-pill text-sm font-medium hover:bg-white/10 transition-colors text-gray-300" href="#">Community</a>
+</div>
+<div class="flex items-center gap-2 pr-2">
+<button class="size-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-gray-400 text-[20px]">search</span>
+</button>
+<button class="h-10 px-5 bg-primary hover:bg-cyan-300 text-bg-dark text-sm font-bold rounded-pill transition-all shadow-[0_0_15px_rgba(13,242,242,0.4)]">
+                    Login
+                </button>
+</div>
+</nav>
+</div>
+<main class="relative z-10 flex-grow pt-32 pb-20 px-4 md:px-8 max-w-[1440px] mx-auto w-full">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6 mb-20">
+<div class="col-span-1 md:col-span-8 glass-panel rounded-bento p-8 md:p-10 flex flex-col justify-between min-h-[300px] relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-40 transition-opacity">
+<span class="material-symbols-outlined text-8xl text-white">memory</span>
+</div>
+<div class="relative z-10">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-purple/20 border border-accent-purple/30 text-accent-purple text-xs font-bold mb-4">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-purple opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-accent-purple"></span>
+</span>
+                        IDE v2.4 LIVE
+                    </div>
+<h1 class="text-4xl md:text-6xl font-bold leading-tight tracking-tight max-w-lg mb-4">
+                        BUILD INTELLIGENCE <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent-purple">PLATFORM</span>
+</h1>
+<p class="text-gray-400 max-w-md text-lg">
+                        Analyze hardware trends, community stats, and marketplace listings in a unified, developer-grade interface.
+                    </p>
+</div>
+<div class="flex gap-4 mt-8 relative z-10">
+<div class="flex items-center gap-2 text-sm text-gray-500 font-mono">
+<span class="text-primary">●</span> RTX 4090 Stock: Low
+                    </div>
+<div class="flex items-center gap-2 text-sm text-gray-500 font-mono">
+<span class="text-green-500">●</span> Server: Online
+                    </div>
+</div>
+</div>
+<div class="col-span-1 md:col-span-4 flex flex-col gap-6">
+<div class="glass-panel rounded-bento p-6 flex-1 flex flex-col justify-center border-l-4 border-l-primary hover:bg-white/5 transition-colors">
+<div class="flex justify-between items-start mb-2">
+<p class="text-gray-400 text-sm font-medium uppercase tracking-wider">Active Builds</p>
+<span class="material-symbols-outlined text-primary">developer_board</span>
+</div>
+<p class="text-4xl font-bold text-white tracking-tighter">1,248</p>
+<p class="text-primary text-sm font-mono mt-1">&gt; +12% this week</p>
+</div>
+<div class="glass-panel rounded-bento p-6 flex-1 flex flex-col justify-center border-l-4 border-l-accent-purple hover:bg-white/5 transition-colors">
+<div class="flex justify-between items-start mb-2">
+<p class="text-gray-400 text-sm font-medium uppercase tracking-wider">Market Vol.</p>
+<span class="material-symbols-outlined text-accent-purple">show_chart</span>
+</div>
+<p class="text-4xl font-bold text-white tracking-tighter">$4.2M</p>
+<p class="text-accent-purple text-sm font-mono mt-1">&gt; Updated 4ms ago</p>
+</div>
+</div>
+<div class="col-span-1 md:col-span-12 relative group">
+<div class="absolute -inset-0.5 bg-gradient-to-r from-primary via-accent-purple to-primary rounded-bento opacity-30 group-hover:opacity-100 blur transition duration-500"></div>
+<div class="relative bg-[#111] rounded-bento p-1 flex items-center overflow-hidden">
+<div class="w-full bg-[#1e1e1e] rounded-[1.8rem] h-20 md:h-24 flex items-center px-6 md:px-10 gap-4 scanline shadow-inner">
+<span class="text-primary font-mono text-xl md:text-2xl font-bold select-none">&gt;_</span>
+<input class="bg-transparent border-none outline-none text-white text-lg md:text-2xl font-mono w-full placeholder-gray-600 focus:ring-0 h-full" placeholder="Ask Neuro about compatibility, benchmarks, or pricing..." type="text"/>
+<div class="hidden md:flex items-center gap-2 text-xs font-mono text-gray-600 border border-gray-800 rounded px-2 py-1 bg-black/40">
+<span>RETURN</span>
+<span class="material-symbols-outlined text-[14px]">keyboard_return</span>
+</div>
+</div>
+</div>
+</div>
+<div class="col-span-1 md:col-span-5 h-64 md:h-80 relative rounded-bento overflow-hidden group border border-white/10">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" data-alt="Close up of a futuristic computer motherboard with neon purple lighting" style='background-image: linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0)), url("https://lh3.googleusercontent.com/aida-public/AB6AXuDH2rJHMDjOLbiDqqSgz11fMCG7YrDjJm2IpFV8hMir43IrhXy7POMb1VnpMikqC7g8VzH4-eeftbSZND0SzXK-IE02BWTyuGlZ6GXvnOMTTXn1gsaeICcc25_DwPBdwv34FvjLS_NixDBbvB3cf5_Bn40uTIP1H0EeIRzO8fXbniVx0pOFccJYBeW0tm8YwH84GyHTrrXzVF-rI5LALC3rdFxbBipcNWwra6UPtUN-DyTxLBXg6TpPeUnTdW4yrqPUJA7hPytRdNM");'>
+</div>
+<div class="absolute bottom-0 left-0 p-8 w-full">
+<span class="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold text-white mb-2 inline-block border border-white/10">FEATURED BUILD</span>
+<h3 class="text-2xl font-bold text-white">Project: NEON_GENESIS</h3>
+<p class="text-gray-300 text-sm mt-1">by @cyber_architect</p>
+</div>
+</div>
+<div class="col-span-1 md:col-span-7 glass-panel rounded-bento p-8 flex flex-col relative overflow-hidden">
+<div class="flex items-center justify-between mb-6">
+<h3 class="text-xl font-bold text-white flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                        INTELLIGENCE FEED
+                    </h3>
+<button class="text-xs text-primary font-mono hover:underline">VIEW LOGS</button>
+</div>
+<div class="flex flex-col gap-3 font-mono text-sm overflow-y-auto max-h-[200px] pr-2">
+<div class="flex gap-4 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors border border-white/5 items-center group cursor-pointer">
+<span class="text-gray-500 shrink-0">10:42 AM</span>
+<span class="text-primary font-bold shrink-0">GPU</span>
+<span class="text-gray-300 truncate">NVIDIA RTX 5090 leaked specifications analysis...</span>
+<span class="material-symbols-outlined text-gray-600 group-hover:text-primary ml-auto text-sm">arrow_forward</span>
+</div>
+<div class="flex gap-4 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors border border-white/5 items-center group cursor-pointer">
+<span class="text-gray-500 shrink-0">09:15 AM</span>
+<span class="text-accent-purple font-bold shrink-0">CPU</span>
+<span class="text-gray-300 truncate">Intel Core Ultra 9 benchmarks surfaced on Geekbench...</span>
+<span class="material-symbols-outlined text-gray-600 group-hover:text-primary ml-auto text-sm">arrow_forward</span>
+</div>
+<div class="flex gap-4 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors border border-white/5 items-center group cursor-pointer">
+<span class="text-gray-500 shrink-0">08:00 AM</span>
+<span class="text-blue-400 font-bold shrink-0">MKT</span>
+<span class="text-gray-300 truncate">DDR5 RAM prices drop by 15% globally...</span>
+<span class="material-symbols-outlined text-gray-600 group-hover:text-primary ml-auto text-sm">arrow_forward</span>
+</div>
+</div>
+</div>
+</div>
+<section class="mb-20">
+<div class="flex items-center justify-between mb-8 px-4">
+<h2 class="text-3xl font-bold tracking-tight">MARKETPLACE <span class="text-gray-600 text-lg font-normal ml-2">// LATEST DROPS</span></h2>
+<div class="flex gap-2">
+<button class="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-primary/50 text-white transition-all">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-primary/50 text-white transition-all">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+<div class="rounded-[4rem] bg-[#1a1a1a] border border-white/5 p-4 md:p-6 relative overflow-hidden shadow-2xl">
+<div class="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-primary/5 to-transparent pointer-events-none"></div>
+<div class="flex overflow-x-auto gap-4 pb-4 px-2 no-scrollbar scroll-smooth snap-x">
+<div class="min-w-[280px] md:min-w-[320px] snap-center bg-bg-panel rounded-[2rem] p-4 border border-white/5 hover:border-primary/50 transition-all group flex flex-col gap-4">
+<div class="aspect-[4/3] rounded-[1.5rem] bg-black/50 overflow-hidden relative">
+<div class="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-500" data-alt="NVIDIA GeForce RTX 4080 Founders Edition graphics card floating" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDbD2NXhjg7g39BjWrURYOm72gK6rz3SQ8KX5gWyMeBZYy-KndUDpq8yPmiss0j3w7pu8Ymebums1btyvFXe3aoKOEpRxaxOfphTafKMOfnLLIoHNvpNnzgG37P6TKWPuvCeJ7EagzJOI7jCfsXytmGMuzXUJJ1K1CaWsUxtJjnA-FHAGuqmuJhs2KDsEWhhxDKUr0vs-xVfiiPfDVeT5BD9GBDUaA0ZyOeg3Q7kp_zn28wQ7AVTPx4L6in_JS_v_fS9Pf_Rn0JQo8");'></div>
+<div class="absolute top-3 right-3 bg-black/60 backdrop-blur px-2 py-1 rounded-full text-xs font-bold text-white border border-white/10">IN STOCK</div>
+</div>
+<div class="px-2 pb-2">
+<div class="flex justify-between items-start mb-1">
+<h4 class="font-bold text-lg leading-tight group-hover:text-primary transition-colors">GeForce RTX 4080</h4>
+<span class="text-white font-mono">$1,199</span>
+</div>
+<p class="text-gray-500 text-sm mb-4 line-clamp-1">Founders Edition • 16GB GDDR6X</p>
+<button class="w-full py-3 rounded-xl bg-white/5 hover:bg-primary hover:text-bg-dark text-white font-bold text-sm transition-all flex items-center justify-center gap-2 group-btn">
+                                ADD TO BUILD
+                                <span class="material-symbols-outlined text-base">add</span>
+</button>
+</div>
+</div>
+<div class="min-w-[280px] md:min-w-[320px] snap-center bg-bg-panel rounded-[2rem] p-4 border border-white/5 hover:border-accent-purple/50 transition-all group flex flex-col gap-4">
+<div class="aspect-[4/3] rounded-[1.5rem] bg-black/50 overflow-hidden relative">
+<div class="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-500" data-alt="AMD Ryzen 9 7950X CPU box art" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBxoWJ7Lho3BypQnh1kVTrbKGl640c1h_8Ox06UlTIUWyY4Wtg-4V39_H749ar0FN81ssF4j3kvtyeAjtSMb6WLya8fKU0Zc0_2NNX2dJDVs3N1O7l6eqx8T-gypV_hmQ9QuxryfKRikaGtD2s_S9_3Sg5AuuijKoT6DdvsUTaJZpQ7tLKQ1uTMbWk1N_M2jIx9uxCIm6vvTydCS8xg-VJL0iUj4hccdqIxA1kM7ouUPB9mfLIPvBP9Zth0aym6zcu4pFwfwp4N9Xc");'></div>
+<div class="absolute top-3 right-3 bg-accent-purple/20 backdrop-blur px-2 py-1 rounded-full text-xs font-bold text-accent-purple border border-accent-purple/30">HOT</div>
+</div>
+<div class="px-2 pb-2">
+<div class="flex justify-between items-start mb-1">
+<h4 class="font-bold text-lg leading-tight group-hover:text-accent-purple transition-colors">Ryzen 9 7950X</h4>
+<span class="text-white font-mono">$599</span>
+</div>
+<p class="text-gray-500 text-sm mb-4 line-clamp-1">16 Cores • 32 Threads • 5.7GHz</p>
+<button class="w-full py-3 rounded-xl bg-white/5 hover:bg-accent-purple hover:text-white text-white font-bold text-sm transition-all flex items-center justify-center gap-2">
+                                ADD TO BUILD
+                                <span class="material-symbols-outlined text-base">add</span>
+</button>
+</div>
+</div>
+<div class="min-w-[280px] md:min-w-[320px] snap-center bg-bg-panel rounded-[2rem] p-4 border border-white/5 hover:border-primary/50 transition-all group flex flex-col gap-4">
+<div class="aspect-[4/3] rounded-[1.5rem] bg-black/50 overflow-hidden relative">
+<div class="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-500" data-alt="G.SKILL Trident Z5 RGB RAM sticks glowing" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC2-a8rFMiZQfDJQwiizPspbROWahf2U4wTkJeRosm7JMFcd-71qCiL0vZgk9Odt334ZILJQpyqNz01LkfvcZ8Q4Q0Zgv5lSoiAMU9jPYfecfPdpM8PAEGTBS0p6Apmvx7O8yBMZUZjGIi41DDoWMjIlugaduqXaO6WlzR-ddQOUmYE6QpkvL8nvWk9-3FZw_ZnfYN6ygBncBhD5SZkptLDkAFCRlIhjYEqmDoOJvtxpe0XIXiehQGpN0Cne5168rOaTaJ2CCObs4A");'></div>
+</div>
+<div class="px-2 pb-2">
+<div class="flex justify-between items-start mb-1">
+<h4 class="font-bold text-lg leading-tight group-hover:text-primary transition-colors">Trident Z5 RGB</h4>
+<span class="text-white font-mono">$289</span>
+</div>
+<p class="text-gray-500 text-sm mb-4 line-clamp-1">32GB (2x16GB) • DDR5-6400</p>
+<button class="w-full py-3 rounded-xl bg-white/5 hover:bg-primary hover:text-bg-dark text-white font-bold text-sm transition-all flex items-center justify-center gap-2">
+                                ADD TO BUILD
+                                <span class="material-symbols-outlined text-base">add</span>
+</button>
+</div>
+</div>
+<div class="min-w-[280px] md:min-w-[320px] snap-center bg-bg-panel rounded-[2rem] p-4 border border-white/5 hover:border-primary/50 transition-all group flex flex-col gap-4">
+<div class="aspect-[4/3] rounded-[1.5rem] bg-black/50 overflow-hidden relative">
+<div class="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-500" data-alt="NZXT Kraken liquid cooler with LCD display showing temperature" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuABz41AvLnb-d-IQXdinIf5ON8MQtBlg8w6quGXapkbJ5TlJc1aaD5KnXc7uWw4sWFswuCb0vUi-JXx1uXz-dBnGgrxbEL681Eq_d98O5fGLUED8Rq2pnRCV9M4KV1N8kxL1nTcN-drrcZLOqFytbdADS_XWzw4B8wXBhlcgJMyV5-i8xpe_jp26CLaRkQ8Adg9nSV38uFRez_4vreGiRie36fUnOGYQsmq7uu2E5euidB9sjenu0f0gNs5As8f2QT0CmqhgpAxX9Y");'></div>
+</div>
+<div class="px-2 pb-2">
+<div class="flex justify-between items-start mb-1">
+<h4 class="font-bold text-lg leading-tight group-hover:text-primary transition-colors">Kraken Elite 360</h4>
+<span class="text-white font-mono">$279</span>
+</div>
+<p class="text-gray-500 text-sm mb-4 line-clamp-1">RGB AIO • LCD Display • White</p>
+<button class="w-full py-3 rounded-xl bg-white/5 hover:bg-primary hover:text-bg-dark text-white font-bold text-sm transition-all flex items-center justify-center gap-2">
+                                ADD TO BUILD
+                                <span class="material-symbols-outlined text-base">add</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="glass-panel rounded-full px-8 py-6 flex items-center justify-between group cursor-pointer hover:border-primary/30 transition-all">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-gray-300 group-hover:text-primary">mail</span>
+</div>
+<div>
+<h4 class="font-bold text-white">Join the Newsletter</h4>
+<p class="text-gray-500 text-sm">Get weekly hardware drops.</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-gray-600 group-hover:text-white transition-colors">arrow_forward</span>
+</div>
+<div class="glass-panel rounded-full px-8 py-6 flex items-center justify-between group cursor-pointer hover:border-accent-purple/30 transition-all">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-accent-purple/20 transition-colors">
+<span class="material-symbols-outlined text-gray-300 group-hover:text-accent-purple">chat</span>
+</div>
+<div>
+<h4 class="font-bold text-white">Join Discord</h4>
+<p class="text-gray-500 text-sm">8,902 members online.</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-gray-600 group-hover:text-white transition-colors">arrow_forward</span>
+</div>
+</div>
+</main>
+<footer class="fixed bottom-0 left-0 w-full bg-[#111] border-t border-white/5 py-1 px-4 z-50 text-[10px] md:text-xs font-mono text-gray-500 flex justify-between items-center select-none">
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-2 text-primary hover:text-white cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-[14px]">wifi</span> CONNECTED
+            </span>
+<span class="hidden md:inline">PING: 12ms</span>
+<span class="hidden md:inline">REGION: US-EAST-1</span>
+</div>
+<div class="flex items-center gap-4">
+<span>NEURO BUILDS © 2024</span>
+<span class="hidden md:inline">v2.4.0 (STABLE)</span>
+<span class="flex items-center gap-1 hover:text-white cursor-pointer transition-colors">
+<span class="material-symbols-outlined text-[14px]">code</span>
+                SOURCE
+            </span>
+</div>
+</footer>
+<div class="fixed inset-0 z-[100] flex items-center justify-center p-4" id="login-modal">
+<div class="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity"></div>
+<div class="relative w-full max-w-[420px] bg-[#1e1e1e]/95 border border-white/10 rounded-[2rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-xl overflow-hidden flex flex-col transform transition-all scale-100">
+<div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-accent-purple to-primary opacity-80"></div>
+<div class="p-8 pb-4 flex justify-between items-start">
+<div>
+<h2 class="text-2xl font-bold text-white tracking-tight">SYSTEM ACCESS</h2>
+<div class="flex items-center gap-2 mt-1">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<p class="text-xs font-mono text-primary">SECURE CONNECTION ESTABLISHED</p>
+</div>
+</div>
+<button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-500 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<form class="p-8 pt-2 flex flex-col gap-5" onsubmit="event.preventDefault();">
+<div class="space-y-1.5">
+<label class="text-[10px] font-mono text-gray-400 uppercase tracking-wider ml-1">Identity // Email</label>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-gray-500 group-focus-within:text-primary transition-colors text-[20px]">alternate_email</span>
+</div>
+<input class="block w-full rounded-xl border border-white/10 bg-black/40 py-3 pl-11 pr-4 text-white placeholder-gray-600 focus:border-primary/50 focus:bg-black/60 focus:ring-1 focus:ring-primary/50 sm:text-sm font-mono transition-all outline-none" placeholder="user@neuro.build" type="email"/>
+</div>
+</div>
+<div class="space-y-1.5">
+<div class="flex justify-between items-center ml-1">
+<label class="text-[10px] font-mono text-gray-400 uppercase tracking-wider">Key // Password</label>
+<a class="text-[10px] text-gray-500 hover:text-primary transition-colors font-mono" href="#">FORGOT?</a>
+</div>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-gray-500 group-focus-within:text-accent-purple transition-colors text-[20px]">key</span>
+</div>
+<input class="block w-full rounded-xl border border-white/10 bg-black/40 py-3 pl-11 pr-12 text-white placeholder-gray-600 focus:border-accent-purple/50 focus:bg-black/60 focus:ring-1 focus:ring-accent-purple/50 sm:text-sm font-mono transition-all outline-none" placeholder="••••••••" type="password"/>
+<button class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-600 hover:text-white transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+</div>
+</div>
+<button class="mt-2 w-full py-3.5 bg-gradient-to-r from-primary to-cyan-400 text-bg-dark font-bold rounded-xl shadow-[0_0_20px_rgba(13,242,242,0.3)] hover:shadow-[0_0_30px_rgba(13,242,242,0.5)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 group">
+<span class="material-symbols-outlined group-hover:animate-pulse">terminal</span>
+                    INITIATE LOGIN
+                </button>
+<div class="relative py-2">
+<div aria-hidden="true" class="absolute inset-0 flex items-center">
+<div class="w-full border-t border-white/10"></div>
+</div>
+<div class="relative flex justify-center">
+<span class="bg-[#1e1e1e] px-2 text-[10px] font-mono text-gray-500">OR AUTHENTICATE WITH</span>
+</div>
+</div>
+<button class="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm font-medium transition-all flex items-center justify-center gap-3 hover:border-white/20" type="button">
+<svg class="h-5 w-5" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)"><path d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z" fill="#4285F4"></path><path d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.824 60.329 L -10.684 57.329 C -11.764 58.049 -13.134 58.489 -14.754 58.489 C -17.884 58.489 -20.534 56.379 -21.484 53.529 L -25.464 53.529 L -25.464 56.619 C -23.494 60.539 -19.444 63.239 -14.754 63.239 Z" fill="#34A853"></path><path d="M -21.484 53.529 C -21.734 52.809 -21.864 52.039 -21.864 51.239 C -21.864 50.439 -21.734 49.669 -21.484 48.949 L -21.484 45.859 L -25.464 45.859 C -26.284 47.479 -26.754 49.299 -26.754 51.239 C -26.754 53.179 -26.284 54.999 -25.464 56.619 L -21.484 53.529 Z" fill="#FBBC05"></path><path d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.989 -14.754 43.989 Z" fill="#EA4335"></path></g></svg>
+<span class="text-gray-300 group-hover:text-white">Continue with Google</span>
+</button>
+</form>
+<div class="bg-black/60 p-5 text-center border-t border-white/5 backdrop-blur-md">
+<p class="text-xs text-gray-500 font-mono">
+                    NO CREDENTIALS? 
+                    <a class="text-accent-purple hover:text-white ml-2 underline decoration-accent-purple/30 hover:decoration-white transition-all" href="#">REGISTER NEW ID</a>
+</p>
+</div>
+</div>
+</div>
+
+</body></html>
