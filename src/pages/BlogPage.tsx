@@ -1,129 +1,352 @@
-import { useStorage } from '../hooks/useStorage';
+import { useState } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import { useBlogFeed } from '../hooks/useBlogCMS';
+import { useUserRole } from '../hooks/useUserRole';
+import type { BlogPost } from '../hooks/useBlogCMS';
 import GradientBackground from '../components/GradientBackground/GradientBackground';
+import BlogEditor from '../components/Blog/BlogEditor';
+import BlogPostModal from '../components/Blog/BlogPostModal';
+
+const MOCK_BLOG_POSTS: BlogPost[] = [
+  {
+    id: 'mock-1',
+    title: 'Project: Maniya — The Ultimate Glass Loop Build Log',
+    excerpt:
+      'We break down the component choices, custom loop challenges, and thermal performance metrics of this month\'s top-rated community submission.',
+    thumbnailUrl:
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuDH2rJHMDjOLbiDqqSgz11fMCG7YrDjJm2IpFV8hMir43IrhXy7POMb1VnpMikqC7g8VzH4-eeftbSZND0SzXK-IE02BWTyuGlZ6GXvnOMTTXn1gsaeICcc25_DwPBdwv34FvjLS_NixDBbvB3cf5_Bn40uTIP1H0EeIRzO8fXbniVx0pOFccJYBeW0tm8YwH84GyHTrrXzVF-rI5LALC3rdFxbBipcNWwra6UPtUN-DyTxLBXg6TpPeUnTdW4yrqPUJA7hPytRdNM',
+    category: 'Hardware',
+    content: '',
+    authorId: '',
+    authorName: '@cyber_architect',
+    isPublished: true,
+    status: 'published',
+    authorType: 'user',
+    commentCount: 0,
+    createdAt: null,
+    updatedAt: null,
+  },
+  {
+    id: 'mock-2',
+    title: 'The Evolution of PC Gaming Performance in 2024',
+    excerpt: 'Analyzing how modern GPUs and CPUs have changed the gaming landscape over the last twelve months.',
+    thumbnailUrl:
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuDH2rJHMDjOLbiDqqSgz11fMCG7YrDjJm2IpFV8hMir43IrhXy7POMb1VnpMikqC7g8VzH4-eeftbSZND0SzXK-IE02BWTyuGlZ6GXvnOMTTXn1gsaeICcc25_DwPBdwv34FvjLS_NixDBbvB3cf5_Bn40uTIP1H0EeIRzO8fXbniVx0pOFccJYBeW0tm8YwH84GyHTrrXzVF-rI5LALC3rdFxbBipcNWwra6UPtUN-DyTxLBXg6TpPeUnTdW4yrqPUJA7hPytRdNM',
+    category: 'Industry',
+    content: '',
+    authorId: '',
+    authorName: '@tech_reviewer',
+    isPublished: true,
+    status: 'published',
+    authorType: 'user',
+    commentCount: 0,
+    createdAt: null,
+    updatedAt: null,
+  },
+  {
+    id: 'mock-3',
+    title: 'Water Cooling 101: Everything You Need to Know',
+    excerpt: 'A comprehensive guide to setting up your first custom loop — from reservoir placement to pump curves.',
+    thumbnailUrl:
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuDH2rJHMDjOLbiDqqSgz11fMCG7YrDjJm2IpFV8hMir43IrhXy7POMb1VnpMikqC7g8VzH4-eeftbSZND0SzXK-IE02BWTyuGlZ6GXvnOMTTXn1gsaeICcc25_DwPBdwv34FvjLS_NixDBbvB3cf5_Bn40uTIP1H0EeIRzO8fXbniVx0pOFccJYBeW0tm8YwH84GyHTrrXzVF-rI5LALC3rdFxbBipcNWwra6UPtUN-DyTxLBXg6TpPeUnTdW4yrqPUJA7hPytRdNM',
+    category: 'Tutorial',
+    content: '',
+    authorId: '',
+    authorName: '@cooling_expert',
+    isPublished: true,
+    status: 'published',
+    authorType: 'user',
+    commentCount: 0,
+    createdAt: null,
+    updatedAt: null,
+  },
+];
+
+const MOCK_TRENDING_POSTS = [
+  { category: 'Hardware', title: 'RTX 5090 vs RX 9070 XT — Which Should You Buy?', timeAgo: '2h ago' },
+  { category: 'Tutorial', title: 'DDR5 Tuning Guide: Safe Subtimings for Beginners', timeAgo: '5h ago' },
+  { category: 'Industry', title: 'Intel Arrow Lake Refresh Spotted in EEC Filings', timeAgo: '8h ago' },
+  { category: 'Hardware', title: 'AM5 Longevity: How Long Will the Platform Last?', timeAgo: '1d ago' },
+];
 
 export default function BlogPage() {
-  const { data } = useStorage();
+  const { user } = useAuth();
+  const { isAdmin } = useUserRole(user?.uid ?? null);
+  const { posts, loading, error } = useBlogFeed(isAdmin);
 
-  const trendingPosts = data.trendingTopics;
+  const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
+  const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
+  const [showEditor, setShowEditor] = useState(false);
 
-  const blogPosts = data.blogPosts;
+  const blogPosts: BlogPost[] = posts.length > 0 ? posts : MOCK_BLOG_POSTS;
+
+  const openEditor = (post?: BlogPost) => {
+    setEditingPost(post ?? null);
+    setShowEditor(true);
+  };
+
+  const closeEditor = () => {
+    setShowEditor(false);
+    setEditingPost(null);
+  };
+
+  const handleEditFromModal = (post: BlogPost) => {
+    setSelectedPost(null);
+    openEditor(post);
+  };
+
+  if (loading) {
+    return (
+      <>
+        <GradientBackground />
+        <main className="relative z-10 flex-grow flex items-center justify-center pt-32 pb-20">
+          <div className="flex flex-col items-center gap-4 text-gray-400">
+            <span className="material-symbols-outlined text-5xl text-primary animate-pulse">
+              article
+            </span>
+            <p className="font-mono text-sm">Loading articles…</p>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  if (error) {
+    return (
+      <>
+        <GradientBackground />
+        <main className="relative z-10 flex-grow flex items-center justify-center pt-32 pb-20">
+          <div className="text-center text-red-400">
+            <span className="material-symbols-outlined text-4xl block mb-3">error</span>
+            <p className="text-sm font-mono">{error}</p>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  const featuredPost = blogPosts[0];
+  const remainingPosts = blogPosts.slice(1);
 
   return (
     <>
       <GradientBackground />
+
+      {showEditor && (
+        <BlogEditor
+          isAdmin={isAdmin}
+          authorId={user?.uid ?? ''}
+          authorName={user?.displayName ?? 'Admin'}
+          editingPost={editingPost}
+          onClose={closeEditor}
+        />
+      )}
+
+      {selectedPost && (
+        <BlogPostModal
+          post={selectedPost}
+          isAdmin={isAdmin}
+          onClose={() => setSelectedPost(null)}
+          onEdit={handleEditFromModal}
+        />
+      )}
+
       <main className="relative z-10 flex-grow pt-32 pb-20 px-4 md:px-8 max-w-[1440px] mx-auto w-full">
-        {/* Featured Article */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-12">
-        <div className="lg:col-span-8 h-[500px] relative rounded-bento overflow-hidden group border border-white/10 shadow-2xl">
-          <div
-            className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-            style={{ backgroundImage: `url("${blogPosts[0].image}")` }}
-          ></div>
-          <div className="absolute inset-0 bg-gradient-to-t from-[#1e1e1e] via-[#1e1e1e]/60 to-transparent"></div>
-          <div className="absolute inset-0 bg-gradient-to-r from-[#1e1e1e]/80 to-transparent"></div>
-          <div className="absolute bottom-0 left-0 p-8 md:p-12 w-full z-20">
-            <span className="px-3 py-1 rounded-full bg-primary/20 backdrop-blur-md text-xs font-bold text-primary mb-4 inline-block border border-primary/20">
-              FEATURED STORY
-            </span>
-            <h1 className="text-3xl md:text-5xl font-bold text-white mb-4 leading-tight max-w-3xl">
-              {blogPosts[0].title}
-            </h1>
-            <p className="text-gray-300 text-lg line-clamp-2 max-w-2xl mb-6">
-              {blogPosts[0].excerpt}
-            </p>
-            <div className="flex items-center gap-6 mt-4 text-sm text-gray-400 font-mono">
-              <span className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[18px] text-primary">calendar_today</span>
-                {blogPosts[0].date}
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[18px] text-accent-purple">person</span>
-                by {blogPosts[0].author}
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[18px]">chat</span>
-                {blogPosts[0].comments} Comments
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Trending Sidebar */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
-          <div className="glass-panel rounded-bento p-8 h-full flex flex-col border-t-4 border-t-accent-purple">
-            <h3 className="font-bold text-xl mb-6 flex items-center gap-2 pb-4 border-b border-white/5">
-              <span className="material-symbols-outlined text-accent-purple">flash_on</span>
-              Trending Now
-            </h3>
-            <div className="flex flex-col gap-6 overflow-y-auto pr-2 flex-grow">
-              {trendingPosts.map((post, idx) => (
-                <a key={idx} className="group block hover:opacity-80 transition-opacity cursor-pointer">
-                  <span className="text-[10px] tracking-wider font-bold text-accent-purple mb-1 block uppercase">
-                    {post.category}
-                  </span>
-                  <h4 className="font-bold text-white text-lg leading-snug group-hover:text-primary transition-colors line-clamp-2">
-                    {post.title}
-                  </h4>
-                  <span className="text-gray-500 text-xs font-mono mt-2 block">{post.timeAgo}</span>
-                </a>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Articles */}
-      <div>
-        <h2 className="text-3xl font-bold text-white mb-8 tracking-tight">
-          Recent Articles <span className="text-gray-600 text-lg font-normal ml-2">// Latest Posts</span>
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {blogPosts.slice(1).map((post) => (
-            <article
-              key={post.id}
-              className="glass-panel rounded-bento overflow-hidden hover:border-primary/50 transition-all group cursor-pointer"
+        {/* Page title row with admin New Post button */}
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-4xl font-bold text-white tracking-tight">
+            Blog{' '}
+            <span className="text-gray-600 text-xl font-normal">// Community Insights</span>
+          </h1>
+          {isAdmin && (
+            <button
+              onClick={() => openEditor()}
+              className="flex items-center gap-2 px-5 py-2.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full transition-all text-sm font-bold shadow-neon"
             >
-              {/* Image */}
-              <div className="h-48 overflow-hidden relative">
-                <img
-                  src={post.image}
-                  alt={post.title}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                <span className="absolute top-4 right-4 px-3 py-1 rounded-full bg-primary/20 backdrop-blur text-xs font-bold text-primary border border-primary/20">
-                  {post.category}
-                </span>
-              </div>
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              New Post
+            </button>
+          )}
+        </div>
 
-              {/* Content */}
-              <div className="p-6">
-                <h3 className="font-bold text-lg text-white mb-2 line-clamp-2 group-hover:text-primary transition-colors">
-                  {post.title}
-                </h3>
-                <p className="text-gray-400 text-sm mb-4 line-clamp-2">{post.excerpt}</p>
+        {blogPosts.length === 0 ? (
+          <div className="glass-panel rounded-bento p-16 text-center">
+            <span className="material-symbols-outlined text-5xl text-gray-600 block mb-4">
+              article
+            </span>
+            <p className="text-gray-500 text-lg">No articles published yet.</p>
+            {isAdmin && (
+              <button
+                onClick={() => openEditor()}
+                className="mt-6 px-6 py-2.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full text-sm font-bold transition-all"
+              >
+                Write the first post
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Featured Article + Trending Sidebar */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-12">
+              {featuredPost && (
+                <div
+                  className="lg:col-span-8 h-[500px] relative rounded-bento overflow-hidden group border border-white/10 shadow-2xl cursor-pointer"
+                  onClick={() => setSelectedPost(featuredPost)}
+                >
+                  {featuredPost.thumbnailUrl ? (
+                    <div
+                      className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+                      style={{ backgroundImage: `url("${featuredPost.thumbnailUrl}")` }}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#252526] to-[#1e1e1e]" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#1e1e1e] via-[#1e1e1e]/60 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#1e1e1e]/80 to-transparent" />
 
-                <div className="flex items-center justify-between text-xs text-gray-500 font-mono pt-4 border-t border-white/5">
-                  <span>{post.author} • {post.date}</span>
-                  <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px]">chat</span>
-                    {post.comments}
-                  </span>
+                  <div className="absolute bottom-0 left-0 p-8 md:p-12 w-full z-20">
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="px-3 py-1 rounded-full bg-primary/20 backdrop-blur-md text-xs font-bold text-primary border border-primary/20">
+                        FEATURED STORY
+                      </span>
+                      {!featuredPost.isPublished && (
+                        <span className="px-3 py-1 rounded-full bg-amber-500/20 backdrop-blur-md text-xs font-bold text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[12px]">edit</span>
+                          Draft
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 leading-tight max-w-3xl">
+                      {featuredPost.title}
+                    </h2>
+                    <p className="text-gray-300 text-lg line-clamp-2 max-w-2xl mb-6">
+                      {featuredPost.excerpt}
+                    </p>
+                    <div className="flex items-center gap-6 text-sm text-gray-400 font-mono">
+                      {featuredPost.createdAt && (
+                        <span className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[18px] text-primary">
+                            calendar_today
+                          </span>
+                          {featuredPost.createdAt.toDate().toLocaleDateString()}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[18px] text-accent-purple">
+                          person
+                        </span>
+                        by {featuredPost.authorName}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Trending Sidebar */}
+              <div className="lg:col-span-4 flex flex-col gap-4">
+                <div className="glass-panel rounded-bento p-8 h-full flex flex-col border-t-4 border-t-accent-purple">
+                  <h3 className="font-bold text-xl mb-6 flex items-center gap-2 pb-4 border-b border-white/5">
+                    <span className="material-symbols-outlined text-accent-purple">flash_on</span>
+                    Trending Now
+                  </h3>
+                  <div className="flex flex-col gap-6 overflow-y-auto pr-2 flex-grow">
+                    {MOCK_TRENDING_POSTS.map((post, idx) => (
+                      <div key={idx} className="group block hover:opacity-80 transition-opacity cursor-default">
+                        <span className="text-[10px] tracking-wider font-bold text-accent-purple mb-1 block uppercase">
+                          {post.category}
+                        </span>
+                        <h4 className="font-bold text-white text-lg leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                          {post.title}
+                        </h4>
+                        <span className="text-gray-500 text-xs font-mono mt-2 block">
+                          {post.timeAgo}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </article>
-          ))}
-        </div>
-      </div>
+            </div>
 
-      {/* Load More */}
-      <div className="flex justify-center mt-12">
-        <button className="px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-pill transition-all">
-          Load More Articles
-        </button>
-      </div>
-    </main>
+            {/* Recent Articles Grid */}
+            {remainingPosts.length > 0 && (
+              <div>
+                <h2 className="text-3xl font-bold text-white mb-8 tracking-tight">
+                  Recent Articles{' '}
+                  <span className="text-gray-600 text-lg font-normal ml-2">// Latest Posts</span>
+                </h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {remainingPosts.map((post) => (
+                    <article
+                      key={post.id}
+                      onClick={() => setSelectedPost(post)}
+                      className="glass-panel rounded-bento overflow-hidden hover:border-primary/50 transition-all group cursor-pointer"
+                    >
+                      <div className="h-48 overflow-hidden relative">
+                        {post.thumbnailUrl ? (
+                          <img
+                            src={post.thumbnailUrl}
+                            alt={post.title}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-[#252526] to-[#1e1e1e] flex items-center justify-center">
+                            <span className="material-symbols-outlined text-4xl text-gray-700">
+                              article
+                            </span>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+
+                        {/* Badges */}
+                        <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
+                          <span className="px-3 py-1 rounded-full bg-primary/20 backdrop-blur text-xs font-bold text-primary border border-primary/20">
+                            {post.category}
+                          </span>
+                          {!post.isPublished && (
+                            <span className="px-3 py-1 rounded-full bg-amber-500/20 backdrop-blur text-xs font-bold text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[12px]">edit</span>
+                              Draft
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="p-6">
+                        <h3 className="font-bold text-lg text-white mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+                          {post.title}
+                        </h3>
+                        <p className="text-gray-400 text-sm mb-4 line-clamp-2">{post.excerpt}</p>
+                        <div className="flex items-center justify-between text-xs text-gray-500 font-mono pt-4 border-t border-white/5">
+                          <span>
+                            {post.authorName}
+                            {post.createdAt && (
+                              <> • {post.createdAt.toDate().toLocaleDateString()}</>
+                            )}
+                          </span>
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditor(post);
+                              }}
+                              className="text-gray-600 hover:text-primary transition-colors"
+                              title="Edit"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">edit</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </main>
     </>
   );
 }

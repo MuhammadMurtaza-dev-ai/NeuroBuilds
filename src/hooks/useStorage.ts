@@ -26,6 +26,32 @@ export interface Product {
   inStock: boolean;
 }
 
+export interface Listing {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  negotiable: boolean;
+  category: string;
+  condition: 'new' | 'used' | 'refurbished';
+  listingType: 'sell' | 'buy' | 'exchange';
+  images: string[];
+  country: string;
+  province?: string;
+  location: string;
+  sellerId: string;
+  sellerName: string;
+  sellerContact: string;
+  postedDate: string;
+  views: number;
+  savedBy: string[];
+  status: 'active' | 'sold' | 'reserved' | 'hidden';
+  tags: string[];
+  specs: Record<string, string>;
+  stockQuantity?: number;
+  sku?: string;
+}
+
 export interface CommunityPost {
   id: string;
   title: string;
@@ -134,6 +160,7 @@ export interface AppConfig {
 export interface StorageData {
   blogPosts: BlogPost[];
   products: Product[];
+  listings: Listing[];
   communityPosts: CommunityPost[];
   userBuilds: UserBuild[];
   users: User[];
@@ -155,13 +182,17 @@ const initializeStorage = (): StorageData => {
   const existing = localStorage.getItem(STORAGE_KEY);
   if (existing) {
     try {
-      return JSON.parse(existing) as StorageData;
+      const parsed = JSON.parse(existing) as StorageData;
+      if (!parsed.listings) {
+        parsed.listings = (storageData as unknown as StorageData).listings ?? [];
+      }
+      return parsed;
     } catch {
       console.error('Failed to parse storage data, using defaults');
     }
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(storageData));
-  return storageData as StorageData;
+  return storageData as unknown as StorageData;
 };
 
 export const useStorage = () => {
@@ -228,6 +259,24 @@ export const useStorage = () => {
       ...prev,
       products: prev.products.filter(product => product.id !== id),
     }));
+  };
+
+  // Listing Operations
+  const addListing = (listing: Omit<Listing, 'id'>) => {
+    const newListing: Listing = { ...listing, id: Date.now().toString() };
+    setData(prev => ({ ...prev, listings: [newListing, ...(prev.listings || [])] }));
+    return newListing;
+  };
+
+  const updateListing = (id: string, updates: Partial<Listing>) => {
+    setData(prev => ({
+      ...prev,
+      listings: (prev.listings || []).map(l => l.id === id ? { ...l, ...updates } : l),
+    }));
+  };
+
+  const deleteListing = (id: string) => {
+    setData(prev => ({ ...prev, listings: (prev.listings || []).filter(l => l.id !== id) }));
   };
 
   // Community Post Operations
@@ -313,7 +362,7 @@ export const useStorage = () => {
   // Reset to defaults
   const resetStorage = () => {
     localStorage.removeItem(STORAGE_KEY);
-    setData(storageData as StorageData);
+    setData(storageData as unknown as StorageData);
   };
 
   // Export data for backup
@@ -337,6 +386,10 @@ export const useStorage = () => {
     addProduct,
     updateProduct,
     deleteProduct,
+    // Listing operations
+    addListing,
+    updateListing,
+    deleteListing,
     // Community operations
     addCommunityPost,
     updateCommunityPost,

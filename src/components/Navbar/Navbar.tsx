@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
 import { useStorage } from '../../hooks/useStorage';
 import { useAuth } from '../../hooks/useAuth';
+import { useCountry } from '../../context/CountryContext';
+import { useChatContext } from '../../context/ChatContext';
+import { COUNTRY_LIST } from '../../data/globalLocations';
+import { useNotifications } from '../../hooks/useNotifications';
+import { NotificationBell } from '../Notifications/NotificationBell';
 
 interface NavbarProps {
   onAuthClick?: (mode?: 'login' | 'register') => void;
@@ -13,14 +19,19 @@ const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const { data } = useStorage();
   const { user, logout } = useAuth();
+  const { selectedCountry, setSelectedCountry } = useCountry();
+  const { setIsChatOpen, unreadCount } = useChatContext();
+  const notif = useNotifications(user?.uid);
+  const navigate = useNavigate();
   const { brandName } = data.appConfig || { brandName: 'NEURO BUILDS' };
   const defaultLinks = [
-    { label: 'Home', path: '/' },
+    { label: 'AI Builder', path: '/chat' },
     { label: 'Blog', path: '/blog' },
     { label: 'Marketplace', path: '/marketplace' },
     { label: 'Community', path: '/community' },
   ];
   const links = data.navLinks && data.navLinks.length > 0 ? data.navLinks : defaultLinks;
+  const { theme, toggleTheme } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const location = useLocation();
@@ -68,21 +79,54 @@ const Navbar: React.FC<NavbarProps> = ({
           ))}
         </div>
 
+        {/* Country Selector */}
+        <div className="hidden md:flex items-center gap-1.5 bg-black/20 border border-white/5 rounded-pill px-3 py-1.5">
+          <span className="material-symbols-outlined text-primary text-[16px]">public</span>
+          <select
+            value={selectedCountry}
+            onChange={e => setSelectedCountry(e.target.value)}
+            className="bg-transparent border-none text-white text-xs font-medium focus:ring-0 cursor-pointer appearance-none pr-1"
+          >
+            {COUNTRY_LIST.map(c => (
+              <option key={c} value={c} className="bg-bg-panel text-white">{c}</option>
+            ))}
+          </select>
+          <span className="material-symbols-outlined text-gray-500 text-[14px]">expand_more</span>
+        </div>
+
+        {/* AI Builder is now part of the main nav links (replaces Home) */}
+
         {/* Right Side Actions */}
         <div className="flex items-center gap-2 pr-2">
           {/* Divider */}
           <div className="w-px h-6 bg-white/10 mx-1 hidden md:block"></div>
 
           {/* Chat Button */}
-          <button className="size-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors relative group">
+          <button
+            onClick={() => setIsChatOpen(true)}
+            className="size-10 flex items-center justify-center rounded-full hover:bg-white/10 dark:hover:bg-white/10 hover:bg-black/5 transition-colors relative group"
+            aria-label="Open messages"
+          >
             <span className="material-symbols-outlined text-gray-400 text-[20px] group-hover:text-white transition-colors">chat</span>
-            <span className="absolute top-2 right-2 size-2 bg-primary rounded-full shadow-[0_0_5px_#0df2f2]"></span>
+            {unreadCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 size-2.5 bg-primary rounded-full shadow-[0_0_8px_#0df2f2] animate-pulse" />
+            )}
           </button>
 
-          {/* Notifications Button */}
-          <button className="size-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors group">
-            <span className="material-symbols-outlined text-gray-400 text-[20px] group-hover:text-white transition-colors">notifications</span>
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="size-10 flex items-center justify-center rounded-full dark:hover:bg-white/10 hover:bg-black/5 transition-colors"
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark'
+              ? <Sun size={18} className="text-gray-400" />
+              : <Moon size={18} className="text-gray-500" />
+            }
           </button>
+
+          {/* Notifications Bell */}
+          {user && <NotificationBell notif={notif} />}
 
           {/* User Profile */}
           {user ? (
@@ -139,7 +183,10 @@ const Navbar: React.FC<NavbarProps> = ({
 
                     {/* Menu Items */}
                     <div className="p-2">
-                      <button className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-white/5 rounded-lg transition-colors flex items-center gap-2">
+                      <button
+                        onClick={() => { navigate('/profile'); setIsProfileOpen(false); }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-white/5 rounded-lg transition-colors flex items-center gap-2"
+                      >
                         <span className="material-symbols-outlined text-[18px]">person</span>
                         Profile Settings
                       </button>
@@ -218,14 +265,20 @@ const Navbar: React.FC<NavbarProps> = ({
                 {link.label}
               </Link>
             ))}
+            {/* AI Builder is included in the main nav links (replaces Home) */}
+
             <button
               onClick={() => {
-                onAuthClick?.('login');
+                if (user) {
+                  navigate('/profile');
+                } else {
+                  onAuthClick?.('login');
+                }
                 closeMobileMenu();
               }}
-              className="w-full mt-4 px-4 py-2 bg-primary hover:bg-cyan-300 text-bg-dark font-bold rounded-pill transition-all"
+              className="w-full mt-2 px-4 py-2 bg-primary hover:bg-cyan-300 text-bg-dark font-bold rounded-pill transition-all"
             >
-              Profile
+              {user ? 'Profile' : 'Sign In'}
             </button>
           </div>
         </>

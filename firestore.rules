@@ -1,0 +1,184 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    //
+    // isAdmin()  — reads the cryptographically-signed JWT custom claim set by
+    //              the server-side promote_admin.py script via
+    //              firebase_admin.auth.set_custom_user_claims().
+    //              This is NOT a Firestore doc read; the claim travels inside
+    //              the ID token itself, so it costs zero extra reads and cannot
+    //              be forged by a client.
+    //
+    // isModerator() — moderators don't receive a custom JWT claim, so we fall
+    //                 back to a Firestore doc read.  Admins also satisfy this.
+    //
+    // isNotChangingRole() — ensures no self-service role escalation.
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    function isModerator() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+             in ['moderator', 'admin'];
+    }
+
+    // Blocks any write that touches the `role` field.
+    // Admins bypass this via the isAdmin() branch in each rule.
+    function isNotChangingRole() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
+    }
+
+    // True when the incoming update touches ONLY vote/count fields.
+    function isVoteOnlyUpdate() {
+      return !request.resource.data.diff(resource.data)
+        .affectedKeys()
+        .hasAny(['title', 'body', 'authorId', 'authorName',
+                 'category', 'country', 'lifecycleStatus', 'status']);
+    }
+
+    // True when the update touches ONLY the lifecycleStatus field.
+    function isLifecycleOnlyUpdate() {
+      return request.resource.data.diff(resource.data)
+        .affectedKeys()
+        .hasOnly(['lifecycleStatus']);
+    }
+
+
+    // ── users/{userId} ───────────────────────────────────────────────────────
+    //
+    // • Any signed-in user may read profiles (username lookups, chat headers).
+    // • Users may only create their own document.
+    // • Self-edit is allowed EXCEPT for the `role` field — admins may update
+    //   any field on any user (role assignment matrix in AdminPage).
+    // • Deletion is disabled permanently.
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if request.auth.uid == userId;
+      allow update: if isAdmin()
+        || (request.auth.uid == userId && isNotChangingRole());
+      allow delete: if false;
+
+      match /aiSessions/{sessionId} {
+        allow read, write: if request.auth.uid == userId;
+      }
+
+      // Notifications: owner reads/marks-read; any signed-in user may push a
+      // fire-and-forget write into another user's subcollection.
+      match /notifications/{notifId} {
+        allow read, update: if request.auth.uid == userId;
+        allow create: if isSignedIn();
+        allow delete: if false;
+      }
+    }
+
+
+    // ── usernames/{username} ────────────────────────────────────────────────
+    // Shadow collection for atomic unique-username reservation.
+
+    match /usernames/{username} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if isSignedIn()
+        && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+
+
+    // ── listings/{listingId} ────────────────────────────────────────────────
+
+    match /listings/{listingId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn()
+        && resource.data.sellerId == request.auth.uid;
+    }
+
+
+    // ── threads/{threadId} ──────────────────────────────────────────────────
+
+    match /threads/{threadId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn()
+        && (
+          (resource.data.authorId == request.auth.uid && !isLifecycleOnlyUpdate())
+          || (resource.data.authorId == request.auth.uid
+              && isLifecycleOnlyUpdate()
+              && request.resource.data.lifecycleStatus == 'solved')
+          || (isModerator() && isLifecycleOnlyUpdate())
+          || isVoteOnlyUpdate()
+        );
+      allow delete: if isSignedIn()
+        && resource.data.authorId == request.auth.uid;
+
+      match /replies/{replyId} {
+        allow read: if true;
+        allow create: if isSignedIn();
+        allow update, delete: if isSignedIn()
+          && resource.data.authorId == request.auth.uid;
+      }
+    }
+
+
+    // ── blogs/{blogId} ──────────────────────────────────────────────────────
+
+    match /blogs/{blogId} {
+      allow read: if resource.data.isPublished == true || isAdmin();
+      allow write: if isAdmin();
+
+      match /comments/{commentId} {
+        allow read: if resource == null
+          || get(/databases/$(database)/documents/blogs/$(blogId)).data.isPublished == true
+          || isAdmin();
+        allow create: if isSignedIn();
+        allow delete: if isSignedIn()
+          && (resource.data.authorId == request.auth.uid || isAdmin());
+        allow update: if false;
+      }
+    }
+
+
+    // ── reports/{reportId} ──────────────────────────────────────────────────
+    //
+    // Any authenticated user may file a report (create), but reading, updating,
+    // and deleting report documents is restricted to admins only.  This prevents
+    // reporters from discovering each other's submissions and stops moderators
+    // without the admin JWT claim from bypassing the review queue.
+
+    match /reports/{reportId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if isAdmin();
+    }
+
+
+    // ── conversations/{conversationId} ──────────────────────────────────────
+
+    match /conversations/{conversationId} {
+      allow read, update: if isSignedIn()
+        && request.auth.uid in resource.data.participants;
+      allow create: if isSignedIn()
+        && request.auth.uid in request.resource.data.participants;
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read, create: if isSignedIn()
+          && request.auth.uid in
+            get(/databases/$(database)/documents/conversations/$(conversationId))
+              .data.participants;
+        allow update, delete: if false;
+      }
+    }
+
+  }
+}

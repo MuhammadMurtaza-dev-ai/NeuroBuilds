@@ -83,6 +83,224 @@
       "inStock": false
     }
   ],
+  "listings": [
+    {
+      "id": "l1",
+      "title": "NVIDIA GeForce RTX 4090 24GB - Lightly Used, 8 Months",
+      "description": "Selling my RTX 4090 as I upgraded to a new system. Card has been used for gaming only, never overclocked, always kept at stock temperatures. Runs silently and stays cool. Original box, all accessories included. Tested and working perfectly.",
+      "price": 1800,
+      "negotiable": true,
+      "category": "components",
+      "condition": "used",
+      "listingType": "sell",
+      "images": ["https://lh3.googleusercontent.com/aida-public/AB6AXuDbD2NXhjg7g39BjWrURYOm72gK6rz3SQ8KX5gWyMeBZYy-KndUDpq8yPmiss0j3w7pu8Ymebums1btyvFXe3aoKOEpRxaxOfphTafKMOfnLLIoHNvpNnzgG37P6TKWPuvCeJ7EagzJOI7jCfsXytmGMuzXUJJ1K1CaWsUxtJjnA-FHAGuqmuJhs2KDsEWhhxDKUr0vs-xVfiiPfDVeT5BD9GBDUaA0ZyOeg3Q7kp_zn28wQ7AVTPx4L6in_JS_v_fS9Pf_Rn0JQo8"],
+      "location": "New York, NY",
+      "sellerId": "u1",
+      "sellerName": "Muhammad Murtaza",
+      "sellerContact": "murtaza@neurobuilds.com",
+      "postedDate": "2026-05-10T10:00:00.000Z",
+      "views": 248,
+      "savedBy": [],
+      "status": "active",
+      "tags": ["GPU", "NVIDIA", "RTX 4090", "Gaming", "4K"],
+      "specs": {
+        "VRAM": "24GB GDDR6X",
+        "TDP": "450W",
+        "Interface": "PCIe 4.0 x16",
+        "Card Length": "336mm",
+        "Memory Bandwidth": "1008 GB/s"
+      }
+    },
+    {
+      "id": "l2",
+      "title": "AMD Ryzen 9 7950X - New, Sealed Box",
+      "description": "Brand new sealed Ryzen 9 7950X purchased from official store. Unopened, full warranty intact. Selling because I switched to an Intel build. Price is firm — way below retail.",
+      "price": 540,
+      "negotiable": false,
+      "category": "components",
+      "condition": "new",
+      "listingType": "sell",
+      "images": ["https://lh3.googleusercontent.com/aida-public/AB6AXuBxoWJ7Lho3BypQnh1kVTrbKGl640c1h_8Ox06UlTIUWyY4Wtg-4V39_H749ar0FN81ssF4j3kvtyeAjtSMb6WLya8fKU0Zc0_2NNX2dJDVs3N1O7l6eqx8T-gypV_hmQ9QuxryfKRikaGtD2s_S9_3Sg5AuuijKoT6DdvsUTaJZpQ7tLKQ1uTMbWk1N_M2jIx9uxCIm6vvTydCS8xg-VJL0iUj4hccdqIxA1kM7ouUPB9mfLIPvBP9Zth0aym6zcu4pFwfwp4N9Xc"],
+      "location": "San Francisco, CA",
+      "sellerId": "u2",
+      "sellerName": "@cyber_architect",
+      "sellerContact": "cyber@neurobuilds.com",
+      "postedDate": "2026-05-12T14:30:00.000Z",
+      "views": 134,
+      "savedBy": [],
+      "status": "active",
+      "tags": ["CPU", "AMD", "Ryzen 9", "Workstation", "Sealed"],
+      "specs": {
+        "Cores": "16",
+        "Threads": "32",
+        "Base Clock": "4.5 GHz",
+        "Boost Clock": "5.7 GHz",
+        "TDP": "170W",
+        "Socket": "AM5"
+      }
+    },
+    {
+      "id": "l3",
+      "title": "G.Skill Trident Z5 RGB 32GB DDR5-6400 - Like New",
+      "description": "Used for 3 months in a test bench. Runs at rated XMP 6400MHz without issues. No bent pins, original packaging included. Selling because upgrading to 64GB.",
+      "price": 260,
+      "negotiable": true,
+      "category": "components",
+      "condition": "used",
+      "listingType": "sell",
+      "images": ["https://lh3.googleusercontent.com/aida-public/AB6AXuC2-a8rFMiZQfDJQwiizPspbROWahf2U4wTkJeRosm7JMFcd-71qCiL0vZgk9Odt334ZILJQpyqNz01LkfvcZ8Q4Q0Zgv5lSoiAMU9jPYfecfPdpM8PAEGTBS0p6Apmvx7O8yBMZUZjGIi41DDoWMjIlugaduqXaO6WlzR-ddQOUmYE6QpkvL8nvWk9-3FZw_ZnfYN6ygBncBhD5SZkptLDkAFCRlIhjYEqmDoOJvtxpe0XIXiehQGpN0Cne5168rOaTaJ2CCObs4A"],
+      "location": "Austin, TX",
+      "sellerId": "u3",
+      "sellerName": "@tech_reviewer",
+      "sellerContact": "tech@neurobuilds.com",
+      "postedDate": "2026-05-14T09:15:00.000Z",
+      "views": 89,
+      "savedBy": [],
+      "status": "active",
+      "tags": ["RAM", "DDR5", "G.Skill", "RGB", "6400MHz"],
+      "specs": {
+        "Capacity": "32GB (2x16GB)",
+        "Type": "DDR5",
+        "Speed": "6400 MT/s",
+        "Timings": "CL32-39-39-102",
+        "Voltage": "1.4V"
+      }
+    },
+    {
+      "id": "l4",
+      "title": "NZXT Kraken Elite 360 RGB AIO - 6 Months Used",
+      "description": "White NZXT Kraken Elite 360 with the LCD display. Pump is dead silent, temps are excellent. Removed from a decommissioned build. Includes original mounting hardware for AM5 and LGA1700.",
+      "price": 220,
+      "negotiable": true,
+      "category": "components",
+      "condition": "used",
+      "listingType": "sell",
+      "images": ["https://lh3.googleusercontent.com/aida-public/AB6AXuABz41AvLnb-d-IQXdinIf5ON8MQtBlg8w6quGXapkbJ5TlJc1aaD5KnXc7uWw4sWFswuCb0vUi-JXx1uXz-dBnGgrxbEL681Eq_d98O5fGLUED8Rq2pnRCV9M4KV1N8kxL1nTcN-drrcZLOqFytbdADS_XWzw4B8wXBhlcgJMyV5-i8xpe_jp26CLaRkQ8Adg9nSV38uFRez_4vreGiRie36fUnOGYQsmq7uu2E5euidB9sjenu0f0gNs5As8f2QT0CmqhgpAxX9Y"],
+      "location": "New York, NY",
+      "sellerId": "u1",
+      "sellerName": "Muhammad Murtaza",
+      "sellerContact": "murtaza@neurobuilds.com",
+      "postedDate": "2026-05-15T11:00:00.000Z",
+      "views": 62,
+      "savedBy": [],
+      "status": "active",
+      "tags": ["AIO", "Cooler", "NZXT", "360mm", "RGB", "White"],
+      "specs": {
+        "Radiator": "360mm",
+        "Fans": "3x120mm",
+        "Socket": "AM5, AM4, LGA1700, LGA1200",
+        "Display": "LCD",
+        "Color": "White"
+      }
+    },
+    {
+      "id": "l5",
+      "title": "Sony PlayStation 5 Disc Edition - Excellent Condition",
+      "description": "PS5 disc edition, used lightly. No scratches, all original cables, two DualSense controllers included. Selling because I prefer PC gaming now. Comes with Spider-Man 2 disc.",
+      "price": 390,
+      "negotiable": false,
+      "category": "consoles",
+      "condition": "used",
+      "listingType": "sell",
+      "images": ["https://lh3.googleusercontent.com/aida-public/AB6AXuDH2rJHMDjOLbiDqqSgz11fMCG7YrDjJm2IpFV8hMir43IrhXy7POMb1VnpMikqC7g8VzH4-eeftbSZND0SzXK-IE02BWTyuGlZ6GXvnOMTTXn1gsaeICcc25_DwPBdwv34FvjLS_NixDBbvB3cf5_Bn40uTIP1H0EeIRzO8fXbniVx0pOFccJYBeW0tm8YwH84GyHTrrXzVF-rI5LALC3rdFxbBipcNWwra6UPtUN-DyTxLBXg6TpPeUnTdW4yrqPUJA7hPytRdNM"],
+      "location": "Austin, TX",
+      "sellerId": "u4",
+      "sellerName": "@sff_enthusiast",
+      "sellerContact": "sff@neurobuilds.com",
+      "postedDate": "2026-05-08T16:45:00.000Z",
+      "views": 315,
+      "savedBy": [],
+      "status": "active",
+      "tags": ["PS5", "Sony", "Console", "Disc Edition", "Gaming"],
+      "specs": {
+        "Storage": "825GB SSD",
+        "CPU": "AMD Zen 2 8-core 3.5GHz",
+        "GPU": "AMD RDNA 2 10.3 TFLOPS",
+        "RAM": "16GB GDDR6",
+        "Optical Drive": "Yes"
+      }
+    },
+    {
+      "id": "l6",
+      "title": "ASUS ProArt PA279CV 27\" 4K IPS Monitor - New, Open Box",
+      "description": "Opened to inspect, never used. 4K IPS panel with 100% sRGB and 95% DCI-P3. Factory calibrated, ideal for photo/video editing or gaming. Original packaging, all accessories included.",
+      "price": 480,
+      "negotiable": false,
+      "category": "monitors",
+      "condition": "new",
+      "listingType": "sell",
+      "images": ["https://lh3.googleusercontent.com/aida-public/AB6AXuC2-a8rFMiZQfDJQwiizPspbROWahf2U4wTkJeRosm7JMFcd-71qCiL0vZgk9Odt334ZILJQpyqNz01LkfvcZ8Q4Q0Zgv5lSoiAMU9jPYfecfPdpM8PAEGTBS0p6Apmvx7O8yBMZUZjGIi41DDoWMjIlugaduqXaO6WlzR-ddQOUmYE6QpkvL8nvWk9-3FZw_ZnfYN6ygBncBhD5SZkptLDkAFCRlIhjYEqmDoOJvtxpe0XIXiehQGpN0Cne5168rOaTaJ2CCObs4A"],
+      "location": "Remote",
+      "sellerId": "u2",
+      "sellerName": "@cyber_architect",
+      "sellerContact": "cyber@neurobuilds.com",
+      "postedDate": "2026-05-16T08:00:00.000Z",
+      "views": 41,
+      "savedBy": [],
+      "status": "active",
+      "tags": ["Monitor", "4K", "IPS", "ASUS", "ProArt", "HDR"],
+      "specs": {
+        "Panel": "IPS",
+        "Resolution": "3840x2160 (4K)",
+        "Refresh Rate": "60Hz",
+        "Response Time": "5ms GtG",
+        "HDR": "HDR10",
+        "Color Gamut": "100% sRGB, 95% DCI-P3"
+      }
+    },
+    {
+      "id": "l7",
+      "title": "Looking to Exchange: RTX 3080 10GB for DDR5 RAM Kit",
+      "description": "Have an EVGA RTX 3080 10GB FTW3 Ultra in excellent working condition. Looking to trade for a 32GB or 64GB DDR5-5600+ kit. Card was kept clean, temps always under 75°C. Open to offers.",
+      "price": 0,
+      "negotiable": false,
+      "category": "components",
+      "condition": "used",
+      "listingType": "exchange",
+      "images": ["https://lh3.googleusercontent.com/aida-public/AB6AXuDbD2NXhjg7g39BjWrURYOm72gK6rz3SQ8KX5gWyMeBZYy-KndUDpq8yPmiss0j3w7pu8Ymebums1btyvFXe3aoKOEpRxaxOfphTafKMOfnLLIoHNvpNnzgG37P6TKWPuvCeJ7EagzJOI7jCfsXytmGMuzXUJJ1K1CaWsUxtJjnA-FHAGuqmuJhs2KDsEWhhxDKUr0vs-xVfiiPfDVeT5BD9GBDUaA0ZyOeg3Q7kp_zn28wQ7AVTPx4L6in_JS_v_fS9Pf_Rn0JQo8"],
+      "location": "San Francisco, CA",
+      "sellerId": "u3",
+      "sellerName": "@tech_reviewer",
+      "sellerContact": "tech@neurobuilds.com",
+      "postedDate": "2026-05-13T20:00:00.000Z",
+      "views": 107,
+      "savedBy": [],
+      "status": "active",
+      "tags": ["GPU", "RTX 3080", "NVIDIA", "Exchange", "Trade"],
+      "specs": {
+        "VRAM": "10GB GDDR6X",
+        "TDP": "320W",
+        "Interface": "PCIe 4.0 x16",
+        "Condition": "Excellent"
+      }
+    },
+    {
+      "id": "l8",
+      "title": "Logitech MX Keys Advanced Keyboard + MX Master 3S Mouse",
+      "description": "Both items used for about a year in a home office setup. Keyboard works perfectly, all keys tactile and backlit. Mouse has no issues, switches are responsive. Selling as a combo deal.",
+      "price": 160,
+      "negotiable": true,
+      "category": "peripherals",
+      "condition": "used",
+      "listingType": "sell",
+      "images": ["https://lh3.googleusercontent.com/aida-public/AB6AXuDH2rJHMDjOLbiDqqSgz11fMCG7YrDjJm2IpFV8hMir43IrhXy7POMb1VnpMikqC7g8VzH4-eeftbSZND0SzXK-IE02BWTyuGlZ6GXvnOMTTXn1gsaeICcc25_DwPBdwv34FvjLS_NixDBbvB3cf5_Bn40uTIP1H0EeIRzO8fXbniVx0pOFccJYBeW0tm8YwH84GyHTrrXzVF-rI5LALC3rdFxbBipcNWwra6UPtUN-DyTxLBXg6TpPeUnTdW4yrqPUJA7hPytRdNM"],
+      "location": "New York, NY",
+      "sellerId": "u4",
+      "sellerName": "@sff_enthusiast",
+      "sellerContact": "sff@neurobuilds.com",
+      "postedDate": "2026-05-11T13:20:00.000Z",
+      "views": 78,
+      "savedBy": [],
+      "status": "active",
+      "tags": ["Keyboard", "Mouse", "Logitech", "MX Keys", "Wireless", "Combo"],
+      "specs": {
+        "Keyboard": "Logitech MX Keys",
+        "Mouse": "Logitech MX Master 3S",
+        "Connectivity": "Bluetooth & USB-C",
+        "Battery": "10+ days (keyboard)"
+      }
+    }
+  ],
   "communityPosts": [
     {
       "id": "1",
@@ -212,8 +430,8 @@
   ],
   "navLinks": [
     {
-      "label": "Home",
-      "path": "/"
+      "label": "AI Builder",
+      "path": "/chat"
     },
     {
       "label": "Blog",
@@ -275,8 +493,8 @@
     },
     {
       "id": 2,
-      "title": "Get AI Recommendations",
-      "description": "Our AI analyzes your inputs and generates personalized component recommendations.",
+      "title": "Receive Guided Recommendations",
+      "description": "The Rule-Enhanced Recommendation Framework processes your inputs through deterministic budget allocation and compatibility checks to generate component recommendations.",
       "iconName": "Lightbulb"
     },
     {
@@ -361,7 +579,7 @@
     {
       "id": "1",
       "question": "What is Neuro Builds?",
-      "answer": "Neuro Builds is an AI-powered PC builder platform that helps you configure the perfect computer for your needs. Our intelligent system recommends components, checks compatibility, and connects you with a thriving community of PC enthusiasts."
+      "answer": "NeuroBuilds is an AI-Assisted PC build recommendation platform designed for budget-constrained, first-time builders. The pipeline applies deterministic compatibility rules to recommend components, validates hardware compatibility, and connects you with a thriving community of PC enthusiasts."
     },
     {
       "id": "2",
@@ -371,7 +589,7 @@
     {
       "id": "3",
       "question": "How does the AI recommendation work?",
-      "answer": "Simply answer a few questions about your budget, use case (gaming, streaming, editing), and preferences. Our AI analyzes millions of hardware combinations and recommends the best components for your specific needs."
+      "answer": "Describe your budget, use case (gaming, streaming, editing), and preferences in plain language. The AI-Assisted Orchestration Pipeline parses your intent, applies budget-allocation ratios deterministically, and runs seven compatibility checks to produce guided component recommendations."
     },
     {
       "id": "4",
@@ -392,8 +610,8 @@
   "features": [
     {
       "id": "ai-builder",
-      "title": "AI-Powered Builder",
-      "description": "Get personalized PC build recommendations based on your budget and use case with our intelligent AI assistant.",
+      "title": "AI-Assisted Build Framework",
+      "description": "Receive budget-constrained PC build recommendations through the AI-Assisted Orchestration Pipeline — combining natural language intent parsing with deterministic selection and compatibility validation.",
       "iconName": "Zap",
       "gradient": "gradient-cyan"
     },
@@ -406,8 +624,8 @@
     },
     {
       "id": "compatibility",
-      "title": "Smart Compatibility Check",
-      "description": "Instant compatibility verification ensures all components work together without conflicts or bottlenecks.",
+      "title": "Deterministic Compatibility Engine",
+      "description": "Seven rule-based checks — socket match, PSU margin, RAM type, BIOS advisory, bottleneck estimation, upgrade path, and budget overage — run deterministically on every build.",
       "iconName": "Layers",
       "gradient": "gradient-blue"
     },
@@ -468,7 +686,7 @@
     }
   ],
   "appConfig": {
-    "brandName": "NEURO BUILDS",
-    "footerBrandName": "NEURO BUILDS"
+    "brandName": "NeuroBuilds",
+    "footerBrandName": "NeuroBuilds"
   }
 }

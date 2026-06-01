@@ -1,55 +1,63 @@
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { 
-  getAuth, 
+import {
+  getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
   signInWithPopup,
   GoogleAuthProvider,
-  updateProfile
+  updateProfile,
+  sendPasswordResetEmail,
+  multiFactor,
+  TotpMultiFactorGenerator,
+  getMultiFactorResolver,
+  sendEmailVerification,
 } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 import type { UserCredential, User } from "firebase/auth";
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCsBcgqaDwWRuilTuG6kfnSXcQcACxJC14",
-  authDomain: "neurobuilds-dea37.firebaseapp.com",
-  projectId: "neurobuilds-dea37",
-  storageBucket: "neurobuilds-dea37.firebasestorage.app",
-  messagingSenderId: "946745015004",
-  appId: "1:946745015004:web:288fe48c4f7e35fea7d219"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase Authentication
 export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const storage = getStorage(app);
 
-// Firebase Auth Methods
 export const firebaseAuth = {
-  register: (email: string, password: string) => 
+  register: (email: string, password: string) =>
     createUserWithEmailAndPassword(auth, email, password),
-  
-  login: (email: string, password: string) => 
+
+  login: (email: string, password: string) =>
     signInWithEmailAndPassword(auth, email, password),
-  
+
   googleSignIn: async () => {
     const provider = new GoogleAuthProvider();
     return signInWithPopup(auth, provider);
   },
-  
+
   logout: () => signOut(auth),
-  
-  updateUserProfile: (user: User, displayName: string, photoURL?: string) => 
+
+  updateUserProfile: (user: User, displayName: string, photoURL?: string) =>
     updateProfile(user, { displayName, photoURL }),
-  
+
+  sendPasswordReset: (email: string) =>
+    sendPasswordResetEmail(auth, email),
+
   getCurrentUser: () => auth.currentUser,
-  
-  onAuthStateChange: (callback: (user: User | null) => void) => 
-    auth.onAuthStateChanged(callback)
+
+  onAuthStateChange: (callback: (user: User | null) => void) =>
+    auth.onAuthStateChanged(callback),
 };
 
+export { multiFactor, TotpMultiFactorGenerator, getMultiFactorResolver, sendEmailVerification };
 export type { UserCredential };
 export default app;

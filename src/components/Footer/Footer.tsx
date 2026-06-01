@@ -26,7 +26,7 @@ const Footer: React.FC<FooterProps> = ({
               <span className="font-bold text-lg text-white">{footerBrandName}</span>
             </Link>
             <p className="text-gray-400 text-sm mb-6">
-              Build your perfect PC with AI-powered recommendations and community support.
+              Configure budget-constrained PC builds with guided recommendations from a deterministic compatibility pipeline and community support.
             </p>
             {/* Social Links */}
             <div className="flex gap-4">

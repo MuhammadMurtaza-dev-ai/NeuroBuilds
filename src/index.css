@@ -5,36 +5,78 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
+/* ── Theme tokens ─────────────────────────────────────────── */
+/* Light mode (default when .dark is absent) */
+:root {
+  --bg-dark: #f0f1f7;
+  --bg-panel: #e4e6f0;
+  --border-glass: rgba(0, 0, 0, 0.07);
+  --border-glass-strong: rgba(0, 0, 0, 0.10);
+  --text-base: #1a1a2e;
+  --text-muted: #5b6080;
+  --scrollbar-track: #dde0ea;
+  --scrollbar-thumb: #9ba3c0;
+  --scrollbar-thumb-hover: #7a84a8;
+  --glass-bg: rgba(240, 241, 247, 0.82);
+  --glass-nav-bg: rgba(235, 237, 245, 0.92);
+}
+
+/* Dark mode (.dark class on <html>) */
+.dark {
+  --bg-dark: #1e1e1e;
+  --bg-panel: #252526;
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --border-glass-strong: rgba(255, 255, 255, 0.10);
+  --text-base: #ffffff;
+  --text-muted: #9ca3af;
+  --scrollbar-track: #1e1e1e;
+  --scrollbar-thumb: #333333;
+  --scrollbar-thumb-hover: #444444;
+  --glass-bg: rgba(37, 37, 38, 0.70);
+  --glass-nav-bg: rgba(30, 30, 30, 0.60);
+}
+
+/* ── Light-mode text overrides ───────────────────────────── */
+/* Prevent white/near-white text from being invisible on light backgrounds */
+html:not(.dark) .text-white { color: var(--text-base); }
+html:not(.dark) .text-gray-100,
+html:not(.dark) .text-gray-200,
+html:not(.dark) .text-gray-300 { color: var(--text-muted); }
+html:not(.dark) .text-gray-400,
+html:not(.dark) .text-gray-500 { color: #6b7280; }
+/* Keep semantic/accent colours unchanged in both modes */
+html:not(.dark) .text-primary  { color: #0bbcbc; }   /* slightly darker cyan on light bg */
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1e1e1e;
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #333;
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #444;
+  background: var(--scrollbar-thumb-hover);
 }
 
 .glass-panel {
-  background: rgba(37, 37, 38, 0.7);
+  background: var(--glass-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-glass);
 }
 
 .glass-nav {
-  background: rgba(30, 30, 30, 0.6);
+  background: var(--glass-nav-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-glass-strong);
 }
 
 .scanline {
@@ -101,8 +143,8 @@ body,
 }
 
 body {
-  background-color: #1e1e1e;
-  color: white;
+  background-color: var(--bg-dark);
+  color: var(--text-base);
   font-family: 'Space Grotesk', sans-serif;
 }
 
@@ -115,15 +157,3 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
-}

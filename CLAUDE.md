@@ -1,0 +1,615 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+### Frontend (Vite / React)
+```bash
+npm run dev       # Start Vite dev server with HMR on http://localhost:5173
+npm run build     # TypeScript type-check + production build
+npm run lint      # Run ESLint
+npm run preview   # Preview production build locally
+```
+
+### Backend (FastAPI / Python)
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000   # Start AI service on http://localhost:8000
+python tests/evaluation_suite.py        # Offline accuracy eval — no network/DB needed
+```
+
+Copy `backend/.env.example` to `backend/.env` and fill in API keys before starting the backend.
+
+### Gemini Key Manager (TypeScript / Node)
+```bash
+cd gemini-key-manager
+npm install
+npm run dev                             # Dry-run harness with mock keys
+GEMINI_KEY_1=AIza... npm run dev        # Live run with real key(s)
+```
+
+## Project Overview
+
+**NeuroBuilds** is a React + TypeScript + Vite web app for a PC hardware builder community platform — marketplace, community forums, real-time P2P chat, blog, and an AI PC-build assistant. University Final Year Project (FYP) in active development.
+
+## Architecture
+
+### Routing (`src/App.tsx`)
+
+React Router v7, flat route structure. An `<ErrorBoundary>` wraps the entire app tree. Provider tree inside:
+
+```
+<ErrorBoundary>
+  <CountryProvider>
+    <ChatProvider>
+      <Navbar />           ← hidden on /share
+      <ChatSidebar />      ← global overlay, always mounted; hidden on /share
+      <AuthModal />        ← hidden on /share
+      <Routes />
+      <Footer />           ← hidden on /share
+    </ChatProvider>
+  </CountryProvider>
+</ErrorBoundary>
+```
+
+The `/share` route uses a standalone layout — all chrome (Navbar, ChatSidebar, AuthModal, Footer) is suppressed via an `isSharePage` guard in `App.tsx`.
+
+| Path | Component |
+|------|-----------|
+| `/` | `HomePage` — landing + marketplace carousel + intelligence feed |
+| `/chat` | `ChatPage` → `AIChatPanel` — AI build assistant |
+| `/blog` | `BlogPage` — Firestore-backed blog with admin CMS |
+| `/marketplace` | `MarketplacePage` — Firestore listings |
+| `/community` | `CommunityPage` — Firestore forums |
+| `/dashboard` | `Dashboard` — user's own listings, saved listings, and threads (Firestore real-time) |
+| `/profile` | `ProfilePage` — display name, avatar URL, phone number, email verification, TOTP 2FA (requires auth) |
+| `/admin` | `AdminPage` — admin workspace: review queue, moderation desk, analytics, role management (requires `role: 'admin'`) |
+| `/pricing` | `PricingPage` — renders `GradientBackground` + `Pricing` component |
+| `/share` | `SharedBuildPage` — standalone read-only view of a shared AI build (no auth required) |
+| `/dev/seed` | `DevSeedPage` — dev-only (`import.meta.env.DEV` guard); seeds Firestore with Pakistan-focused threads and marketplace listings |
+
+### Data Layer
+
+**Firestore (all live user data):**
+- `listings` → `useMarketplace`
+- `threads` + `threads/{id}/replies` → `useCommunity`
+- `conversations` + `conversations/{id}/messages` → `useChats`
+- `blogs` + `blogs/{id}/comments` → `useBlogCMS` / `useBlogFeed` / `useBlogComments`
+- `reports` → `useReports`
+- `users/{uid}` → role (`role: 'user' | 'vendor' | 'moderator' | 'admin'`) + seller verification (`isVerified`, `phoneNumber`) + profile fields + `username`
+- `users/{uid}/aiSessions` → `useAISessions` — AI chat session history (newest-first, limit 20)
+- `users/{uid}/notifications` → `useNotifications` — in-app notifications (newest-first, limit 30)
+- `usernames/{username}` → username → UID reverse-lookup index (atomic claim/release via `writeBatch`)
+
+**localStorage** (seeded from `src/data/storage.json`) → `useStorage`:
+Static/UI-only data: `NavLink`, `FooterLink`, `Feature`, `Testimonial`, `PricingTier`, `FAQItem`, `HowItWorksStep`, `appConfig`.
+
+### Authentication
+
+Firebase Auth only — email/password + Google OAuth. `useAuth` exposes `{ user, loading, error, register, login, googleSignIn, logout }`. `src/Firebase.ts` exports `auth`, `db`, `storage`, `firebaseAuth`, and re-exports `multiFactor`, `TotpMultiFactorGenerator`, `getMultiFactorResolver`, `sendEmailVerification` from `firebase/auth`.
+
+`firebaseAuth` is a typed wrapper object (not the raw `Auth` instance) exposing: `register`, `login`, `googleSignIn`, `logout`, `updateUserProfile`, `sendPasswordReset`, `getCurrentUser`, `onAuthStateChange`.
+
+**TOTP 2FA** (`ProfilePage`): uses `TotpMultiFactorGenerator` to enroll a TOTP second factor. A QR code is rendered with `qrcode.react` (`QRCodeSVG`) for the user to scan with an authenticator app. Requires the Firebase project to have Multi-factor Auth enabled in the Firebase console.
+
+### Role System
+
+Four roles in `users/{uid}.role`: `user` | `vendor` | `moderator` | `admin`.
+
+- `useUserRole()` — fetches role + exposes `isAdmin`, `isModerator`, `isVendor` boolean helpers (replaces the simpler `useAdminRole`)
+- `useAdminRole(uid)` — legacy hook; still used by blog/admin gates; reads `role === 'admin'`
+- `RoleAssignmentMatrix` (Admin tab 4) — admin UI to search users by name and reassign roles with real-time Firestore updates
+
+Role changes in Firestore are immutable to non-admins via `firestore.rules`.
+
+### Hooks
+
+| Hook | Source | Purpose |
+|------|--------|---------|
+| `useAuth` | Firebase Auth | Auth state + login/register/logout |
+| `useStorage` | localStorage | Static UI config |
+| `useMarketplace` | Firestore `listings` | Listing CRUD, filtering, save/unsave |
+| `useCommunity` | Firestore `threads` | Thread + reply CRUD, voting, real-time `onSnapshot` |
+| `useChats` | Firestore `conversations` | Real-time P2P + group chat conversations + messages |
+| `useBlogCMS` | Firestore `blogs` | Blog CRUD + review workflow (`createBlogPost`, `updateBlogPost`, `deleteBlogPost`, `approvePost`, `rejectPost`, `schedulePost`) |
+| `useBlogFeed` | Firestore `blogs` | Real-time feed; `isAdmin=true` shows all posts, else `isPublished=true` only |
+| `useBlogComments` | Firestore `blogs/{id}/comments` | Per-post comment thread; `addComment`, `deleteComment` (with Firestore transaction on `commentCount`) |
+| `useAdminRole` | Firestore `users/{uid}` | Checks `role === 'admin'` — gates blog editor and admin page |
+| `useUserRole` | Firestore `users/{uid}` | Full role fetch + `isAdmin`, `isModerator`, `isVendor` booleans |
+| `useReports` | Firestore `reports` | Platform moderation: `createReport`, `resolveReport`, `hideTarget` |
+| `useNotifications` | Firestore `users/{uid}/notifications` | Real-time in-app notifications (limit 30, newest-first); `markRead`, `markAllRead`; exports `writeNotification()` helper for writing to another user's subcollection |
+| `useAIAssistant` | FastAPI / mock | AI chat with streaming, build extraction, voice input |
+| `useAISessions` | Firestore `users/{uid}/aiSessions` | Persist/load AI chat sessions; `saveSession(id, title, messages, activeBuild)`; real-time `onSnapshot`, ordered newest-first, limit 20 |
+| `useSellerVerification` | Firestore `users` | Phone OTP flow (mock only — OTP hardcoded `123456`) |
+
+### Notifications System (`src/components/Notifications/`)
+
+- **`NotificationBell.tsx`** — bell icon in Navbar showing unread count badge; click opens drawer; click-outside detection to dismiss
+- **`NotificationDrawer.tsx`** — dropdown listing last 30 notifications; mark-read on click; types: `blog_comment`, `thread_reply`, `marketplace_message`, `ai_build_ready`; navigation links per type
+- **`writeNotification(uid, data)`** — exported from `useNotifications`; any hook/service calls this to push a notification into another user's subcollection
+
+### AI Chat System (`src/components/AI/`)
+
+`AIChatPanel` renders as a React fragment so its three columns are direct flex children of `ChatPage`'s `<main>` container (which is `display:flex flex-row`):
+- **Left** — Session history sidebar backed by `useAISessions`; lists saved sessions (title + timestamp); "NEW SESSION" button calls `resetSession()` + `crypto.randomUUID()`; clicking a session loads it via `loadSession(messages, activeBuild)`
+- **Center** — terminal-styled chat with streaming token output, mic button (Web Speech API), Enter-to-send
+- **Right** — `BuildCanvasCard` showing live extracted build components + power budget check
+
+**Data flow:**
+1. `useAIAssistant.sendMessage` POSTs to `${VITE_AI_SERVICE_URL}/api/chat` with message history + `activeBuild` context
+2. Response is consumed as a raw byte stream via `liveStream()` (no SSE framing)
+3. Any ` ```json { "build": {...} }``` ` block in the response is parsed by `extractBuild()` and merged into `activeBuild` state
+4. If the service is unreachable (10 s timeout / non-ok response), falls back to `MOCK_RESPONSE` streamed locally at ~22ms/token
+5. `ChatPage` passes `location.state.initialMessage` for deep-linking into a pre-populated chat
+6. When streaming ends, `AIChatPanel` auto-saves the session via `useAISessions.saveSession()` with a generated title
+7. "Generate PC Part Picker List" button calls `formatPartsList()` — formats `activeBuild` as a readable list (functional)
+8. "Share Build" opens `/share?build=<encoded>` in a new tab via `openSharePage()` — encodes `activeBuild` as `btoa(encodeURIComponent(JSON.stringify(build)))`
+
+`sendMessage` uses refs (`messagesRef`, `activeBuildRef`, `isStreamingRef`) to access latest state without adding them as `useCallback` dependencies — keeping the function identity stable.
+
+**`BuildCanvasCard`** tracks: CPU, GPU, Motherboard, RAM, PSU. Calculates power budget as `cpuTdp + gpuTdp + 150W buffer` vs `psu.rating`. Shows live estimated total cost.
+
+### Shared Build Page (`src/pages/SharedBuildPage.tsx`)
+
+Standalone read-only page at `/share?build=<base64>`. The `build` query param is `btoa(encodeURIComponent(JSON.stringify(activeBuild)))`.
+
+Features:
+- **Component cards** — one card per populated slot (CPU, GPU, Motherboard, RAM, PSU); click opens a detail modal
+- **Component detail modal** — full spec sheet, power badge (TDP/rating), YouTube review search link (Gamers Nexus / Hardware Unboxed / LTT), PCPartPicker search link
+- **Power speedometer** — SVG semicircular gauge showing PSU load % with colour zones (green < 80%, amber 80–100%, red > 100%)
+- **Total cost panel** — sum of all component prices
+- **Copy build list** — formats build to plain text and copies to clipboard
+- **"Build with Neuro AI"** — links back to `/chat`
+- No Navbar/Footer/auth required; shows an error state for invalid/missing `?build=` params
+
+### Admin System (`src/pages/AdminPage.tsx` + `src/components/Admin/`)
+
+Admin-only workspace at `/admin`. Requires auth + `role: 'admin'` in `users/{uid}` (checked via `useAdminRole()`). Four tabbed sections:
+
+**ReviewConsole.tsx** — Blog post moderation queue
+- Filters posts by `status: 'pending_review' | 'scheduled'`
+- Inline title/content editing before approval
+- Approve → `approvePost(id, publishAt?)` — immediate publish or scheduled
+- Reject → `rejectPost(id, note)` — reverts to draft with `rejectionNote` shown to author
+
+**ModerationDesk.tsx** — User-reported content
+- Real-time list of `reports` collection, filterable by Open / Resolved / All
+- Actions: `hideTarget(targetId, targetType)` sets `status: 'hidden'` on the target listing/thread; `resolveReport(id)` closes the report
+- Report columns: Reporter, Reason, Target, Type, Date, Actions
+
+**AnalyticsDashboard.tsx** — Platform trends (horizontal bar charts)
+- Most Commented blogs — from `useBlogFeed(true)` sorted by `commentCount`
+- Top Categories by upvotes — from `useCommunity()` grouped by `category`
+- Most Saved listings — from `useMarketplace()` sorted by `savedBy.length`
+
+**RoleAssignmentMatrix.tsx** — User role management
+- Search users by display name; reassign role (`user` → `vendor` → `moderator` → `admin`)
+- Real-time Firestore updates to `users/{uid}.role`
+
+**TelemetryPanel.tsx** — Thesis evaluation instrumentation (tab 5)
+- Auto-refreshes every 2 s from `telemetry.getMetrics()` singleton (sessionStorage-backed)
+- **AI Performance** — avg latency, avg TTFT, P95 latency, mock fallback rate, avg character count
+- **Cache Performance** — YouTube and GNews hit/miss ratios with progress bars
+- **Compatibility Validation Catches** — per-check-type counts with error/warning severity badges; check types: `socket_mismatch`, `psu_margin`, `bios_flash`, `ram_mismatch`, `bottleneck`, `upgrade_path`, `budget_exceeded`
+- **Recent Event Log** — last 25 events across all three event kinds, sorted newest-first
+- Export JSON button downloads a `neurobuilds-telemetry-<ts>.json` snapshot; Clear Data requires double-confirm
+
+### Blog System (`src/components/Blog/`)
+
+**Blog post lifecycle (workflow states):**
+```
+draft → pending_review → published   (approve, immediate)
+                      → scheduled    (approve with future publishAt)
+pending_review → draft               (reject, adds rejectionNote)
+```
+
+- `useBlogFeed(isAdmin)` — real-time `onSnapshot`; public sees `isPublished=true` only; admin sees all statuses
+- `useAdminRole(uid)` — single Firestore doc read on `users/{uid}`; `role: 'admin'` required
+- `useBlogComments(postId)` — real-time `onSnapshot` on `blogs/{postId}/comments` (asc by `createdAt`); `addComment` / `deleteComment` use Firestore transactions to keep `commentCount` in sync
+- `BlogEditor.tsx` — rich editor for creating/editing posts (admin-only); supports categories, status, scheduled publish date, featured image URL, YouTube video link
+- `BlogPostModal.tsx` — read view for a single post; markdown rendering (headers, bold, italic, code, blockquotes, lists), featured image, embedded YouTube video, and `BlogComments`
+- `BlogComments.tsx` — per-post comment thread; shows author initials + `timeAgo` timestamp; delete own comments
+- `excerpt` is auto-derived from `content` (first 160 chars, markdown stripped) on create/update
+
+**Extended `BlogPost` fields** (additions beyond the original schema):
+```
+status: 'draft' | 'pending_review' | 'scheduled' | 'published'
+authorType: 'user' | 'ai_agent'
+publishAt?: Timestamp | null
+commentCount: number
+rejectionNote?: string
+thumbnailUrl: string
+category: 'Tutorial' | 'Hardware' | 'Industry'
+videoUrl?: string
+```
+
+### Real-time P2P Chat System (`src/components/Chat/`)
+
+Supports 1:1 DMs and group conversations.
+
+**Firestore schema:**
+```
+conversations/{id}
+  participants: string[]   ← [buyerUid, sellerUid] for DMs; multiple UIDs for groups
+  listingId?, listingTitle?, listingImage?   ← set for marketplace DMs
+  isGroup?: boolean, groupName?: string
+  lastMessageText, updatedAt
+
+  messages/{id}
+    senderId, senderName, text, createdAt
+```
+
+**Components:**
+- **`ChatSidebar.tsx`** — composite container; manages conversation selection, message subscription, unread state, modal triggers for group creation; integrates `ConversationList` and `ChatWindow`
+- **`ConversationList.tsx`** — left sidebar listing all conversations with search; supports starting new DMs by username lookup and creating group chats via `CreateGroupModal`
+- **`ChatWindow.tsx`** — message bubbles with author names, timestamps, auto-scroll; expandable textarea; Enter-to-send
+- **`CreateGroupModal.tsx`** — group creation modal; enter group name + add members by username (resolved via `usernames/{username}`); validates no duplicates
+
+**Required Firestore composite indexes:**
+- `conversations`: `participants` (Array) + `updatedAt` (Desc)
+- `conversations`: `participants` (Array) + `listingId` (Asc)
+
+"Message Seller" in `ListingDetailModal` → `ChatContext.startOrGetConversation` (deduplicates by user+listing) → opens `ChatSidebar`.
+
+### Marketplace System (`src/components/Marketplace/`)
+
+**Firestore schema** (`listings` collection):
+```
+title, description, price, negotiable, category
+condition: 'new' | 'used' | 'refurbished'
+listingType: 'sell' | 'buy' | 'exchange'
+images: string[]          ← ImgBB URLs (uploaded via src/utils/imageUploader.ts)
+country, location
+sellerId, sellerName, sellerContact
+status: 'active' | 'sold' | 'reserved' | 'hidden'   ← 'hidden' set by moderation
+tags: string[], specs: Record<string, string>
+views, savedBy: string[]
+sku?: string, stockQty?: number   ← vendor inventory fields
+postedDate: Timestamp
+```
+
+**Components:**
+- **`CreateListingModal.tsx`** — full listing create/edit form; title, description, price, condition, listing type, location (country/city/area via `GLOBAL_LOCATIONS`), category, up to 6 ImgBB-uploaded images, SKU/stock quantity for vendors
+- **`ListingCard.tsx`** — grid preview card with thumbnail, price, condition badge, save toggle
+- **`ListingDetailModal.tsx`** — full detail view; image gallery, seller info with contact reveal, view tracking (excludes self-views), `VideoReviewCarousel`, save/contact/edit/delete actions
+- **`VideoReviewCarousel.tsx`** — YouTube review carousel; lazy-loads iframe on thumbnail click; backed by `youtubeService.ts`
+- **`SellerVerificationModal.tsx`** — two-step phone OTP verification modal for seller activation
+- **`InventoryManager.tsx`** (in `Dashboard/`) — vendor-only table of active listings with real-time stock quantity increment/decrement controls and out-of-stock warnings
+
+Images upload to **ImgBB** via `src/utils/imageUploader.ts` (`uploadImageToImgBB`). Up to 6 images per listing. Requires `VITE_IMGBB_API_KEY`. Client-side filtering in `getFilteredListings()` — all active listings fetched once on mount.
+
+**Seller verification** (`useSellerVerification`): phone → OTP flow. Currently mocked — any phone accepted, OTP is hardcoded `123456`. Success writes `{ isVerified: true, phoneNumber }` to `users/{uid}`.
+
+### Community System (`src/components/Community/`)
+
+**Firestore schema:**
+```
+threads/{id}
+  title, body, authorId, authorName, country, category
+  upvoteCount, upvotedBy[], downvotedBy[], replyCount
+  status: 'active' | 'hidden'   ← 'hidden' set by moderation
+  createdAt
+
+  replies/{id}
+    body, authorId, authorName, parentId, createdAt
+```
+
+**Components:**
+- **`CreateThreadModal.tsx`** — thread create/edit form; title, body, category (5 predefined), country, optional linked blog post, up to 4 ImgBB images
+- **`ThreadCard.tsx`** — list-view card with title, author, vote counts, reply count, status badge (open/solved/archived)
+- **`ThreadDetailModal.tsx`** — full thread view; nested reply tree (depth ≤ 3); upvote/downvote via Firestore transactions; lifecycle status management (authors mark solved, mods close); reply composer with 2-image support
+- **`ReplyItem.tsx`** — depth-aware indented reply renderer; highlights own replies; reply-to-reply button
+
+Voting via Firestore transactions. Real-time via `onSnapshot`.
+
+### Dashboard (`src/components/Dashboard/Dashboard.tsx`)
+
+Three real-time Firestore `onSnapshot` subscriptions fire in parallel on mount. A `pendingRef` counter decrements each time one fires; the skeleton loading state resolves when all three complete.
+
+- **My Listings** — `listings` where `sellerId == uid`, sorted by `postedDate` descending; vendors also see `InventoryManager` for stock control
+- **Saved Listings** — `listings` where `savedBy` array contains `uid`
+- **My Threads** — `threads` where `authorId == uid`, sorted by `createdAt` descending
+
+Redirects unauthenticated users to `/`.
+
+### Moderation System
+
+**Firestore schema** (`reports` collection):
+```
+reporterId, reporterName
+reason: string
+targetId, targetTitle
+targetType: 'listing' | 'thread'
+status: 'open' | 'resolved'
+createdAt
+```
+
+`useReports()`:
+- Real-time `onSnapshot` ordered by `createdAt` desc
+- `createReport(data)` — any authenticated user submits a report
+- `resolveReport(reportId)` — admin marks resolved
+- `hideTarget(targetId, targetType)` — sets `status: 'hidden'` on the target document in `listings` or `threads`
+
+### Services (`src/services/`)
+
+**youtubeService.ts** — YouTube review discovery
+- `fetchComponentReviews(componentName)` — searches YouTube Data API v3 for Gamers Nexus / Hardware Unboxed / LTT reviews
+- Returns up to 3 `VideoItem` objects: `{ videoId, title, channelTitle, thumbnail }`
+- 24-hour `sessionStorage` cache per component name
+- Falls back to empty array if `VITE_YOUTUBE_API_KEY` is absent or request fails
+
+### Utilities (`src/utils/`)
+
+**imageUploader.ts** — `uploadImageToImgBB(file)` → ImgBB public URL. Requires `VITE_IMGBB_API_KEY`.
+
+**usernameValidator.ts** — username lifecycle:
+- `isValidUsernameFormat()` — 3–20 chars, alphanumeric + dots, no consecutive dots
+- `checkUsernameAvailable()` — reads `usernames/{username}` shadow doc
+- `claimUsername()` — atomic `writeBatch`: writes `usernames/{username}` + updates `users/{uid}.username`; releases old username if present
+
+**userLookup.ts** — resolve usernames to UIDs and fetch public profiles:
+- `resolveUsernameToUid(username)` — reads `usernames/{username}` (strips `@` prefix)
+- `getUserProfile(uid)` — returns `{ displayName, username }` from `users/{uid}`
+
+**scoringEngine.ts** — multi-persona PC build scoring:
+- `scoreBuild(build, persona?)` — returns `BuildScores` with 5 sub-scores: performance-per-rupee, compatibility confidence, thermal efficiency, upgrade potential, power efficiency
+- `detectPersona(build)` — auto-detects `gaming | productivity | budget` from price/specs
+- Persona-weighted aggregation; pure calculation — no Firestore access
+
+**telemetryTracker.ts** — session-scoped instrumentation singleton (`telemetry`):
+- Persisted in `sessionStorage` under `nb_telemetry_v1`; survives page refresh within a session; capped at 100 events per type
+- `recordAIRequest(event)` — called by `useAIAssistant` after each streaming response; captures `requestId`, `promptSnippet`, `startedAt`, `timeToFirstTokenMs`, `totalDurationMs`, `characterCount`, `isMockFallback`
+- `recordCacheEvent(event)` — called by `youtubeService.ts` and `NewsFallback` on each cache hit/miss; `cacheType: 'youtube' | 'gnews'`
+- `recordValidation(event)` — called by `useAIAssistant` after parsing a completed response; severity: `'error' | 'warning'`
+- `parseValidationsFromResponse(text)` — applies 7 conservative regex patterns against the AI response text to detect compatibility events; de-duplicates within a single response
+- `getMetrics()` — derives `TelemetryMetrics`: aggregated latency stats (avg, TTFT avg, P95), mock fallback rate, per-source cache hit ratios, per-check validation counts
+- `exportJSON()` / `clear()` — used by `TelemetryPanel` for export and reset
+
+### Location & News
+
+- `src/data/globalLocations.ts` — `GLOBAL_LOCATIONS` (country → province → city hierarchy) + `COUNTRY_ISO` (country name → ISO code for GNews)
+- `src/data/pakistanLocations.ts` — `PAKISTAN_LOCATIONS` — city → neighbourhood lookup (10 cities × 7–12 areas) for Pakistan-specific marketplace location selection
+- `src/data/pakistanGeoLocations.ts` — `PAKISTAN_GEO_LOCATIONS` — area-level GeoJSON centroids (lat/lng) for Islamabad, Lahore, Karachi, Peshawar, Quetta, Gilgit, Muzaffarabad; mirrors `backend/services/location_search.py`'s `_AREA_CENTROIDS` dict; used by the frontend to display map markers and feed coordinates to the geo-fallback API
+- `NewsFallback` component (`src/components/NewsFallback/`) — shown when no listings/threads exist for the selected country; fetches top-6 tech headlines from GNews API; 24-hour `localStorage` cache; rate-limit detection (60-min backoff on HTTP 429); requires `VITE_GNEWS_API_KEY`
+
+### Error Boundary (`src/components/ErrorBoundary.tsx`)
+
+Class component wrapping the entire app. On uncaught render error:
+- Renders cyberpunk-themed "CRITICAL SYSTEM FAULT" UI with error message in `font-mono` block
+- Two actions: "RETURN TO BASE" (reload to `/`) and "RETRY" (reset error state)
+- Logs errors to console
+
+### Contexts
+
+| Context | File | Purpose |
+|---------|------|---------|
+| `CountryContext` | `src/context/CountryContext.tsx` | Global country selection, persisted to `localStorage` (`nb_country`) |
+| `ChatContext` | `src/context/ChatContext.tsx` | P2P chat sidebar state, active conversation, `startOrGetConversation` |
+
+### Design System
+
+Cyberpunk/neon glassmorphism. Defined in `tailwind.config.js` + `src/index.css`:
+- **Colors**: `primary` (`#0df2f2` cyan), `accent-purple` (`#bf00ff`), `bg-dark` (`#1e1e1e`), `bg-panel` (`#252526`)
+- **Key utilities**: `.glass-panel`, `.rounded-bento` (2rem radius), `.shadow-neon`, `.shadow-glow-purple`, `.scanline`
+- **Font**: Space Grotesk
+- **Z-index**: Navbar `z-50`, modals `z-50`, ChatSidebar backdrop `z-[60]`, ChatSidebar panel `z-[70]`
+
+New UI should follow: backdrop blur, neon shadows on hover, dark panel backgrounds, `font-mono` for terminal/data text.
+
+### PWA Support
+
+`vite-plugin-pwa` is configured in `vite.config.ts`. The app is installable as a standalone PWA with offline asset caching:
+- **Cache strategy**: Images → CacheFirst (30 days), JS/CSS → StaleWhileRevalidate, Google Fonts → StaleWhileRevalidate
+- **Icons**: `public/icons/icon-192x192.png`, `public/icons/icon-512x512.png` (maskable)
+- **Manifest**: `public/manifest.json` — `short_name: NeuroBuilds`, `theme_color: #0d0e12`
+- **Register type**: `autoUpdate` — service worker updates silently in background
+
+### Firestore Security & Indexes
+
+**`firestore.rules`** — security rules for all collections:
+- Authenticated users can read/write their own subcollections (`aiSessions`, `notifications`)
+- `role` field in `users/{uid}` is immutable to non-admins
+- `reports` writable by any authenticated user; readable/resolvable by admins only
+- `listings` and `threads` writable by owner; `status: 'hidden'` set only by moderators/admins
+
+**`firestore.indexes.json`** — composite indexes:
+- `blogs`: `isPublished` + `createdAt` (desc)
+- `listings`: `country` + `postedDate` (desc)
+- `conversations`: `participants` (array) + `updatedAt` (desc); `participants` + `listingId` (asc)
+
+### FastAPI Backend (`backend/`)
+
+The backend is a standalone Python service — **must be run separately** from the Vite dev server.
+
+**Endpoints:**
+- `GET /health` — returns `{"status": "ok", "service": "neurobuilds-ai"}`
+- `GET /api/hardware/lookup` — searches `hardware_catalog` collection for component lookups
+- `POST /api/chat` — accepts `{messages, activeBuild}`, returns a raw token stream (`text/plain`)
+
+**LangGraph pipeline** (`agent.py`) — 6 nodes executed sequentially:
+
+```
+START → search_node → rag_node → intent_node → selection_node
+      → compatibility_node → response_node → END
+```
+
+#### Deterministic / Probabilistic Architecture Split
+
+This is the core architectural guarantee of the system. Every node belongs to exactly one layer, and the boundary between layers is enforced by the system prompt given to `response_node`.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    NEUROBUILDS AI PIPELINE ARCHITECTURE                 │
+├─────────────┬────────────────────────────────┬────────────────────────  │
+│   LAYER     │  NODE(S)                       │  WHAT IT MAY DO          │
+├─────────────┼────────────────────────────────┼────────────────────────  │
+│ A — LLM     │ intent_node                    │ Parse natural language → │
+│ (semantic)  │                                │ structured BuildIntent.  │
+│             │                                │ NO rules, NO arithmetic. │
+├─────────────┼────────────────────────────────┼────────────────────────  │
+│ B — Code    │ selection_node                 │ Budget math, price       │
+│ (determin.) │                                │ breakdown, allocation    │
+│             │                                │ ratios, efficiency score.│
+│             │                                │ NO LLM calls.            │
+├─────────────┼────────────────────────────────┼────────────────────────  │
+│ C — Code    │ compatibility_node             │ Socket match, PSU        │
+│ (determin.) │                                │ transient margin, RAM    │
+│             │                                │ type, BIOS flash, tier   │
+│             │                                │ bottleneck, upgrade path.│
+│             │                                │ NO LLM calls.            │
+├─────────────┼────────────────────────────────┼────────────────────────  │
+│ D — LLM     │ response_node                  │ Narrate Layers B+C into  │
+│ (narration) │                                │ educational prose. NEVER │
+│             │                                │ recalculate or contradict│
+│             │                                │ a deterministic report.  │
+└─────────────┴────────────────────────────────┴────────────────────────  ┘
+```
+
+| Node | Layer | Type | Purpose | Fallback |
+|------|-------|------|---------|---------|
+| `search_node` | — | async | Tavily web search for live hardware prices (3 results) | Empty string |
+| `rag_node` | — | async | MongoDB Atlas vector similarity search on `hardware_specs` | Empty string |
+| `intent_node` | A | LLM (temp=0) | Extracts `BuildIntent`: budget, use_case, perf_target, brands, form factor | Safe defaults |
+| `selection_node` | B | pure Python | Price breakdown, budget constraint check, allocation ratios, efficiency score | "No priced components" |
+| `compatibility_node` | C | pure Python | PSU transient margin, socket match, BIOS flash advisory, RAM type, bottleneck %, upgrade path | "No active build" |
+| `response_node` | D | LLM (streaming) | Narrates Layer B+C findings into prose; forbidden from recalculating any figure | Pipeline error token |
+
+**`BuildIntent`** (output of `intent_node`, consumed by `selection_node`):
+```python
+{
+  "budget_usd":       int | None,   # None if no budget stated
+  "use_case":         str,          # gaming | workstation | budget | streaming | content_creation | general
+  "preferred_brands": list[str],    # e.g. ["AMD", "NVIDIA"]
+  "perf_target":      str,          # e.g. "1080p/144Hz", "video editing"
+  "form_factor_pref": str,          # ATX | mATX | ITX | ""
+}
+```
+
+**`BuildState`** TypedDict: `messages`, `active_build`, `search_context`, `rag_context`, `build_intent`, `selection_report`, `compatibility_report`.
+
+**Streaming**: `run_pipeline()` uses `astream_events(version="v2")` and yields only `on_chat_model_stream` events from the `response` node. `main.py` wraps this in `StreamingResponse` with `media_type="text/plain"` and `X-Accel-Buffering: no`. The frontend consumes raw bytes directly — no SSE framing.
+
+**System prompt** in `response_node` explicitly forbids the LLM from recalculating compatibility, performing price arithmetic, or contradicting any figure produced by `selection_node` or `compatibility_node`. It positions the LLM as a "translator, not a calculator."
+
+**Backend environment variables** (in `backend/.env`):
+
+| Var | Purpose |
+|-----|---------|
+| `OPENAI_API_KEY` | LLM + embeddings (required) |
+| `OPENAI_MODEL` | Defaults to `gpt-4o-mini` |
+| `TAVILY_API_KEY` | Node 1 web search |
+| `MONGODB_ATLAS_URI` | Node 2 vector store connection |
+| `MONGODB_DATABASE` | Defaults to `neurobuilds` |
+| `MONGODB_COLLECTION` | Defaults to `hardware_specs` |
+| `MONGODB_VECTOR_INDEX` | Defaults to `vector_index` |
+| `MONGODB_CATALOG_COLLECTION` | Defaults to `hardware_catalog` — collection used by `ingest_hardware.py` and `/api/hardware/lookup`; kept separate from the RAG `hardware_specs` collection |
+| `CORS_ORIGINS` | Comma-separated allowed origins; defaults to `http://localhost:5173,http://127.0.0.1:5173` |
+
+MongoDB Atlas requires a Vector Search index named `vector_index` on the `embedding` field. `GPU_Exhaustive_Database.csv` and `CPU_Exhaustive_Database.csv` (repo root) contain hardware data for reference.
+
+### Ingestion Scripts
+
+**`misc/scripts/ingest-rag.py`** — populates `hardware_specs` for RAG semantic search:
+```bash
+cd backend
+python ../misc/scripts/ingest-rag.py
+```
+- Loads `OPENAI_API_KEY` from `backend/.env`
+- Generates embeddings with `text-embedding-3-small`
+- Upserts GPU, CPU, motherboard, RAM, PSU specs into `hardware_specs` collection
+- Creates `vector_index` on the `embedding` field if absent
+- Uses hardcoded `HARDWARE_SPECS` list (CSVs not yet wired)
+
+**`backend/scripts/ingest_hardware.py`** — populates `hardware_catalog` for `/api/hardware/lookup`:
+- Merges hardcoded specs + GPU CSV + CPU CSV data
+- Creates B-tree index on `name` + vector embeddings on `embedding` field
+- Run before starting the backend if hardware lookup is needed
+
+**`misc/csv-data/scrapper.py`** — TechPowerUP GPU database scraper:
+- Two-phase scraping: chip discovery (horizontal) → custom board traversal (vertical)
+- Extracts clocks, VRAM, AIB partner info; anti-bot throttling (5–10s delays)
+- Output: `GPU_Exhaustive_Database.csv` at repo root
+
+### Backend Service Modules (`backend/services/`)
+
+**`validation_engine.py`** — 9-tier deterministic compatibility matrix (Layer C):
+- `run_checks(build, case?) → ValidationResult` — returns `{ ok, issues, warnings, passed }`
+- Check tiers: PSU transient margin (GPU-family-specific spike multipliers), CPU↔MB socket, BIOS flash advisory (AM4-400 + Ryzen 5000), RAM DDR4/DDR5 type, form factor fit, GPU physical clearance, CPU cooler clearance, hardware bottleneck (tier-gap %), platform upgrade path
+- GPU transient multipliers: RTX 40-series ×1.25, RTX 30 ×1.15, RX 7 ×1.20, RX 6 ×1.10; safety factor 1.20×
+- Pure Python, zero LLM/API calls; shared by `agent.py` nodes, ingestion scripts, and `tests/evaluation_suite.py`
+
+**`selection_engine.py`** — deterministic budget allocation model (Layer B):
+- `run_allocation(budget, use_case, build, collection, attempt, excluded) → AllocationResult`
+- `ALLOCATION_WEIGHTS` — per-persona budget fractions: `gaming` (GPU 40%, CPU 20%, MB 12%, RAM 8%, PSU 8%), `workstation` (CPU 35%, GPU 30%, MB 15%, RAM 12%, PSU 8%), etc.
+- Ceiling = `budget × weight × 1.15` margin; per-retry ceiling reduction on CPU/GPU when compatibility fails; excluded-names blacklist to skip incompatible components on retry
+- MongoDB `performance_score`-ranked queries with price-sort fallback; builds human-readable report string for Layer D narration
+- Zero LLM calls; thin `budget_allocation_node` in `agent.py` wraps this
+
+**`location_search.py`** — 3-tier cascading geo-fallback search:
+- `LocationSearchService(collection).search(area, extra_filters?, radius_m?, limit?) → GeoSearchResult`
+- `GeoSearchResult` carries `listings`, `tier` (1–3), `tier_label` (e.g. "Tariq Garden" / "Nearby Tariq Garden" / "All of Lahore"), `count`
+- Tier 1: exact `area` field match; Tier 2: `$nearSphere` within 8 km of area centroid (requires `2dsphere` index on `geo` field); Tier 3: city-wide fallback
+- Embeds `_AREA_CENTROIDS` dict (7 cities — Islamabad, Lahore, Karachi, Peshawar, Quetta, Gilgit, Muzaffarabad) that mirrors `src/data/pakistanGeoLocations.ts`
+- `ensure_indexes(col)` — creates `2dsphere` + compound indexes; safe to call on every startup
+
+**`cache_manager.py`** — MongoDB Atlas LLM semantic cache:
+- `setup_semantic_cache(client, db_name)` — binds `MongoDBAtlasSemanticCache` globally so all LangChain LLM calls (`intent_node`, `response_node`) are auto-intercepted
+- Cosine similarity threshold: 0.97 (tight — avoids false cache hits on different budgets)
+- Collection: `semantic_cache`; index: `semantic_cache_index`; requires `langchain-mongodb`
+- Silently no-ops if `OPENAI_API_KEY` absent, `langchain-mongodb` not installed, or Atlas unreachable — never blocks startup
+- Called once in FastAPI lifespan handler in `main.py`
+
+**`vector_store.py`** — MongoDB Atlas Vector Store setup for `rag_node`; wires `hardware_specs` collection + `vector_index` to LangChain `MongoDBAtlasVectorSearch`.
+
+### Academic Evaluation Suite (`backend/tests/evaluation_suite.py`)
+
+Standalone offline evaluation — no LLM calls, no network, no database required for Experiment 1.
+
+```bash
+cd backend
+python tests/evaluation_suite.py
+```
+
+- **Experiment 1 — Compatibility Engine Accuracy**: runs `run_checks()` against a fixture of labelled builds (Known Good / Intentionally Broken); reports confusion matrix, Precision, Recall, F1
+- **Experiment 2 — Budget Allocation Adherence**: runs `run_allocation()` across gaming/workstation/budget persona builds; reports MAE, variance, per-persona breakdown versus `ALLOCATION_WEIGHTS` targets
+- Imports directly from `services.validation_engine` and `services.selection_engine`
+
+### Gemini Key Manager (`gemini-key-manager/`)
+
+Standalone TypeScript service — resilient Gemini API key rotation and load-balancing. Not wired into the main app at runtime; used as a standalone utility / reference implementation.
+
+**Architecture:**
+- **`KeyRotationManager`** (singleton) — manages a pool of up to 10 Gemini API keys; tracks per-key `requestsInCurrentWindow` and `tokensInCurrentWindow` (60-second rolling windows, 60 req/window cap); picks the least-utilised key from the lower half of the pool (Fisher-Yates shuffle to prevent hot-spotting)
+- **`GeminiProxyService`** — wraps `@google/genai` SDK; `generateText(prompt, model?)` and `getEmbeddings(text)` auto-retry with next available key on 429; parses `Retry-After` header for cooldown duration; retries bounded by pool size
+- `markThrottled(key, cooldownMs)` / `evictExpiredThrottles()` — auto-recovery when cooldown expires
+- `getStats()` — sanitized snapshot (keys redacted) for logging
+
+**Test harness (`src/index.ts`):** 5-phase demonstration — sequential warm-up (4 requests), concurrent burst (12 parallel text), embedding burst (8 parallel embed), throttle recovery check, final pool stats table.
+
+**Environment:** `GEMINI_KEY_1` … `GEMINI_KEY_10` — falls back to mock keys for dry-run/CI if none set.
+
+## Frontend Environment Variables
+
+| Var | Required | Purpose |
+|-----|----------|---------|
+| `VITE_FIREBASE_API_KEY` etc. | Yes | Firebase config (6 vars) |
+| `VITE_AI_SERVICE_URL` | No (defaults to `http://localhost:8000`) | FastAPI AI service base URL |
+| `VITE_IMGBB_API_KEY` | For marketplace image uploads | ImgBB image hosting API |
+| `VITE_GNEWS_API_KEY` | For news fallback | GNews top-headlines API |
+| `VITE_YOUTUBE_API_KEY` | For video reviews | YouTube Data API v3 |
+
+## Key Gaps / In-Progress Areas
+
+- **Seller verification**: OTP is mocked (`MOCK_OTP = '123456'`); no real SMS provider integrated.
+- **TOTP 2FA**: `ProfilePage` implements Firebase TOTP 2FA enrollment, but Multi-factor Auth must be enabled in the Firebase console for it to work.
+- **MongoDB RAG data**: Run `scripts/ingest-rag.py` to populate the `hardware_specs` collection before the backend's `rag_node` can return results — it falls back gracefully until this is done.
+- **CSV → RAG pipeline**: `GPU_Exhaustive_Database.csv` and `CPU_Exhaustive_Database.csv` exist but are not yet wired into `ingest-rag.py`; the script uses hardcoded specs instead.
+- **`langchain-mongodb` package**: Listed as optional in `requirements.txt`; `rag_node` falls back to `langchain-community` if not installed.
+- **Blog scheduled publishing**: `status: 'scheduled'` posts with a future `publishAt` are not auto-published — no cron or Cloud Function triggers the transition; currently requires manual admin action.
+- **scoringEngine integration**: `src/utils/scoringEngine.ts` exists but is not yet wired into any UI component.
+- **Notification triggers**: `writeNotification()` is exported but not yet called from marketplace/community/blog hooks — notifications are not yet generated on user actions.
+- **LLM semantic cache**: `cache_manager.setup_semantic_cache()` is wired into `main.py` startup but requires a `semantic_cache_index` Atlas Vector Search index to be created manually before the first cached call.
+- **Location search API exposure**: `LocationSearchService` exists in `backend/services/location_search.py` but is not yet exposed as a FastAPI endpoint — the frontend uses Firestore client-side filtering instead of the geo-fallback pipeline.
+- **`pakistanGeoLocations.ts` ↔ backend sync**: area centroids in `src/data/pakistanGeoLocations.ts` and `backend/services/location_search.py`'s `_AREA_CENTROIDS` are manually kept in sync — no automated check.

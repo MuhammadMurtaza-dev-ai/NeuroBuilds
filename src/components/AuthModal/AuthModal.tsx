@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Mail, Lock, Eye, EyeOff, X, ShieldCheck, RefreshCw, AtSign, CheckCircle, XCircle, Loader } from 'lucide-react';
+import type { MultiFactorResolver, MultiFactorError } from 'firebase/auth';
 import { useAuth } from '../../hooks/useAuth';
+import { firebaseAuth, auth, TotpMultiFactorGenerator, getMultiFactorResolver } from '../../Firebase';
+import { isValidUsernameFormat, checkUsernameAvailable, claimUsername } from '../../utils/usernameValidator';
 
 type AuthMode = 'login' | 'register';
+type View = 'form' | 'reset' | 'resetSent' | 'twoFactorVerify';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -19,25 +23,93 @@ const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const { register, login, googleSignIn, loading, error } = useAuth();
   const [formMode, setFormMode] = useState<AuthMode>(initialMode);
+  const [view, setView] = useState<View>('form');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
+    username: '',
   });
+
+  // Username availability
+  type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid';
+  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (formMode !== 'register') return;
+    const raw = formData.username.trim();
+    if (!raw) { setUsernameStatus('idle'); return; }
+    if (!isValidUsernameFormat(raw)) { setUsernameStatus('invalid'); return; }
+    setUsernameStatus('checking');
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      const available = await checkUsernameAvailable(raw);
+      setUsernameStatus(available ? 'available' : 'taken');
+    }, 400);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [formData.username, formMode]);
+
+  // MFA state
+  const [mfaResolver, setMfaResolver] = useState<MultiFactorResolver | null>(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaLoading, setMfaLoading] = useState(false);
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) { setLocalError('Please enter your email address'); return; }
+    setLocalError(null);
+    setResetLoading(true);
+    try {
+      await firebaseAuth.sendPasswordReset(resetEmail);
+      setView('resetSent');
+    } catch (err: any) {
+      setLocalError(err.message || 'Failed to send reset email');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleBackToLogin = () => {
+    setView('form');
+    setFormMode('login');
+    setLocalError(null);
+    setResetEmail('');
+    setMfaResolver(null);
+    setMfaCode('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
-    
+
     try {
       if (formMode === 'register') {
-        if (!formData.name || !formData.email || !formData.password) {
+        if (!formData.name || !formData.email || !formData.password || !formData.username.trim()) {
           setLocalError('Please fill in all fields');
           return;
         }
+        if (!isValidUsernameFormat(formData.username.trim())) {
+          setLocalError('Username must be 3–20 lowercase characters (letters, numbers, dots). No leading/trailing/double dots.');
+          return;
+        }
+        if (usernameStatus === 'taken') {
+          setLocalError('That username is already taken. Please choose another.');
+          return;
+        }
+        if (usernameStatus === 'checking') {
+          setLocalError('Still checking username availability, please wait a moment.');
+          return;
+        }
         await register(formData.email, formData.password, formData.name);
+        const uid = auth.currentUser?.uid;
+        if (uid) {
+          claimUsername(formData.username.trim(), null, uid).catch(() => {});
+        }
       } else {
         if (!formData.email || !formData.password) {
           setLocalError('Please fill in all fields');
@@ -45,12 +117,45 @@ const AuthModal: React.FC<AuthModalProps> = ({
         }
         await login(formData.email, formData.password);
       }
-      
+
       onSubmit?.(formData);
       onClose();
-      setFormData({ name: '', email: '', password: '' });
+      setFormData({ name: '', email: '', password: '', username: '' });
     } catch (err: any) {
+      if (err.code === 'auth/multi-factor-auth-required') {
+        const resolver = getMultiFactorResolver(auth, err as MultiFactorError);
+        setMfaResolver(resolver);
+        setView('twoFactorVerify');
+        return;
+      }
       setLocalError(err.message || 'Authentication failed');
+    }
+  };
+
+  const handleMfaVerify = async () => {
+    if (!mfaResolver) return;
+    if (mfaCode.length !== 6) {
+      setLocalError('Enter the full 6-digit code from your authenticator app.');
+      return;
+    }
+    setLocalError(null);
+    setMfaLoading(true);
+    try {
+      const totpHint = mfaResolver.hints.find(
+        h => h.factorId === TotpMultiFactorGenerator.FACTOR_ID
+      );
+      if (!totpHint) throw new Error('No TOTP factor found for this account.');
+      const assertion = TotpMultiFactorGenerator.assertionForSignIn(totpHint.uid, mfaCode);
+      await mfaResolver.resolveSignIn(assertion);
+      onSubmit?.(formData);
+      onClose();
+      setFormData({ name: '', email: '', password: '', username: '' });
+      setMfaCode('');
+      setMfaResolver(null);
+    } catch (err: any) {
+      setLocalError(err.message || 'Invalid code. Please try again.');
+    } finally {
+      setMfaLoading(false);
     }
   };
 
@@ -59,7 +164,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
     try {
       await googleSignIn();
       onClose();
-      setFormData({ name: '', email: '', password: '' });
+      setFormData({ name: '', email: '', password: '', username: '' });
     } catch (err: any) {
       setLocalError(err.message || 'Google sign-in failed');
     }
@@ -100,6 +205,144 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Content */}
         <div className="relative z-10 p-8 md:p-10">
+
+          {/* ── Reset Password View ── */}
+          {view === 'reset' && (
+            <>
+              <button
+                onClick={handleBackToLogin}
+                className="flex items-center gap-1 text-sm text-gray-400 hover:text-white mb-6 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+                Back to login
+              </button>
+              <h2 className="text-3xl font-bold text-white mb-2">Reset Password</h2>
+              <p className="text-gray-400 mb-6">
+                Enter your account email and we'll send you a reset link.
+              </p>
+              {localError && (
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                  {localError}
+                </div>
+              )}
+              <form onSubmit={handleResetPassword} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-bold text-gray-300 mb-2">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-3.5 text-gray-500" size={20} />
+                    <input
+                      type="email"
+                      value={resetEmail}
+                      onChange={e => setResetEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      className="w-full bg-white/5 border border-white/10 rounded-lg pl-12 pr-4 py-3 text-white placeholder-gray-600 focus:border-primary focus:bg-white/10 focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={resetLoading}
+                  className="w-full px-6 py-3 bg-primary hover:bg-cyan-300 disabled:opacity-50 disabled:cursor-not-allowed text-bg-dark font-bold rounded-pill transition-all shadow-[0_0_15px_rgba(13,242,242,0.4)]"
+                >
+                  {resetLoading ? 'Sending...' : 'Send Reset Link'}
+                </button>
+              </form>
+            </>
+          )}
+
+          {/* ── Reset Sent Confirmation ── */}
+          {view === 'resetSent' && (
+            <>
+              <div className="flex flex-col items-center text-center py-4">
+                <div className="size-16 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center mb-4">
+                  <span className="material-symbols-outlined text-primary text-[32px]">mark_email_read</span>
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-2">Check Your Inbox</h2>
+                <p className="text-gray-400 mb-1">
+                  A password reset link has been sent to
+                </p>
+                <p className="text-primary font-mono text-sm mb-6 break-all">{resetEmail}</p>
+                <p className="text-gray-500 text-xs mb-8">
+                  Didn't get it? Check your spam folder or try again.
+                </p>
+                <button
+                  onClick={handleBackToLogin}
+                  className="w-full px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-pill transition-all"
+                >
+                  Back to Login
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ── Two-Factor Verify View ── */}
+          {view === 'twoFactorVerify' && (
+            <>
+              <button
+                onClick={handleBackToLogin}
+                className="flex items-center gap-1 text-sm text-gray-400 hover:text-white mb-6 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+                Back to login
+              </button>
+
+              {/* Icon + header */}
+              <div className="flex items-center gap-3 mb-2">
+                <div className="size-10 rounded-lg bg-accent-purple/15 border border-accent-purple/30 flex items-center justify-center shadow-[0_0_14px_rgba(191,0,255,0.2)]">
+                  <ShieldCheck size={20} className="text-accent-purple" />
+                </div>
+                <h2 className="text-2xl font-bold text-white">Two-Factor Auth</h2>
+              </div>
+              <p className="text-gray-400 text-sm mb-8">
+                Enter the 6-digit code from your authenticator app to complete sign-in.
+              </p>
+
+              {localError && (
+                <div className="mb-5 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                  {localError}
+                </div>
+              )}
+
+              {/* Token entry bar */}
+              <div className="mb-6">
+                <label className="block text-xs text-gray-500 font-mono uppercase tracking-widest mb-3">
+                  Authenticator Code
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={mfaCode}
+                  onChange={e => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
+                  autoFocus
+                  className="w-full bg-white/5 border border-accent-purple/30 rounded-lg px-6 py-4 text-white placeholder-gray-700 text-center font-mono text-3xl tracking-[0.5em] focus:border-accent-purple focus:bg-white/8 focus:outline-none focus:shadow-[0_0_18px_rgba(191,0,255,0.25)] transition-all"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleMfaVerify}
+                disabled={mfaLoading || mfaCode.length !== 6}
+                className="w-full px-6 py-3 bg-accent-purple/20 hover:bg-accent-purple/30 disabled:opacity-40 disabled:cursor-not-allowed border border-accent-purple/40 text-accent-purple font-bold rounded-pill transition-all shadow-[0_0_15px_rgba(191,0,255,0.2)] flex items-center justify-center gap-2"
+              >
+                {mfaLoading ? (
+                  <><RefreshCw size={16} className="animate-spin" /> Verifying…</>
+                ) : (
+                  <><ShieldCheck size={16} /> Verify Identity</>
+                )}
+              </button>
+
+              <p className="text-center text-xs text-gray-600 mt-5">
+                Open your authenticator app to find the current code for <span className="text-gray-400">NeuroBuilds</span>.
+              </p>
+            </>
+          )}
+
+          {/* ── Auth Form View ── */}
+          {view === 'form' && <>
           {/* Mode Tabs */}
           <div className="flex gap-1 bg-black/20 rounded-pill p-1 mb-8">
             <button
@@ -160,6 +403,45 @@ const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             )}
 
+            {/* Username Field (Register Only) */}
+            {formMode === 'register' && (
+              <div>
+                <label className="block text-sm font-bold text-gray-300 mb-2">
+                  Username
+                </label>
+                <div className="relative">
+                  <AtSign className="absolute left-4 top-3.5 text-gray-500" size={20} />
+                  <input
+                    type="text"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleInputChange}
+                    placeholder="your.handle"
+                    autoComplete="off"
+                    className={`w-full bg-white/5 border rounded-lg pl-12 pr-10 py-3 text-white placeholder-gray-600 focus:bg-white/10 focus:outline-none transition-all ${
+                      usernameStatus === 'available' ? 'border-green-500/60 focus:border-green-400' :
+                      usernameStatus === 'taken' || usernameStatus === 'invalid' ? 'border-red-500/60 focus:border-red-400' :
+                      'border-white/10 focus:border-primary'
+                    }`}
+                  />
+                  <div className="absolute right-4 top-3.5">
+                    {usernameStatus === 'checking' && <Loader size={16} className="animate-spin text-gray-400" />}
+                    {usernameStatus === 'available' && <CheckCircle size={16} className="text-green-400" />}
+                    {(usernameStatus === 'taken' || usernameStatus === 'invalid') && <XCircle size={16} className="text-red-400" />}
+                  </div>
+                </div>
+                {usernameStatus === 'available' && (
+                  <p className="text-xs text-green-400 mt-1">@{formData.username} is available</p>
+                )}
+                {usernameStatus === 'taken' && (
+                  <p className="text-xs text-red-400 mt-1">That username is taken</p>
+                )}
+                {usernameStatus === 'invalid' && (
+                  <p className="text-xs text-red-400 mt-1">3–20 chars: lowercase letters, numbers, dots only. No leading/trailing/double dots.</p>
+                )}
+              </div>
+            )}
+
             {/* Email Field */}
             <div>
               <label className="block text-sm font-bold text-gray-300 mb-2">
@@ -213,9 +495,13 @@ const AuthModal: React.FC<AuthModalProps> = ({
                   />
                   <span className="text-gray-400">Remember me</span>
                 </label>
-                <a href="#" className="text-primary hover:text-cyan-300 transition-colors">
+                <button
+                  type="button"
+                  onClick={() => { setView('reset'); setLocalError(null); }}
+                  className="text-primary hover:text-cyan-300 transition-colors"
+                >
                   Forgot password?
-                </a>
+                </button>
               </div>
             )}
 
@@ -238,7 +524,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
           <div className="mt-8 pt-8 border-t border-white/5">
             <p className="text-center text-sm text-gray-400 mb-4">Or continue with</p>
             <div className="grid grid-cols-2 gap-3">
-              <button 
+              <button
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={loading}
@@ -264,6 +550,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
               {formMode === 'login' ? 'Sign up' : 'Sign in'}
             </button>
           </p>
+          </>}
         </div>
       </div>
     </div>
