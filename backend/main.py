@@ -3,6 +3,7 @@ NeuroBuilds AI Service — FastAPI gateway
 Run: uvicorn main:app --reload --port 8000
 """
 
+import asyncio
 import logging
 import os
 import re
@@ -14,13 +15,17 @@ from firebase_admin import credentials as fb_credentials
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 from pymongo import MongoClient
 
 from agent import run_pipeline
 from routers.verify import router as verify_router
+from routers.blog_automator import router as blog_automator_router
+from routers.admin_users import router as admin_users_router
 from services.auth_guard import require_admin
 from services.cache_manager import setup_semantic_cache
+from services.gemini_manager import gemini_manager
 from services.vector_store import VectorStoreEngine
 from services.location_search import LocationSearchService, ensure_indexes
 
@@ -40,8 +45,10 @@ async def lifespan(app: FastAPI):
 
     if mongo_uri:
         # Lazy connect — doesn't block startup if Atlas is temporarily unreachable
-        app.state.mongo = MongoClient(mongo_uri, serverSelectionTimeoutMS=5_000)
-        logger.info("MongoDB client initialised")
+        app.state.mongo  = MongoClient(mongo_uri, serverSelectionTimeoutMS=5_000)
+        # Async Motor client — used by the GET /api/marketplace/search endpoint
+        app.state.motor  = AsyncIOMotorClient(mongo_uri, serverSelectionTimeoutMS=5_000)
+        logger.info("MongoDB clients initialised (sync + async Motor)")
 
         # Wire vector store engine — shared client, zero extra connections
         app.state.vector_store = VectorStoreEngine(
@@ -60,6 +67,7 @@ async def lifespan(app: FastAPI):
         logger.info("Marketplace search indexes verified")
     else:
         app.state.mongo        = None
+        app.state.motor        = None
         app.state.vector_store = None
         logger.warning("MONGODB_ATLAS_URI not set — /api/hardware/lookup and /api/marketplace/search will return 503")
 
@@ -71,13 +79,22 @@ async def lifespan(app: FastAPI):
     sa_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", "").strip()
     if not firebase_admin._apps:
         try:
+            import json as _json
+            # Resolve relative SA paths against this file's directory, not CWD
+            if sa_path and not os.path.isabs(sa_path):
+                sa_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), sa_path)
+
             if sa_path and os.path.isfile(sa_path):
                 cred = fb_credentials.Certificate(sa_path)
+                with open(sa_path) as _f:
+                    project_id = _json.load(_f).get("project_id", "")
             else:
-                # Attempt ADC (Cloud Run, Cloud Shell, gcloud auth login)
                 cred = fb_credentials.ApplicationDefault()
-            firebase_admin.initialize_app(cred)
-            logger.info("Firebase Admin SDK initialised")
+                project_id = os.getenv("FIREBASE_PROJECT_ID", "").strip()
+
+            options = {"projectId": project_id} if project_id else {}
+            firebase_admin.initialize_app(cred, options)
+            logger.info("Firebase Admin SDK initialised (project=%s)", project_id or "auto")
         except Exception as exc:
             # Non-fatal at startup — admin-guarded endpoints will return 503
             # rather than blocking the whole service from starting.
@@ -93,6 +110,8 @@ async def lifespan(app: FastAPI):
 
     if app.state.mongo:
         app.state.mongo.close()
+    if app.state.motor:
+        app.state.motor.close()
     logger.info("NeuroBuilds AI service shut down.")
 
 
@@ -119,6 +138,8 @@ app.add_middleware(
 )
 
 app.include_router(verify_router)
+app.include_router(blog_automator_router)
+app.include_router(admin_users_router)
 
 
 # ─── Request models ───────────────────────────────────────────────────────────
@@ -171,6 +192,31 @@ async def health():
     return {"status": "ok", "service": "neurobuilds-ai"}
 
 
+@app.get("/api/admin/gemini/status")
+async def gemini_status(
+    _admin_uid: Annotated[str, Depends(require_admin)] = "",
+):
+    """
+    Returns a sanitised snapshot of the Gemini key pool (keys redacted).
+
+    Fields per key: id, status, requests_in_window, tokens_in_window,
+    throttled_until_epoch, total_successful_calls.
+    Returns 503 when the key manager is not initialised (no API keys set).
+    """
+    if gemini_manager is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Gemini key manager is not initialised. "
+                "Set GEMINI_KEY_1..10 or GOOGLE_API_KEY in the environment."
+            ),
+        )
+    return {
+        "pool_size": gemini_manager.pool_size,
+        "keys":      gemini_manager.get_stats(),
+    }
+
+
 @app.get("/api/hardware/lookup", response_model=HardwareLookupResponse)
 async def hardware_lookup(
     request: Request,
@@ -209,6 +255,59 @@ async def hardware_lookup(
         category=doc["category"],
         specs=doc.get("specs", {}),
     )
+
+
+@app.get("/api/marketplace/search")
+async def marketplace_search_get(
+    request: Request,
+    area: str = Query(..., min_length=1, description="Neighbourhood / area name, e.g. 'Tariq Garden'"),
+    city: Optional[str] = Query(None, description="Optional city filter to narrow Tier-3 fallback"),
+    limit: int = Query(20, ge=1, le=100, description="Maximum listings to return"),
+):
+    """
+    Public GET endpoint for the 3-tier cascading geo-fallback marketplace search.
+
+    Tier 1 — Exact area match      (area == target, status == "active")
+    Tier 2 — Radius expansion      ($nearSphere ≤ 8 km from area centroid)
+    Tier 3 — City-wide fallback    (city that contains the area)
+
+    The Motor client (app.state.motor) owns the async connection; the sync
+    LocationSearchService runs inside asyncio.to_thread() so it never blocks
+    the event loop.
+    """
+    if request.app.state.motor is None:
+        raise HTTPException(status_code=503, detail="Marketplace database not configured.")
+
+    db_name  = os.getenv("MONGODB_DATABASE",            "neurobuilds")
+    col_name = os.getenv("MONGODB_LISTINGS_COLLECTION", "listings")
+
+    # LocationSearchService is synchronous (pymongo); use the sync client so
+    # Motor's async collection isn't passed to a blocking cursor.
+    col = request.app.state.mongo[db_name][col_name]
+    svc = LocationSearchService(col)
+
+    extra: dict[str, Any] = {}
+    if city:
+        extra["city"] = city
+
+    try:
+        result = await asyncio.to_thread(
+            svc.search,
+            area,
+            extra_filters=extra if extra else None,
+            limit=limit,
+        )
+    except Exception as exc:
+        logger.exception("Geo-search failed for area=%r", area)
+        raise HTTPException(status_code=500, detail=f"Search failed: {exc}")
+
+    return {
+        "status":     "ok",
+        "tier":       result.tier,
+        "tier_label": result.tier_label,
+        "count":      result.count,
+        "listings":   result.listings,
+    }
 
 
 @app.post("/api/marketplace/search", response_model=MarketplaceSearchResponse)

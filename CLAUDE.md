@@ -30,6 +30,16 @@ npm run dev                             # Dry-run harness with mock keys
 GEMINI_KEY_1=AIza... npm run dev        # Live run with real key(s)
 ```
 
+### WhatsApp OTP Gateway (Node / Express)
+```bash
+cd backend/whatsapp-gateway
+npm install
+GATEWAY_SECRET=your-secret node index.js   # First run: scan QR in terminal
+npm run dev                                 # node --watch for development
+```
+
+On first run a QR code appears in the terminal — scan with WhatsApp → Settings → Linked Devices → Link a Device. Session is persisted via `LocalAuth` (`.wwebjs_auth/` directory) and survives restarts.
+
 ## Project Overview
 
 **NeuroBuilds** is a React + TypeScript + Vite web app for a PC hardware builder community platform — marketplace, community forums, real-time P2P chat, blog, and an AI PC-build assistant. University Final Year Project (FYP) in active development.
@@ -58,11 +68,11 @@ The `/share` route uses a standalone layout — all chrome (Navbar, ChatSidebar,
 
 | Path | Component |
 |------|-----------|
-| `/` | `HomePage` — landing + marketplace carousel + intelligence feed |
+| `/` | `HomePage` — landing + live Firestore stats (active listings count, thread count) + featured blog post + community feed threads + `SponsoredAdBanner` + `HomeFeedAdSlot` |
 | `/chat` | `ChatPage` → `AIChatPanel` — AI build assistant |
-| `/blog` | `BlogPage` — Firestore-backed blog with admin CMS |
+| `/blog` | `BlogPage` — Firestore-backed blog with admin CMS; uses `useUserRole` for role gating; supports deep-linking via `location.state` |
 | `/marketplace` | `MarketplacePage` — Firestore listings |
-| `/community` | `CommunityPage` — Firestore forums |
+| `/community` | `CommunityPage` — Firestore forums; supports deep-linking via `location.state.openThreadId` to auto-open a thread modal on mount |
 | `/dashboard` | `Dashboard` — user's own listings, saved listings, and threads (Firestore real-time) |
 | `/profile` | `ProfilePage` — display name, avatar URL, phone number, email verification, TOTP 2FA (requires auth) |
 | `/admin` | `AdminPage` — admin workspace: review queue, moderation desk, analytics, role management (requires `role: 'admin'`) |
@@ -76,8 +86,9 @@ The `/share` route uses a standalone layout — all chrome (Navbar, ChatSidebar,
 - `listings` → `useMarketplace`
 - `threads` + `threads/{id}/replies` → `useCommunity`
 - `conversations` + `conversations/{id}/messages` → `useChats`
-- `blogs` + `blogs/{id}/comments` → `useBlogCMS` / `useBlogFeed` / `useBlogComments`
+- `blogs` + `blogs/{id}/comments` → `useBlogCMS` / `useBlogFeed` / `useBlogComments` / `useReviewQueue`
 - `reports` → `useReports`
+- `advertisements` → `useAdvertisements` — Firestore-backed dynamic ad slots; documents carry `title`, `sponsorName`, `targetUrl`, `imageUrl`, `placement`, `status: 'active' | 'inactive'`, `accent: 'cyan' | 'purple'`
 - `users/{uid}` → role (`role: 'user' | 'vendor' | 'moderator' | 'admin'`) + seller verification (`isVerified`, `phoneNumber`) + profile fields + `username`
 - `users/{uid}/aiSessions` → `useAISessions` — AI chat session history (newest-first, limit 20)
 - `users/{uid}/notifications` → `useNotifications` — in-app notifications (newest-first, limit 30)
@@ -98,11 +109,11 @@ Firebase Auth only — email/password + Google OAuth. `useAuth` exposes `{ user,
 
 Four roles in `users/{uid}.role`: `user` | `vendor` | `moderator` | `admin`.
 
-- `useUserRole()` — fetches role + exposes `isAdmin`, `isModerator`, `isVendor` boolean helpers (replaces the simpler `useAdminRole`)
-- `useAdminRole(uid)` — legacy hook; still used by blog/admin gates; reads `role === 'admin'`
-- `RoleAssignmentMatrix` (Admin tab 4) — admin UI to search users by name and reassign roles with real-time Firestore updates
+- `useUserRole()` — fetches role + exposes `isAdmin`, `isModerator`, `isVendor` boolean helpers (replaces the simpler `useAdminRole`). `isAdmin` is derived from the signed-in user's **JWT `admin` custom claim** (`getIdTokenResult()`), mirroring `firestore.rules` `isAdmin()` — not the Firestore `role` field — so the UI can't show a "ghost admin" who would fail every privileged write. `role`/`isModerator`/`isVendor` still come from the Firestore doc. Falls back to the `role` field only when inspecting a uid other than the current user.
+- `useAdminRole(uid)` — legacy hook; still used by blog/admin gates; also reads the JWT claim for the current user (Firestore-role fallback for other uids)
+- `RoleAssignmentMatrix` (Admin tab 4) — admin UI to search users and reassign roles; calls `POST /api/admin/users/{uid}/role` (NOT a direct client `updateDoc`), so each change sets the Firestore role **and** the JWT `admin` claim server-side
 
-Role changes in Firestore are immutable to non-admins via `firestore.rules`.
+Role changes in Firestore are immutable to non-admins via `firestore.rules`; the only path that mutates a role is the `require_admin`-guarded backend endpoint. The affected user must refresh their session (sign out/in) before the new claim is active.
 
 ### Hooks
 
@@ -115,6 +126,8 @@ Role changes in Firestore are immutable to non-admins via `firestore.rules`.
 | `useChats` | Firestore `conversations` | Real-time P2P + group chat conversations + messages |
 | `useBlogCMS` | Firestore `blogs` | Blog CRUD + review workflow (`createBlogPost`, `updateBlogPost`, `deleteBlogPost`, `approvePost`, `rejectPost`, `schedulePost`) |
 | `useBlogFeed` | Firestore `blogs` | Real-time feed; `isAdmin=true` shows all posts, else `isPublished=true` only |
+| `useReviewQueue` | Firestore `blogs` | Server-side filtered `onSnapshot` for `status in ['pending_review', 'scheduled']`; posts disappear the instant they are approved/rejected |
+| `useAdvertisements` | Firestore `advertisements` | Real-time active ads by placement string; used by `HomeFeedAdSlot` |
 | `useBlogComments` | Firestore `blogs/{id}/comments` | Per-post comment thread; `addComment`, `deleteComment` (with Firestore transaction on `commentCount`) |
 | `useAdminRole` | Firestore `users/{uid}` | Checks `role === 'admin'` — gates blog editor and admin page |
 | `useUserRole` | Firestore `users/{uid}` | Full role fetch + `isAdmin`, `isModerator`, `isVendor` booleans |
@@ -129,6 +142,19 @@ Role changes in Firestore are immutable to non-admins via `firestore.rules`.
 - **`NotificationBell.tsx`** — bell icon in Navbar showing unread count badge; click opens drawer; click-outside detection to dismiss
 - **`NotificationDrawer.tsx`** — dropdown listing last 30 notifications; mark-read on click; types: `blog_comment`, `thread_reply`, `marketplace_message`, `ai_build_ready`; navigation links per type
 - **`writeNotification(uid, data)`** — exported from `useNotifications`; any hook/service calls this to push a notification into another user's subcollection
+
+### Ads System (`src/components/Ads/`)
+
+Three ad components, all following the cyberpunk design system. Two are backed by static data; one by Firestore.
+
+- **`SponsoredAdBanner.tsx`** — full-width rotating banner; crossfades every 5.5 s; progress bar at bottom tracks position; gradient icon fallback when `imageUrl` is empty; `accent` prop controls cyan/purple theming; defaults to `BANNER_ADS` from `sponsoredAds.ts`
+- **`SponsoredNodeMicro.tsx`** — one-line inline ticker ("SPON" tag + sponsor // tagline) that slides in from left every 4.2 s; used inside listing/thread cards; defaults to `MICRO_ADS`
+- **`HomeFeedAdSlot.tsx`** — same ticker format but Firestore-backed via `useAdvertisements('homepage_feed')`; shows a skeleton while loading; renders nothing if no active ads for that placement
+
+**Static data (`src/data/sponsoredAds.ts`):**
+- `SponsoredAd` interface: `id`, `imageUrl`, `targetUrl`, `altText`, `sponsorName`, `tagline`, `accent`
+- `BANNER_ADS` — 4 ads (ASUS ROG, Corsair, NZXT, EVGA)
+- `MICRO_ADS` — 4 ads (Kingston, Seagate, be quiet!, Gigabyte)
 
 ### AI Chat System (`src/components/AI/`)
 
@@ -169,7 +195,7 @@ Features:
 Admin-only workspace at `/admin`. Requires auth + `role: 'admin'` in `users/{uid}` (checked via `useAdminRole()`). Four tabbed sections:
 
 **ReviewConsole.tsx** — Blog post moderation queue
-- Filters posts by `status: 'pending_review' | 'scheduled'`
+- Uses `useReviewQueue` — server-side filtered snapshot; posts vanish from the queue the moment they are approved or rejected in Firestore
 - Inline title/content editing before approval
 - Approve → `approvePost(id, publishAt?)` — immediate publish or scheduled
 - Reject → `rejectPost(id, note)` — reverts to draft with `rejectionNote` shown to author
@@ -409,10 +435,13 @@ New UI should follow: backdrop blur, neon shadows on hover, dark panel backgroun
 ### Firestore Security & Indexes
 
 **`firestore.rules`** — security rules for all collections:
-- Authenticated users can read/write their own subcollections (`aiSessions`, `notifications`)
-- `role` field in `users/{uid}` is immutable to non-admins
-- `reports` writable by any authenticated user; readable/resolvable by admins only
-- `listings` and `threads` writable by owner; `status: 'hidden'` set only by moderators/admins
+- `isAdmin()` checks the JWT custom claim `request.auth.token.admin == true` (set by `promote_admin.py` via Firebase Admin SDK) — zero extra Firestore reads, cannot be forged by a client
+- `isModerator()` falls back to a Firestore doc read on `users/{uid}.role in ['moderator', 'admin']`
+- Authenticated users can read/write their own subcollections (`aiSessions`, `notifications`); any signed-in user may push a notification into another user's subcollection
+- `role` field in `users/{uid}` is immutable to non-admins (`isNotChangingRole()` helper)
+- `threads` update rules are fine-grained: authors can edit content or mark `lifecycleStatus: 'solved'`; moderators can change `lifecycleStatus` only; anyone can make vote-only updates (`upvoteCount`, `upvotedBy`, etc.)
+- `reports` writable by any authenticated user; `read, update, delete` restricted to admins only (moderators cannot read reports)
+- `blogs` read: published posts are public; admins see all; authors see their own regardless of status
 
 **`firestore.indexes.json`** — composite indexes:
 - `blogs`: `isPublished` + `createdAt` (desc)
@@ -425,8 +454,16 @@ The backend is a standalone Python service — **must be run separately** from t
 
 **Endpoints:**
 - `GET /health` — returns `{"status": "ok", "service": "neurobuilds-ai"}`
-- `GET /api/hardware/lookup` — searches `hardware_catalog` collection for component lookups
+- `GET /api/hardware/lookup` — searches `hardware_catalog` collection; requires `require_admin`
 - `POST /api/chat` — accepts `{messages, activeBuild}`, returns a raw token stream (`text/plain`)
+- `GET /api/marketplace/search` — public 3-tier cascading geo-fallback search (query params: `area`, `city?`, `limit?`)
+- `POST /api/marketplace/search` — same search with richer filter body; requires `require_admin`
+- `GET /api/admin/gemini/status` — sanitised Gemini key-pool snapshot (keys redacted); requires `require_admin`
+- `POST /api/admin/blog-automator/trigger` — queues AI blog generation pipeline; requires `require_admin`
+- `GET /api/admin/blog-automator/jobs` — lists recent automator jobs newest-first; requires `require_admin`
+- `POST /api/admin/users/{uid}/role` — assigns a role; sets BOTH `users/{uid}.role` AND the JWT `admin` custom claim (and revokes the target's refresh tokens) so the Firestore role and the rules' `isAdmin()` claim stay in sync; requires `require_admin` (`routers/admin_users.py`)
+
+**Firebase Admin SDK** is initialised in the FastAPI lifespan handler. Set `FIREBASE_SERVICE_ACCOUNT_PATH` to a service-account JSON file. On GCP the env var may be omitted — Application Default Credentials are used as a fallback. Required by all `require_admin`-guarded endpoints; non-fatal at startup (admin endpoints return 503 until resolved).
 
 **LangGraph pipeline** (`agent.py`) — 6 nodes executed sequentially:
 
@@ -497,17 +534,41 @@ This is the core architectural guarantee of the system. Every node belongs to ex
 
 | Var | Purpose |
 |-----|---------|
-| `OPENAI_API_KEY` | LLM + embeddings (required) |
-| `OPENAI_MODEL` | Defaults to `gpt-4o-mini` |
-| `TAVILY_API_KEY` | Node 1 web search |
+| `GEMINI_KEY_1` … `GEMINI_KEY_10` | Pool-mode key rotation via `GeminiKeyManager`; set at least `GEMINI_KEY_1` for pool mode |
+| `GOOGLE_API_KEY` | Single-key fallback when no `GEMINI_KEY_N` vars are set; also used for embeddings |
+| `GEMINI_MODEL` | Defaults to `gemini-2.0-flash`; used in `intent_node`, `response_node`, and blog automator |
+| `TAVILY_API_KEY` | Node 1 web search + blog automator research stage |
 | `MONGODB_ATLAS_URI` | Node 2 vector store connection |
 | `MONGODB_DATABASE` | Defaults to `neurobuilds` |
 | `MONGODB_COLLECTION` | Defaults to `hardware_specs` |
 | `MONGODB_VECTOR_INDEX` | Defaults to `vector_index` |
-| `MONGODB_CATALOG_COLLECTION` | Defaults to `hardware_catalog` — collection used by `ingest_hardware.py` and `/api/hardware/lookup`; kept separate from the RAG `hardware_specs` collection |
+| `MONGODB_CATALOG_COLLECTION` | Defaults to `hardware_catalog` — used by `ingest_hardware.py` and `/api/hardware/lookup` |
+| `MONGODB_LISTINGS_COLLECTION` | Defaults to `listings` — used by `GET /api/marketplace/search` |
 | `CORS_ORIGINS` | Comma-separated allowed origins; defaults to `http://localhost:5173,http://127.0.0.1:5173` |
+| `MONGODB_CACHE_COLLECTION` | Defaults to `semantic_cache` — used by `cache_manager.py`; requires a `semantic_cache_index` vector search index (768 dims, cosine) created manually in Atlas UI |
+| `FIREBASE_SERVICE_ACCOUNT_PATH` | Path to Firebase service-account JSON; required by `require_admin` / `require_auth` dependencies; on GCP can be omitted (Application Default Credentials used) |
+| `FIREBASE_PROJECT_ID` | Firebase project ID; only needed when `FIREBASE_SERVICE_ACCOUNT_PATH` is absent and ADC doesn't supply it |
+| `WHATSAPP_GATEWAY_URL` | URL of the WhatsApp OTP gateway microservice; defaults to `http://127.0.0.1:3001` |
+| `GATEWAY_SECRET` | Shared Bearer secret for the WhatsApp gateway `/send-otp` endpoint; must match `GATEWAY_SECRET` set in the gateway process |
 
-MongoDB Atlas requires a Vector Search index named `vector_index` on the `embedding` field. `GPU_Exhaustive_Database.csv` and `CPU_Exhaustive_Database.csv` (repo root) contain hardware data for reference.
+MongoDB Atlas requires a Vector Search index named `vector_index` on the `embedding` field (768 dims, cosine — Gemini `text-embedding-004`). `GPU_Exhaustive_Database.csv` and `CPU_Exhaustive_Database.csv` (repo root) contain hardware data for reference.
+
+### WhatsApp OTP Gateway (`backend/whatsapp-gateway/`)
+
+Standalone Node.js microservice — delivers 6-digit OTPs via WhatsApp for seller phone verification. Not part of the FastAPI process; runs as a separate service.
+
+**Architecture:**
+- Uses `whatsapp-web.js` (headless Puppeteer) + `LocalAuth` for session persistence (`.wwebjs_auth/` directory)
+- Auto-reconnect on disconnect with 5 s delay to avoid tight loops
+- `GATEWAY_SECRET` env var gates `/send-otp` with `Authorization: Bearer <secret>` check; unset = no auth (dev only)
+
+**Endpoints:**
+- `GET /health` — returns `{ ready, status, service }` where `status` is one of: `initialising`, `awaiting_scan`, `authenticated`, `ready`, `auth_failure`, `disconnected`, `reconnect_failed`, `init_error`
+- `POST /send-otp` — body: `{ phone: string (E.164, e.g. +923001234567), otp: string (6 digits) }`; validates both fields; returns `{ success: true }` or error with HTTP 400/503/500
+
+**FastAPI integration:** `WHATSAPP_GATEWAY_URL` (default `http://127.0.0.1:3001`) and `GATEWAY_SECRET` in `backend/.env` wire the FastAPI backend to call this gateway for real OTP delivery (replacing the hardcoded mock OTP).
+
+**First-run QR scan:** on first start the gateway prints a QR code in the terminal. Scan via WhatsApp → Settings → Linked Devices → Link a Device. Subsequent starts reuse the saved session.
 
 ### Ingestion Scripts
 
@@ -516,8 +577,8 @@ MongoDB Atlas requires a Vector Search index named `vector_index` on the `embedd
 cd backend
 python ../misc/scripts/ingest-rag.py
 ```
-- Loads `OPENAI_API_KEY` from `backend/.env`
-- Generates embeddings with `text-embedding-3-small`
+- Loads `GOOGLE_API_KEY` from `backend/.env`
+- Generates embeddings with Gemini `text-embedding-004` (768 dims)
 - Upserts GPU, CPU, motherboard, RAM, PSU specs into `hardware_specs` collection
 - Creates `vector_index` on the `embedding` field if absent
 - Uses hardcoded `HARDWARE_SPECS` list (CSVs not yet wired)
@@ -561,7 +622,49 @@ python ../misc/scripts/ingest-rag.py
 - Silently no-ops if `OPENAI_API_KEY` absent, `langchain-mongodb` not installed, or Atlas unreachable — never blocks startup
 - Called once in FastAPI lifespan handler in `main.py`
 
-**`vector_store.py`** — MongoDB Atlas Vector Store setup for `rag_node`; wires `hardware_specs` collection + `vector_index` to LangChain `MongoDBAtlasVectorSearch`.
+**`auth_guard.py`** — FastAPI dependencies for Firebase JWT verification:
+- `require_admin` — verifies Bearer token via Firebase Admin SDK + asserts `admin: true` custom claim; raises HTTP 401/403/503
+- `require_auth` — same verification but accepts any valid non-revoked Firebase ID token (no admin claim check); raises HTTP 401/503
+- Both dependencies are used with `Annotated[str, Depends(...)]` and return the verified UID
+
+**`gemini_manager.py`** — Python port of `gemini-key-manager/` (TypeScript):
+- `GeminiKeyManager` — asyncio-safe pool manager; loads `GEMINI_KEY_1..GEMINI_KEY_10` from env, falls back to `GOOGLE_API_KEY`; 60-req/min rolling window per key; Fisher-Yates load balancing; `mark_throttled(key, cooldown_s)` + `evict_expired_throttles()`
+- `GeminiClient` — async wrapper with transparent 429-rotation retry; `generate_text(prompt, *, model, system_prompt, max_tokens, temperature)` and `embed_content(text)` both run `google-genai` SDK calls via `asyncio.to_thread()`
+- Module-level singletons: `gemini_manager: GeminiKeyManager | None` and `gemini_client: GeminiClient | None` (None when no API keys are set)
+- Used by `blog_automator.py` and exposed via `GET /api/admin/gemini/status`
+
+**`embeddings.py`** — `GeminiEmbeddings` — LangChain `Embeddings` subclass backed directly by the `google-genai` SDK:
+- Lazy model resolution: tries `embedding-001` → `text-embedding-004` → `gemini-embedding-exp-03-07` on first call, caches the winner
+- Used by `VectorStoreEngine` (replacing the previous inline embedding setup)
+
+**`vector_store.py`** — `VectorStoreEngine` — wraps `MongoDBAtlasVectorSearch` with a shared injected `MongoClient` (zero extra connection pools):
+- Uses `GeminiEmbeddings` from `services.embeddings`
+- `ingest_documents(docs)` — embed + insert; `get_retriever(top_k)` — LangChain retriever; `similarity_search(query, top_k)` — direct search
+- Accepts the `MongoClient` from `app.state.mongo` at construction; instantiated once in the FastAPI lifespan handler
+
+### Blog Automator Router (`backend/routers/blog_automator.py`)
+
+Python migration of the TypeScript `blog-automator/` service into the FastAPI backend. All LLM calls use `gemini_client` from `services.gemini_manager`. All endpoints require `require_admin`.
+
+**Pipeline stages:**
+```
+[1] Research  — Tavily web search (top 5 results, same TAVILY_API_KEY as agent.py)
+[2] Draft     — Gemini writer LLM (system prompt: SEO-optimised long-form, 1500–2500 words)
+[3] Critique  — Gemini critic LLM (JSON response: score 0–100, feedback[], requiresRevision)
+               If score < 75 AND iteration < 2 → back to [2] with feedback
+[4] Publish   — Creates Firestore `blogs` doc, status "pending_review", authorType "ai_agent"
+               Admin reviews via existing ReviewConsole UI
+```
+
+**Firestore collections:**
+- `blog_automator_jobs/{job_id}` — job state (stage, status, critiqueScore, critiqueHistory, blogId)
+- `blog_automator_meta/config` — `.lastTriggeredAt` for the 12-hour anti-spam window
+
+**Anti-spam:** `POST /trigger` checks `blog_automator_meta/config.lastTriggeredAt`; rejects with HTTP 429 if triggered within the last 12 hours.
+
+**Mock mode:** `{ "mock": true }` in the trigger body uses hardcoded synthetic research/draft/critique data — no Tavily or Gemini calls; useful for UI testing.
+
+**Extra Firestore fields on AI-generated blog posts:** `critiqueScore`, `critiqueHistory`, `automatorJobId`, `sourceTopic` (in addition to standard `BlogPost` fields with `authorType: 'ai_agent'`).
 
 ### Academic Evaluation Suite (`backend/tests/evaluation_suite.py`)
 
@@ -578,7 +681,7 @@ python tests/evaluation_suite.py
 
 ### Gemini Key Manager (`gemini-key-manager/`)
 
-Standalone TypeScript service — resilient Gemini API key rotation and load-balancing. Not wired into the main app at runtime; used as a standalone utility / reference implementation.
+Standalone TypeScript service — resilient Gemini API key rotation and load-balancing. The Python equivalent (`backend/services/gemini_manager.py`) is the live backend implementation; this TypeScript service is the reference implementation / standalone utility.
 
 **Architecture:**
 - **`KeyRotationManager`** (singleton) — manages a pool of up to 10 Gemini API keys; tracks per-key `requestsInCurrentWindow` and `tokensInCurrentWindow` (60-second rolling windows, 60 req/window cap); picks the least-utilised key from the lower half of the pool (Fisher-Yates shuffle to prevent hot-spotting)
@@ -602,7 +705,7 @@ Standalone TypeScript service — resilient Gemini API key rotation and load-bal
 
 ## Key Gaps / In-Progress Areas
 
-- **Seller verification**: OTP is mocked (`MOCK_OTP = '123456'`); no real SMS provider integrated.
+- **Seller verification**: The WhatsApp OTP gateway microservice (`backend/whatsapp-gateway/`) exists and is functional, but the FastAPI backend and frontend `useSellerVerification` hook still use the hardcoded mock OTP (`123456`) — the gateway is not yet wired into the verification flow.
 - **TOTP 2FA**: `ProfilePage` implements Firebase TOTP 2FA enrollment, but Multi-factor Auth must be enabled in the Firebase console for it to work.
 - **MongoDB RAG data**: Run `scripts/ingest-rag.py` to populate the `hardware_specs` collection before the backend's `rag_node` can return results — it falls back gracefully until this is done.
 - **CSV → RAG pipeline**: `GPU_Exhaustive_Database.csv` and `CPU_Exhaustive_Database.csv` exist but are not yet wired into `ingest-rag.py`; the script uses hardcoded specs instead.
@@ -611,5 +714,6 @@ Standalone TypeScript service — resilient Gemini API key rotation and load-bal
 - **scoringEngine integration**: `src/utils/scoringEngine.ts` exists but is not yet wired into any UI component.
 - **Notification triggers**: `writeNotification()` is exported but not yet called from marketplace/community/blog hooks — notifications are not yet generated on user actions.
 - **LLM semantic cache**: `cache_manager.setup_semantic_cache()` is wired into `main.py` startup but requires a `semantic_cache_index` Atlas Vector Search index to be created manually before the first cached call.
-- **Location search API exposure**: `LocationSearchService` exists in `backend/services/location_search.py` but is not yet exposed as a FastAPI endpoint — the frontend uses Firestore client-side filtering instead of the geo-fallback pipeline.
+- **Blog Automator UI**: The backend pipeline (`backend/routers/blog_automator.py`) is live; no admin UI exists in the frontend yet to trigger it or poll job status — currently requires direct API calls.
+- **Location search API exposure**: `GET /api/marketplace/search?area=&city=&limit=` is live in `main.py`. The frontend still uses Firestore client-side filtering; wire it to this endpoint when ready.
 - **`pakistanGeoLocations.ts` ↔ backend sync**: area centroids in `src/data/pakistanGeoLocations.ts` and `backend/services/location_search.py`'s `_AREA_CENTROIDS` are manually kept in sync — no automated check.
