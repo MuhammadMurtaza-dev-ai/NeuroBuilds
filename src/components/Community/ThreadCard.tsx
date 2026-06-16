@@ -34,8 +34,8 @@ export default function ThreadCard({ thread, onClick, onVote, currentUserId }: P
       onClick={onClick}
       className={`glass-panel rounded-bento p-5 border transition-all cursor-pointer group ${
         isClosed
-          ? 'border-white/5 opacity-60 hover:opacity-80'
-          : 'border-white/10 hover:border-primary/30 hover:bg-white/[3%]'
+          ? 'border-black/5 dark:border-white/5 opacity-60 hover:opacity-80'
+          : 'border-black/10 dark:border-white/10 hover:border-primary/30 hover:bg-black/[3%] dark:hover:bg-white/[3%]'
       }`}
     >
       <div className="flex items-start gap-4">
@@ -117,12 +117,12 @@ export default function ThreadCard({ thread, onClick, onVote, currentUserId }: P
                   key={i}
                   src={url}
                   alt={`Thread image ${i + 1}`}
-                  className="w-12 h-12 object-cover rounded-lg border border-white/10 cursor-zoom-in"
+                  className="w-12 h-12 object-cover rounded-lg border border-black/10 dark:border-white/10 cursor-zoom-in"
                   onClick={e => { e.stopPropagation(); window.open(url, '_blank'); }}
                 />
               ))}
               {thread.images.length > 3 && (
-                <div className="w-12 h-12 rounded-lg border border-white/10 bg-black/40 flex items-center justify-center text-xs text-gray-400 font-mono">
+                <div className="w-12 h-12 rounded-lg border border-black/10 dark:border-white/10 bg-black/8 dark:bg-black/40 flex items-center justify-center text-xs text-gray-400 font-mono">
                   +{thread.images.length - 3}
                 </div>
               )}

@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { doc, getDoc, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '../Firebase';
 import { useMarketplace, DEFAULT_FILTERS } from '../hooks/useMarketplace';
 import type { MarketplaceFilters } from '../hooks/useMarketplace';
@@ -21,6 +22,7 @@ const CATEGORIES = [
   { name: 'Monitors', icon: 'monitor', id: 'monitors' },
 ];
 
+const DAY_MS = 86_400_000;
 
 interface Props {
   onOpenAuth: (mode: 'login' | 'register') => void;
@@ -28,52 +30,174 @@ interface Props {
 
 export default function MarketplacePage({ onOpenAuth }: Props) {
   const { user } = useAuth();
-  const { listings, loading, loadingMore, hasMore, error, selectedCountry, getFilteredListings, loadMore, createListing, updateListing, deleteListing, toggleSave, isSaved } = useMarketplace();
+  const {
+    listings,
+    loading,
+    error,
+    tier,
+    tierLabel,
+    selectedCountry,
+    fetchByGeo,
+    fetchByScope,
+    createListing,
+    updateListing,
+    deleteListing,
+    toggleSave,
+    isSaved,
+  } = useMarketplace();
 
-  const cityFilterOptions = [
-    'All Locations',
-    ...Object.keys(GLOBAL_LOCATIONS[selectedCountry] ?? {}),
-  ];
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkId = searchParams.get('id');
 
   const [isSellerVerified, setIsSellerVerified] = useState(false);
   const [filters, setFilters] = useState<MarketplaceFilters>(DEFAULT_FILTERS);
+  // Stable "now" captured at mount for the newOnly (<24h) filter. Good enough
+  // for day-granularity filtering without re-triggering the memo every render.
+  const [filterNowMs] = useState(() => Date.now());
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
+  // City options for the top-level location dropdown
+  const cityOptions = [
+    'All Locations',
+    ...Object.keys(GLOBAL_LOCATIONS[selectedCountry] ?? {}),
+  ];
+
+  // Area options populate from GLOBAL_LOCATIONS once a city is chosen
+  const cityAreas: string[] =
+    filters.location !== 'All Locations'
+      ? (GLOBAL_LOCATIONS[selectedCountry]?.[filters.location] ?? [])
+      : [];
+
+  // Drive fetch whenever country, city, or area selection changes
+  useEffect(() => {
+    if (filters.area) {
+      fetchByGeo(
+        filters.area,
+        filters.location !== 'All Locations' ? filters.location : undefined,
+      );
+    } else {
+      fetchByScope(
+        filters.location !== 'All Locations' ? filters.location : undefined,
+      );
+    }
+  }, [filters.location, filters.area, fetchByGeo, fetchByScope]);
+
   // Keep detail modal in sync with local state updates (e.g. after edit)
   useEffect(() => {
     if (!selectedListing) return;
     const updated = listings.find(l => l.id === selectedListing.id);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: keep open modal in sync with Firestore updates
     if (updated) setSelectedListing(updated);
   }, [listings]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Deep-link support: open a listing's detail modal when arriving via
+  // /marketplace?id=<listingId> (e.g. from the HomePage "Latest Drops" carousel).
+  // The listing may not be in the country-scoped fetch, so resolve it directly
+  // from Firestore by document id.
   useEffect(() => {
-    if (!user) { setIsSellerVerified(false); return; }
+    if (!deepLinkId) return;
+    let cancelled = false;
+    const local = listings.find(l => l.id === deepLinkId);
+    if (local) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- open modal from deep-link param
+      setSelectedListing(local);
+      return;
+    }
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'listings', deepLinkId));
+        if (cancelled || !snap.exists()) return;
+        const data = snap.data();
+        if (cancelled) return;
+        setSelectedListing({
+          ...(data as Omit<Listing, 'id' | 'postedDate'>),
+          id: snap.id,
+          postedDate:
+            data.postedDate instanceof Timestamp
+              ? data.postedDate.toDate().toISOString()
+              : String(data.postedDate ?? ''),
+        });
+      } catch {
+        // Silently degrade — invalid/missing id simply won't open a modal
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [deepLinkId, listings]);
+
+  // Close the detail modal and strip the deep-link param so it doesn't reopen.
+  const closeDetail = () => {
+    setSelectedListing(null);
+    if (deepLinkId) {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete('id');
+        return next;
+      }, { replace: true });
+    }
+  };
+
+  useEffect(() => {
+    const uid = user?.uid;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset to false when user logs out
+    if (!uid) { setIsSellerVerified(false); return; }
     const unsub = onSnapshot(
-      doc(db, 'users', user.uid),
+      doc(db, 'users', uid),
       snap => setIsSellerVerified(snap.data()?.isVerified === true),
       () => setIsSellerVerified(false),
     );
     return unsub;
   }, [user?.uid]);
 
-  const setFilter = <K extends keyof MarketplaceFilters>(key: K, value: MarketplaceFilters[K]) =>
-    setFilters(prev => ({ ...prev, [key]: value }));
+  const setFilter = <K extends keyof MarketplaceFilters>(
+    key: K,
+    value: MarketplaceFilters[K],
+  ) => setFilters(prev => ({ ...prev, [key]: value }));
 
-  const filteredListings = getFilteredListings(filters);
+  // Clear area when city changes
+  const handleCityChange = (city: string) =>
+    setFilters(prev => ({ ...prev, location: city, area: '' }));
+
+  // Client-side post-processing: category, search text, condition, type, price, sort
+  // (geo filtering is now done server-side by the FastAPI endpoint)
+  const filteredListings = useMemo(() => {
+    return listings
+      .filter(l => filters.category === 'all' || l.category === filters.category)
+      .filter(l => {
+        if (!filters.search) return true;
+        const q = filters.search.toLowerCase();
+        return (
+          l.title.toLowerCase().includes(q) ||
+          l.description.toLowerCase().includes(q) ||
+          l.tags.some(t => t.toLowerCase().includes(q))
+        );
+      })
+      .filter(l => !filters.conditions.length || filters.conditions.includes(l.condition))
+      .filter(l => filters.listingType === 'all' || l.listingType === filters.listingType)
+      .filter(l => filters.priceMin === null || l.price >= filters.priceMin)
+      .filter(l => filters.priceMax === null || l.price <= filters.priceMax)
+      .filter(l => !filters.newOnly || filterNowMs - new Date(l.postedDate).getTime() < DAY_MS)
+      .sort((a, b) => {
+        switch (filters.sortBy) {
+          case 'oldest':
+            return new Date(a.postedDate).getTime() - new Date(b.postedDate).getTime();
+          case 'price_asc':
+            return a.price - b.price;
+          case 'price_desc':
+            return b.price - a.price;
+          case 'most_viewed':
+            return b.views - a.views;
+          default:
+            return new Date(b.postedDate).getTime() - new Date(a.postedDate).getTime();
+        }
+      });
+  }, [listings, filters, filterNowMs]);
 
   const handlePostClick = () => {
-    if (!user) {
-      onOpenAuth('login');
-      return;
-    }
+    if (!user) { onOpenAuth('login'); return; }
     setShowCreate(true);
-  };
-
-  const handleCardClick = (listing: Listing) => {
-    setSelectedListing(listing);
   };
 
   const handleSave = (listingId: string) => {
@@ -81,14 +205,16 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
     toggleSave(user.uid, listingId);
   };
 
-  const handleCreate = async (listing: Omit<Listing, 'id' | 'views' | 'savedBy' | 'postedDate'>): Promise<void> => {
+  const handleCreate = async (
+    listing: Omit<Listing, 'id' | 'views' | 'savedBy' | 'postedDate'>,
+  ): Promise<void> => {
     await createListing(listing);
   };
 
   const handleDeleteListing = async () => {
     if (!selectedListing) return;
     await deleteListing(selectedListing.id);
-    setSelectedListing(null);
+    closeDetail();
   };
 
   const handleEditListing = () => {
@@ -97,7 +223,9 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
     setSelectedListing(null);
   };
 
-  const handleEditSubmit = async (data: Omit<Listing, 'id' | 'views' | 'savedBy' | 'postedDate'>) => {
+  const handleEditSubmit = async (
+    data: Omit<Listing, 'id' | 'views' | 'savedBy' | 'postedDate'>,
+  ) => {
     if (!editingListing) return;
     await updateListing(editingListing.id, data);
     setSelectedListing({ ...editingListing, ...data });
@@ -115,10 +243,12 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
     filters.priceMin !== null,
     filters.priceMax !== null,
     filters.location !== 'All Locations',
+    !!filters.area,
     filters.newOnly,
   ].filter(Boolean).length;
 
-  const hasActiveFilters = activeFilterCount > 0 || !!filters.search || filters.category !== 'all';
+  const hasActiveFilters =
+    activeFilterCount > 0 || !!filters.search || filters.category !== 'all';
 
   return (
     <>
@@ -130,7 +260,9 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
           <div>
             <h1 className="text-3xl font-bold">Marketplace</h1>
             <p className="text-gray-500 text-sm mt-1">
-              {loading ? 'Loading listings...' : `${filteredListings.length} listing${filteredListings.length !== 1 ? 's' : ''} found`}
+              {loading
+                ? 'Loading listings...'
+                : `${filteredListings.length} listing${filteredListings.length !== 1 ? 's' : ''} found`}
             </p>
           </div>
           <button
@@ -151,31 +283,54 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
         )}
 
         {/* Search & Location Bar */}
-        <div className="glass-panel p-2 md:p-3 rounded-[2rem] border border-white/10 shadow-neon mb-6 relative overflow-hidden">
+        <div className="glass-panel p-2 md:p-3 rounded-[2rem] border border-black/10 dark:border-white/10 shadow-neon mb-6 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent-purple/5 pointer-events-none" />
           <div className="flex flex-col md:flex-row gap-2 relative z-10">
-            <div className="flex items-center px-4 py-3 bg-black/40 rounded-pill border border-white/5 md:w-64 group focus-within:border-primary/50 transition-colors">
+
+            {/* City dropdown */}
+            <div className="flex items-center px-4 py-3 bg-bg-panel border border-border-glass rounded-pill md:w-52 group focus-within:border-primary/50 transition-colors">
               <span className="material-symbols-outlined text-primary mr-2 shrink-0">location_on</span>
               <select
                 value={filters.location}
-                onChange={e => setFilter('location', e.target.value)}
-                className="bg-transparent border-none text-white text-sm focus:ring-0 w-full cursor-pointer appearance-none p-0"
+                onChange={e => handleCityChange(e.target.value)}
+                className="bg-transparent border-none text-sm focus:ring-0 w-full cursor-pointer appearance-none p-0"
               >
-                {cityFilterOptions.map(l => <option key={l} value={l}>{l}</option>)}
+                {cityOptions.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
               <span className="material-symbols-outlined text-gray-500 text-sm shrink-0">expand_more</span>
             </div>
-            <div className="flex flex-grow items-center px-4 py-3 bg-black/40 rounded-pill border border-white/5 group focus-within:border-primary/50 transition-colors">
+
+            {/* Area dropdown — visible when a city with known areas is selected */}
+            {cityAreas.length > 0 && (
+              <div className="flex items-center px-4 py-3 bg-bg-panel border border-border-glass rounded-pill md:w-52 group focus-within:border-primary/50 transition-colors">
+                <span className="material-symbols-outlined text-primary mr-2 shrink-0">pin_drop</span>
+                <select
+                  value={filters.area ?? ''}
+                  onChange={e => setFilter('area', e.target.value)}
+                  className="bg-transparent border-none text-sm focus:ring-0 w-full cursor-pointer appearance-none p-0"
+                >
+                  <option value="">All Areas</option>
+                  {cityAreas.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+                <span className="material-symbols-outlined text-gray-500 text-sm shrink-0">expand_more</span>
+              </div>
+            )}
+
+            {/* Text search */}
+            <div className="flex flex-grow items-center px-4 py-3 bg-bg-panel border border-border-glass rounded-pill group focus-within:border-primary/50 transition-colors">
               <span className="material-symbols-outlined text-gray-400 mr-2 group-focus-within:text-primary transition-colors shrink-0">search</span>
               <input
                 type="text"
                 value={filters.search}
                 onChange={e => setFilter('search', e.target.value)}
                 placeholder="Search for GPUs, Keyboards, Monitors..."
-                className="w-full bg-transparent border-none text-white text-sm focus:ring-0 p-0 placeholder-gray-500"
+                className="w-full bg-transparent border-none text-sm focus:ring-0 p-0 placeholder-[var(--text-muted)]"
               />
               {filters.search && (
-                <button onClick={() => setFilter('search', '')} className="text-gray-500 hover:text-white transition-colors shrink-0">
+                <button
+                  onClick={() => setFilter('search', '')}
+                  className="text-gray-500 hover:text-[var(--text-base)] transition-colors shrink-0"
+                >
                   <span className="material-symbols-outlined text-sm leading-none">close</span>
                 </button>
               )}
@@ -183,28 +338,38 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
           </div>
         </div>
 
+        {/* Geo-search tier indicator */}
+        {tierLabel && (
+          <div className="flex items-center gap-2 text-xs text-primary/70 font-mono mb-4 px-1">
+            <span className="material-symbols-outlined text-sm leading-none">location_searching</span>
+            Showing: {tierLabel}
+            {tier === 2 && <span className="text-gray-500"> (radius expansion)</span>}
+            {tier === 3 && <span className="text-gray-500"> (city-wide)</span>}
+          </div>
+        )}
+
         {/* Category Tabs */}
         <div className="flex flex-wrap gap-3 mb-6">
           {CATEGORIES.map(cat => (
             <button
               key={cat.id}
               onClick={() => setFilter('category', cat.id)}
-              className={`px-5 py-2.5 glass-panel rounded-pill flex items-center gap-2 hover:bg-white/10 hover:border-primary/50 transition-all group ${filters.category === cat.id ? 'bg-white/10 border-primary/50' : ''}`}
+              className={`px-5 py-2.5 glass-panel rounded-pill flex items-center gap-2 hover:bg-black/8 dark:hover:bg-white/10 hover:border-primary/50 transition-all group ${filters.category === cat.id ? 'bg-black/8 dark:bg-white/10 border-primary/50' : ''}`}
             >
               <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">{cat.icon}</span>
-              <span className={`text-sm font-medium ${filters.category === cat.id ? 'text-white' : 'text-gray-300 group-hover:text-white'}`}>{cat.name}</span>
+              <span className={`text-sm font-medium ${filters.category === cat.id ? '' : 'text-[var(--text-muted)]'}`}>{cat.name}</span>
             </button>
           ))}
         </div>
 
         {/* Filter / Sort Bar */}
         <div className="flex flex-wrap items-center gap-3 mb-6">
-          <div className="flex items-center gap-2 px-4 py-2.5 glass-panel border border-white/10 rounded-xl text-sm">
+          <div className="flex items-center gap-2 px-4 py-2.5 glass-panel border border-border-glass rounded-xl text-sm">
             <span className="material-symbols-outlined text-base text-gray-400 leading-none">sort</span>
             <select
               value={filters.sortBy}
               onChange={e => setFilter('sortBy', e.target.value as MarketplaceFilters['sortBy'])}
-              className="bg-transparent border-none text-white text-sm focus:ring-0 cursor-pointer appearance-none"
+              className="bg-transparent border-none text-sm focus:ring-0 cursor-pointer appearance-none"
             >
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>
@@ -214,12 +379,12 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
             </select>
           </div>
 
-          <div className="flex glass-panel border border-white/10 rounded-xl overflow-hidden">
+          <div className="flex glass-panel border border-border-glass rounded-xl overflow-hidden">
             {(['all', 'sell', 'buy', 'exchange'] as const).map(type => (
               <button
                 key={type}
                 onClick={() => setFilter('listingType', type)}
-                className={`px-4 py-2.5 text-sm capitalize transition-colors ${filters.listingType === type ? 'bg-primary text-bg-dark font-bold' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                className={`px-4 py-2.5 text-sm capitalize transition-colors ${filters.listingType === type ? 'bg-primary text-bg-dark font-bold' : 'text-[var(--text-muted)] hover:text-[var(--text-base)] hover:bg-black/5 dark:hover:bg-white/5'}`}
               >
                 {type === 'all' ? 'All Types' : type}
               </button>
@@ -228,7 +393,7 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
 
           <button
             onClick={() => setShowFilters(v => !v)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm transition-all ${showFilters || activeFilterCount > 0 ? 'border-primary/50 text-primary bg-primary/10' : 'glass-panel border-white/10 text-gray-400 hover:border-white/30 hover:text-white'}`}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm transition-all ${showFilters || activeFilterCount > 0 ? 'border-primary/50 text-primary bg-primary/10' : 'glass-panel border-border-glass text-[var(--text-muted)] hover:border-primary/30 hover:text-[var(--text-base)]'}`}
           >
             <span className="material-symbols-outlined text-base leading-none">tune</span>
             Filters
@@ -246,12 +411,14 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
             </button>
           )}
 
-          <span className="ml-auto text-sm text-gray-600">{filteredListings.length} result{filteredListings.length !== 1 ? 's' : ''}</span>
+          <span className="ml-auto text-sm text-gray-600">
+            {filteredListings.length} result{filteredListings.length !== 1 ? 's' : ''}
+          </span>
         </div>
 
         {/* Advanced Filter Panel */}
         {showFilters && (
-          <div className="glass-panel rounded-[1.5rem] border border-white/10 p-5 mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="glass-panel rounded-[1.5rem] border border-border-glass p-5 mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="text-sm text-gray-400 mb-3 block uppercase tracking-wider text-xs">Price Range (PKR)</label>
               <div className="flex gap-2 items-center">
@@ -261,16 +428,16 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
                   onChange={e => setFilter('priceMin', e.target.value ? Number(e.target.value) : null)}
                   placeholder="Min"
                   min="0"
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:border-primary/50 focus:outline-none"
+                  className="w-full bg-bg-panel border border-border-glass rounded-xl px-3 py-2.5 text-sm placeholder-[var(--text-muted)] focus:border-primary/50 focus:outline-none"
                 />
-                <span className="text-gray-600 shrink-0">—</span>
+                <span className="text-[var(--text-muted)] shrink-0">—</span>
                 <input
                   type="number"
                   value={filters.priceMax ?? ''}
                   onChange={e => setFilter('priceMax', e.target.value ? Number(e.target.value) : null)}
                   placeholder="Max"
                   min="0"
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:border-primary/50 focus:outline-none"
+                  className="w-full bg-bg-panel border border-border-glass rounded-xl px-3 py-2.5 text-sm placeholder-[var(--text-muted)] focus:border-primary/50 focus:outline-none"
                 />
               </div>
             </div>
@@ -283,8 +450,15 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
                   return (
                     <button
                       key={cond}
-                      onClick={() => setFilter('conditions', active ? filters.conditions.filter(c => c !== cond) : [...filters.conditions, cond])}
-                      className={`px-4 py-2 rounded-xl text-sm capitalize transition-all ${active ? 'bg-primary text-bg-dark font-bold' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}
+                      onClick={() =>
+                        setFilter(
+                          'conditions',
+                          active
+                            ? filters.conditions.filter(c => c !== cond)
+                            : [...filters.conditions, cond],
+                        )
+                      }
+                      className={`px-4 py-2 rounded-xl text-sm capitalize transition-all ${active ? 'bg-primary text-bg-dark font-bold' : 'bg-black/5 dark:bg-white/5 text-[var(--text-muted)] hover:bg-black/10 dark:hover:bg-white/10'}`}
                     >
                       {cond}
                     </button>
@@ -303,7 +477,7 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
                     checked={filters.listingType === 'exchange'}
                     onChange={e => setFilter('listingType', e.target.checked ? 'exchange' : 'all')}
                   />
-                  <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Exchange only</span>
+                  <span className="text-sm text-[var(--text-muted)] group-hover:text-[var(--text-base)] transition-colors">Exchange only</span>
                 </label>
                 <label className="flex items-center gap-2.5 cursor-pointer group">
                   <input
@@ -312,7 +486,7 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
                     checked={filters.newOnly}
                     onChange={e => setFilter('newOnly', e.target.checked)}
                   />
-                  <span className="text-sm text-gray-300 group-hover:text-white transition-colors">New listings (24h)</span>
+                  <span className="text-sm text-[var(--text-muted)] group-hover:text-[var(--text-base)] transition-colors">New listings (24h)</span>
                 </label>
               </div>
             </div>
@@ -323,12 +497,12 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="glass-panel rounded-[2rem] border border-white/5 overflow-hidden animate-pulse">
-                <div className="aspect-[4/3] bg-white/5" />
+              <div key={i} className="glass-panel rounded-[2rem] border border-border-glass overflow-hidden animate-pulse">
+                <div className="aspect-[4/3] bg-black/5 dark:bg-white/5" />
                 <div className="p-4 flex flex-col gap-3">
-                  <div className="h-4 bg-white/5 rounded-full w-3/4" />
-                  <div className="h-6 bg-white/5 rounded-full w-1/2" />
-                  <div className="h-3 bg-white/5 rounded-full w-2/3" />
+                  <div className="h-4 bg-black/5 dark:bg-white/5 rounded-full w-3/4" />
+                  <div className="h-6 bg-black/5 dark:bg-white/5 rounded-full w-1/2" />
+                  <div className="h-3 bg-black/5 dark:bg-white/5 rounded-full w-2/3" />
                 </div>
               </div>
             ))}
@@ -341,7 +515,7 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
                   key={listing.id}
                   listing={listing}
                   savedByCurrentUser={user ? isSaved(user.uid, listing.id) : false}
-                  onClick={() => handleCardClick(listing)}
+                  onClick={() => setSelectedListing(listing)}
                   onSave={e => { e.stopPropagation(); handleSave(listing.id); }}
                 />
               ))
@@ -366,24 +540,6 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
             )}
           </div>
         )}
-
-        {/* Load More */}
-        {!loading && hasMore && filteredListings.length >= 12 && (
-          <div className="flex justify-center mt-10">
-            <button
-              onClick={loadMore}
-              disabled={loadingMore}
-              className="flex items-center gap-2 px-8 py-3 glass-panel border border-white/10 rounded-pill text-sm font-semibold text-gray-300 hover:border-primary/50 hover:text-white hover:shadow-neon transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loadingMore ? (
-                <span className="material-symbols-outlined text-base leading-none animate-spin">progress_activity</span>
-              ) : (
-                <span className="material-symbols-outlined text-base leading-none">expand_more</span>
-              )}
-              {loadingMore ? 'Loading...' : 'Load More'}
-            </button>
-          </div>
-        )}
       </main>
 
       {selectedListing && (
@@ -391,7 +547,7 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
           listing={selectedListing}
           savedByCurrentUser={user ? isSaved(user.uid, selectedListing.id) : false}
           isLoggedIn={!!user}
-          onClose={() => setSelectedListing(null)}
+          onClose={closeDetail}
           onSave={() => handleSave(selectedListing.id)}
           currentUserId={user?.uid}
           onDelete={handleDeleteListing}

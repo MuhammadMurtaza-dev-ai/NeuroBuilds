@@ -50,6 +50,7 @@ export function useAISessions(uid: string | null) {
   useEffect(() => {
     if (!uid) {
       // Unauthenticated: localStorage is the only source of truth.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- fallback to localStorage for guests
       setSessions(readLocalSessions());
       return;
     }

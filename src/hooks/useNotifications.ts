@@ -51,9 +51,11 @@ export function useNotifications(uid?: string | null): UseNotificationsResult {
 
   useEffect(() => {
     if (!uid) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear notifications on logout
       setNotifications([]);
       return;
     }
+     
     setLoading(true);
     const q = query(
       collection(db, 'users', uid, 'notifications'),

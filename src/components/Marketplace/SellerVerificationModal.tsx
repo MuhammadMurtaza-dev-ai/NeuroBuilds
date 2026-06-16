@@ -13,7 +13,7 @@ export default function SellerVerificationModal({ onClose, onSuccess }: Props) {
   const otpRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null, null, null]);
 
   const handleSend = () => {
-    const cleaned = phoneInput.replace(/\D/g, '');
+    const cleaned = phoneInput.replace(/\D/g, '').replace(/^0/, '');
     if (cleaned.length < 10) return;
     sendVerificationCode('+92' + cleaned);
   };
@@ -119,6 +119,12 @@ export default function SellerVerificationModal({ onClose, onSuccess }: Props) {
               <div className="flex items-center gap-2 text-primary text-sm bg-primary/10 border border-primary/30 rounded-xl px-4 py-3 font-mono">
                 <span className="material-symbols-outlined text-base leading-none animate-spin">progress_activity</span>
                 {statusMessage}
+              </div>
+            )}
+            {error && (
+              <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+                <span className="material-symbols-outlined text-base leading-none">error</span>
+                {error}
               </div>
             )}
             <button

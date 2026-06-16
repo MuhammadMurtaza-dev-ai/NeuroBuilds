@@ -6,14 +6,18 @@ import ModerationDesk from '../components/Admin/ModerationDesk';
 import AnalyticsDashboard from '../components/Admin/AnalyticsDashboard';
 import { RoleAssignmentMatrix } from '../components/Admin/RoleAssignmentMatrix';
 import TelemetryPanel from '../components/Admin/TelemetryPanel';
+import BlogAutomatorPanel from '../components/Admin/BlogAutomatorPanel';
+import AdsManagerPanel from '../components/Admin/AdsManagerPanel';
 
-type AdminTab = 'review' | 'moderation' | 'analytics' | 'roles' | 'telemetry';
+type AdminTab = 'review' | 'moderation' | 'analytics' | 'roles' | 'telemetry' | 'automator' | 'ads';
 
 const TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: 'review',     label: 'Review Queue',        icon: 'rate_review' },
   { key: 'moderation', label: 'Platform Moderation', icon: 'shield' },
   { key: 'analytics',  label: 'Analytics',           icon: 'bar_chart' },
   { key: 'roles',      label: 'Role Management',     icon: 'manage_accounts' },
+  { key: 'automator',  label: 'Blog Automator',      icon: 'auto_awesome' },
+  { key: 'ads',        label: 'Ads Manager',         icon: 'campaign' },
   { key: 'telemetry',  label: 'Telemetry',           icon: 'monitoring' },
 ];
 
@@ -76,6 +80,8 @@ export default function AdminPage() {
           {activeTab === 'moderation' && <ErrorBoundary inline><ModerationDesk /></ErrorBoundary>}
           {activeTab === 'analytics'  && <ErrorBoundary inline><AnalyticsDashboard /></ErrorBoundary>}
           {activeTab === 'telemetry'  && <ErrorBoundary inline><TelemetryPanel /></ErrorBoundary>}
+          {activeTab === 'automator'  && <ErrorBoundary inline><BlogAutomatorPanel /></ErrorBoundary>}
+          {activeTab === 'ads'        && <ErrorBoundary inline><div className="glass-panel rounded-bento border border-white/10 p-6"><AdsManagerPanel /></div></ErrorBoundary>}
           {activeTab === 'roles'      && (
             <ErrorBoundary inline>
               <div className="glass-panel rounded-bento border border-white/10 p-6">

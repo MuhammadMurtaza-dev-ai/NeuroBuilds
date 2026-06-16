@@ -188,6 +188,10 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
   };
 
   const handleSubmit = async () => {
+    // Defence-in-depth behind the firestore.rules isVerifiedSeller() gate:
+    // refuse to even attempt a create if the seller is unverified, so removing
+    // the visual overlay in devtools still can't push a listing through.
+    if (!isVerified && !isEditMode) return;
     if (!validate()) return;
     setUploading(true);
     setUploadError(null);

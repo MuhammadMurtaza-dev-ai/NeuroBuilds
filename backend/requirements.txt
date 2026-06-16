@@ -5,10 +5,10 @@
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
 
-# ── LangChain core + OpenAI provider ──────────────────────────────────────────
+# ── LangChain core + Google Gemini provider ───────────────────────────────────
 langchain>=0.3.14
 langchain-core>=0.3.28
-langchain-openai>=0.2.14
+langchain-google-genai>=2.0.0
 langchain-community>=0.3.14
 
 # ── LangGraph (stateful multi-agent graphs) ───────────────────────────────────
@@ -19,6 +19,7 @@ tavily-python>=0.5.0           # Node 1 — web search
 
 # ── MongoDB Atlas (Node 2 — RAG vector store) ─────────────────────────────────
 pymongo>=4.9.0
+motor>=3.6.0
 langchain-mongodb>=0.3.0
 
 # ── Firebase Admin SDK (JWT verification + custom claims) ─────────────────────
@@ -26,6 +27,14 @@ firebase-admin>=6.5.0
 
 # ── HTTP client (async calls to WhatsApp gateway) ─────────────────────────────
 httpx>=0.27.0
+
+# ── Rate limiting (per-UID throttling on /api/chat) ───────────────────────────
+slowapi>=0.1.9
+
+# ── Google Gen AI SDK (native — used by gemini_manager + blog_automator) ──────
+# langchain-google-genai already depends on this; pin explicitly since we use
+# the SDK directly in services/gemini_manager.py and routers/blog_automator.py.
+google-genai>=1.20.0
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
 python-dotenv>=1.0.0

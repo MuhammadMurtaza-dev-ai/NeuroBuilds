@@ -11,7 +11,8 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
-import { db } from '../Firebase';
+import { db, auth } from '../Firebase';
+import { writeAuditLog } from '../utils/auditLog';
 
 export interface Report {
   id: string;
@@ -47,6 +48,7 @@ export const useReports = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading reset before subscription
     setLoading(true);
     const q = query(collection(db, REPORTS), orderBy('createdAt', 'desc'));
 
@@ -77,6 +79,10 @@ export const useReports = () => {
 
   const resolveReport = async (reportId: string): Promise<void> => {
     await updateDoc(doc(db, REPORTS, reportId), { status: 'resolved' });
+    writeAuditLog(auth.currentUser?.uid ?? '', 'moderation.resolve_report', {
+      targetId: reportId,
+      targetType: 'report',
+    });
   };
 
   const hideTarget = async (
@@ -85,6 +91,10 @@ export const useReports = () => {
   ): Promise<void> => {
     const collectionName = targetType === 'listing' ? 'listings' : 'threads';
     await updateDoc(doc(db, collectionName, targetId), { status: 'hidden' });
+    writeAuditLog(auth.currentUser?.uid ?? '', 'moderation.hide_target', {
+      targetId,
+      targetType,
+    });
   };
 
   return { reports, loading, error, createReport, resolveReport, hideTarget };

@@ -7,26 +7,14 @@ import {
   Phone,
   Save,
   CheckCircle,
-  Shield,
   ShieldCheck,
-  ShieldOff,
   AlertTriangle,
-  RefreshCw,
   AtSign,
   XCircle,
   Loader,
 } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
-import type { User } from 'firebase/auth';
-import type { TotpSecret } from 'firebase/auth';
 import { useAuth } from '../hooks/useAuth';
-import {
-  firebaseAuth,
-  db,
-  multiFactor,
-  TotpMultiFactorGenerator,
-  sendEmailVerification,
-} from '../Firebase';
+import { firebaseAuth, db } from '../Firebase';
 import GradientBackground from '../components/GradientBackground/GradientBackground';
 import { useUserRole } from '../hooks/useUserRole';
 import {
@@ -43,7 +31,6 @@ const ROLE_BADGE: Record<string, { label: string; classes: string }> = {
 };
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
-type TwoFAStep = 'idle' | 'generating' | 'scan' | 'enrolling' | 'enrolled';
 
 interface ProfileForm {
   displayName: string;
@@ -61,6 +48,7 @@ export default function ProfilePage() {
     photoURL: '',
     phoneNumber: '',
   });
+  const [isVerified, setIsVerified] = useState(false);
   const [nameStatus, setNameStatus] = useState<SaveStatus>('idle');
   const [avatarStatus, setAvatarStatus] = useState<SaveStatus>('idle');
   const [phoneStatus, setPhoneStatus] = useState<SaveStatus>('idle');
@@ -83,6 +71,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!user) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync auth profile into form on user change
     setForm(prev => ({
       ...prev,
       displayName: user.displayName ?? '',
@@ -95,14 +84,18 @@ export default function ProfilePage() {
         setForm(prev => ({ ...prev, phoneNumber: data.phoneNumber ?? '' }));
         setCurrentUsername(un || null);
         setUsernameInput(un);
+        setIsVerified(data.isVerified === true);
       }
     });
   }, [user]);
 
   useEffect(() => {
     const raw = usernameInput.trim();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- derived validation status from input
     if (!raw || raw === currentUsername) { setUsernameStatus('idle'); return; }
+     
     if (!isValidUsernameFormat(raw)) { setUsernameStatus('invalid'); return; }
+     
     setUsernameStatus('checking');
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
@@ -122,8 +115,8 @@ export default function ProfilePage() {
       await fn();
       setter('saved');
       setTimeout(() => setter('idle'), 2500);
-    } catch (err: any) {
-      setGlobalError(err.message || 'Save failed');
+    } catch (err: unknown) {
+      setGlobalError(err instanceof Error ? err.message : 'Save failed');
       setter('error');
       setTimeout(() => setter('idle'), 3000);
     }
@@ -277,6 +270,17 @@ export default function ProfilePage() {
             />
             <SaveButton status={phoneStatus} onClick={savePhone} />
           </div>
+          {isVerified ? (
+            <div className="mt-3 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 w-fit shadow-[0_0_10px_rgba(16,185,129,0.1)]">
+              <ShieldCheck size={13} className="text-emerald-400 shrink-0" />
+              <span className="text-emerald-400 font-mono text-[11px] font-bold tracking-widest">✓ VERIFIED SELLER</span>
+            </div>
+          ) : (
+            <p className="mt-2 flex items-center gap-1.5 text-[11px] font-mono text-amber-500/60">
+              <AlertTriangle size={11} className="shrink-0" />
+              UNVERIFIED SELLER ACCOUNT
+            </p>
+          )}
         </SettingsCard>
 
         {/* Username */}
@@ -331,266 +335,8 @@ export default function ProfilePage() {
             {usernameError && <p className="text-xs text-red-400">{usernameError}</p>}
           </div>
         </SettingsCard>
-
-        {/* Two-Factor Authentication */}
-        <TwoFactorSection user={user} />
       </main>
     </>
-  );
-}
-
-// ─── Two-Factor Authentication Section ───────────────────────────────────────
-
-interface TwoFactorSectionProps {
-  user: User;
-}
-
-function TwoFactorSection({ user }: TwoFactorSectionProps) {
-  const isEnrolled = multiFactor(user).enrolledFactors.length > 0;
-
-  const [step, setStep] = useState<TwoFAStep>(isEnrolled ? 'enrolled' : 'idle');
-  const [totpSecret, setTotpSecret] = useState<TotpSecret | null>(null);
-  const [verifyCode, setVerifyCode] = useState('');
-  const [localError, setLocalError] = useState<string | null>(null);
-  const [localLoading, setLocalLoading] = useState(false);
-  const [verificationEmailSent, setVerificationEmailSent] = useState(false);
-
-  // Keep step in sync if the user just enrolled/unenrolled from another tab
-  useEffect(() => {
-    setStep(multiFactor(user).enrolledFactors.length > 0 ? 'enrolled' : 'idle');
-  }, [user]);
-
-  const clearError = () => setLocalError(null);
-
-  const handleSendVerificationEmail = async () => {
-    clearError();
-    setLocalLoading(true);
-    try {
-      await sendEmailVerification(user);
-      setVerificationEmailSent(true);
-    } catch (err: any) {
-      setLocalError(err.message || 'Failed to send verification email.');
-    } finally {
-      setLocalLoading(false);
-    }
-  };
-
-  const handleStartSetup = async () => {
-    clearError();
-    setLocalLoading(true);
-    setStep('generating');
-    try {
-      const session = await multiFactor(user).getSession();
-      const secret = await TotpMultiFactorGenerator.generateSecret(session);
-      setTotpSecret(secret);
-      setStep('scan');
-    } catch (err: any) {
-      setLocalError(err.message || 'Failed to generate TOTP secret.');
-      setStep('idle');
-    } finally {
-      setLocalLoading(false);
-    }
-  };
-
-  const handleEnroll = async () => {
-    if (!totpSecret) return;
-    if (verifyCode.length !== 6) {
-      setLocalError('Enter the full 6-digit code from your authenticator app.');
-      return;
-    }
-    clearError();
-    setLocalLoading(true);
-    setStep('enrolling');
-    try {
-      const assertion = TotpMultiFactorGenerator.assertionForEnrollment(totpSecret, verifyCode);
-      await multiFactor(user).enroll(assertion, 'Primary Authenticator');
-      setVerifyCode('');
-      setTotpSecret(null);
-      setStep('enrolled');
-    } catch (err: any) {
-      setLocalError(err.message || 'Invalid code. Please try again.');
-      setStep('scan');
-    } finally {
-      setLocalLoading(false);
-    }
-  };
-
-  const handleUnenroll = async () => {
-    clearError();
-    setLocalLoading(true);
-    try {
-      const factor = multiFactor(user).enrolledFactors[0];
-      await multiFactor(user).unenroll(factor);
-      setStep('idle');
-    } catch (err: any) {
-      setLocalError(err.message || 'Failed to disable 2FA.');
-    } finally {
-      setLocalLoading(false);
-    }
-  };
-
-  const qrUrl = totpSecret && user.email
-    ? totpSecret.generateQrCodeUrl(user.email, 'NeuroBuilds')
-    : null;
-
-  const secretKey = totpSecret?.secretKey ?? '';
-
-  return (
-    <div className="glass-panel rounded-bento border border-white/10 p-6 mb-4">
-      {/* Section header */}
-      <div className="flex items-center gap-2 mb-1">
-        <Shield size={18} className="text-accent-purple" />
-        <h2 className="font-bold text-white text-sm">Two-Factor Authentication</h2>
-      </div>
-      <p className="text-xs text-gray-500 mb-5">
-        Add an extra layer of security using an authenticator app (Google Authenticator, Authy, etc.).
-      </p>
-
-      {localError && (
-        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm flex items-center gap-2">
-          <AlertTriangle size={14} className="shrink-0" />
-          {localError}
-        </div>
-      )}
-
-      {/* ── Enrolled state ── */}
-      {step === 'enrolled' && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-green-500/10 border border-green-500/30 shadow-[0_0_12px_rgba(34,197,94,0.15)]">
-            <ShieldCheck size={18} className="text-green-400 shrink-0" />
-            <span className="text-green-400 font-bold text-sm">2FA Account Secured</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleUnenroll}
-            disabled={localLoading}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <ShieldOff size={15} />
-            {localLoading ? 'Disabling…' : 'Disable 2FA'}
-          </button>
-        </div>
-      )}
-
-      {/* ── Idle state (not enrolled) ── */}
-      {step === 'idle' && (
-        <>
-          {/* Email verification gate */}
-          {!user.emailVerified && (
-            <div className="mb-5 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle size={15} className="text-amber-400 shrink-0" />
-                <span className="text-amber-400 font-bold text-sm">Email not verified</span>
-              </div>
-              <p className="text-xs text-gray-400 mb-3">
-                You must verify your email address before enabling 2FA.
-              </p>
-              {verificationEmailSent ? (
-                <p className="text-xs text-green-400">
-                  Verification email sent. Check your inbox, then refresh this page.
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleSendVerificationEmail}
-                  disabled={localLoading}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 font-bold text-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <RefreshCw size={13} className={localLoading ? 'animate-spin' : ''} />
-                  Send Verification Email
-                </button>
-              )}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={handleStartSetup}
-            disabled={!user.emailVerified || localLoading}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-accent-purple/10 hover:bg-accent-purple/20 border border-accent-purple/30 text-accent-purple font-bold text-sm transition-all shadow-[0_0_10px_rgba(191,0,255,0.1)] hover:shadow-[0_0_16px_rgba(191,0,255,0.25)] disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Shield size={15} />
-            Set Up Authenticator App
-          </button>
-        </>
-      )}
-
-      {/* ── Generating spinner ── */}
-      {step === 'generating' && (
-        <div className="flex items-center gap-3 text-gray-400 text-sm">
-          <RefreshCw size={16} className="animate-spin text-accent-purple" />
-          Generating secure secret…
-        </div>
-      )}
-
-      {/* ── Scan / Verify step ── */}
-      {step === 'scan' && qrUrl && (
-        <div className="space-y-5">
-          <p className="text-xs text-gray-400">
-            Scan the QR code with your authenticator app, then enter the 6-digit code to confirm.
-          </p>
-
-          {/* QR code */}
-          <div className="flex flex-col sm:flex-row gap-6 items-start">
-            <div className="p-3 bg-white rounded-xl shrink-0">
-              <QRCodeSVG value={qrUrl} size={160} level="M" />
-            </div>
-            <div className="flex-1 space-y-3">
-              <div>
-                <p className="text-xs text-gray-500 mb-1 font-mono uppercase tracking-widest">Manual entry key</p>
-                <p className="font-mono text-xs text-primary break-all bg-white/5 border border-white/10 rounded-lg px-3 py-2 leading-relaxed select-all">
-                  {secretKey}
-                </p>
-              </div>
-              <p className="text-xs text-gray-600">
-                If you cannot scan the code, add the key manually in your authenticator app using the issuer <span className="text-gray-400">NeuroBuilds</span>.
-              </p>
-            </div>
-          </div>
-
-          {/* Code entry */}
-          <div>
-            <label className="block text-xs text-gray-400 font-bold mb-2 font-mono uppercase tracking-widest">
-              Verification Code
-            </label>
-            <div className="flex gap-3">
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={verifyCode}
-                onChange={e => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000"
-                className="w-40 bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-gray-700 text-center font-mono text-lg tracking-[0.4em] focus:border-accent-purple focus:bg-white/10 focus:outline-none focus:shadow-[0_0_10px_rgba(191,0,255,0.2)] transition-all"
-              />
-              <button
-                type="button"
-                onClick={handleEnroll}
-                disabled={localLoading || verifyCode.length !== 6}
-                className="px-5 py-2.5 rounded-lg bg-accent-purple/20 hover:bg-accent-purple/30 border border-accent-purple/40 text-accent-purple font-bold text-sm transition-all shadow-[0_0_10px_rgba(191,0,255,0.15)] disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {localLoading ? 'Verifying…' : 'Verify & Enable'}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setStep('idle'); setTotpSecret(null); setVerifyCode(''); clearError(); }}
-                className="px-4 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 text-sm transition-all"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Enrolling spinner ── */}
-      {step === 'enrolling' && (
-        <div className="flex items-center gap-3 text-gray-400 text-sm">
-          <RefreshCw size={16} className="animate-spin text-accent-purple" />
-          Enrolling authenticator…
-        </div>
-      )}
-    </div>
   );
 }
 

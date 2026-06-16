@@ -8,10 +8,6 @@ import {
   GoogleAuthProvider,
   updateProfile,
   sendPasswordResetEmail,
-  multiFactor,
-  TotpMultiFactorGenerator,
-  getMultiFactorResolver,
-  sendEmailVerification,
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
@@ -58,6 +54,5 @@ export const firebaseAuth = {
     auth.onAuthStateChanged(callback),
 };
 
-export { multiFactor, TotpMultiFactorGenerator, getMultiFactorResolver, sendEmailVerification };
 export type { UserCredential };
 export default app;

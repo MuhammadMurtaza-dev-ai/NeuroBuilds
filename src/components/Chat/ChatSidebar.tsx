@@ -57,7 +57,7 @@ export default function ChatSidebar() {
           ${isChatOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-black/20">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border-glass bg-black/5 dark:bg-black/20">
           <h2 className="font-bold text-white flex items-center gap-2">
             <span className="material-symbols-outlined text-primary text-[22px]">chat</span>
             Messages

@@ -20,6 +20,7 @@ export default function AdminProtectedRoute() {
   // Wait for both the auth session AND the Firestore role document to settle
   const loading = authLoading || (!!user && roleLoading)
 
+
   if (loading) {
     return (
       <div className="min-h-screen bg-bg-dark flex items-center justify-center">

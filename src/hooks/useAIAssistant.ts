@@ -1,10 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { auth } from '../Firebase';
 import { telemetry, parseValidationsFromResponse } from '../utils/telemetryTracker';
 
 const AI_SERVICE_URL =
   (import.meta.env.VITE_AI_SERVICE_URL as string | undefined) ?? 'http://localhost:8000';
 
+ 
 const SpeechRecognition =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
 // ─── Public types ──────────────────────────────────────────────────────────────
@@ -187,6 +190,7 @@ export function useAIAssistant() {
 
   const speechAvailable = !!SpeechRecognition;
   const [voiceTranscript, setVoiceTranscript] = useState('');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SpeechRecognition instance has no standard TS types
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -195,6 +199,7 @@ export function useAIAssistant() {
     rec.continuous = false;
     rec.interimResults = true;
     rec.lang = 'en-US';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SpeechRecognitionEvent not in this TS build
     rec.onresult = (event: any) => {
       let transcript = '';
       for (let i = 0; i < event.results.length; i++) {
@@ -265,6 +270,21 @@ export function useAIAssistant() {
       );
     };
 
+    const runMockFallback = async (note: string) => {
+      // The local mock is a clearly-labelled OFFLINE/demo build — only used when
+      // the backend is genuinely unreachable (network down / timeout). It must
+      // never masquerade as a live recommendation, so we prefix a banner.
+      isMockFallbackRef.current = true;
+      accumulated = '';
+      setMessages(prev =>
+        prev.map(m => (m.id === assistantId ? { ...m, content: '' } : m)),
+      );
+      applyChunk(`> ⚠ ${note}\n\n`);
+      for await (const chunk of mockTokenStream(MOCK_RESPONSE)) {
+        applyChunk(chunk);
+      }
+    };
+
     try {
       const historyForAPI = [...messagesRef.current, userMsg].map(m => ({
         role: m.role,
@@ -274,9 +294,16 @@ export function useAIAssistant() {
       const controller = new AbortController();
       const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
 
+      // /api/chat requires a Firebase ID token; signed-out users get a clear
+      // sign-in prompt rather than a fabricated build.
+      const idToken = await auth.currentUser?.getIdToken();
+
       const response = await fetch(`${AI_SERVICE_URL}/api/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
         body: JSON.stringify({
           messages: historyForAPI,
           activeBuild: activeBuildRef.current,
@@ -286,22 +313,33 @@ export function useAIAssistant() {
 
       clearTimeout(timeoutId);
 
-      if (!response.ok || !response.body) throw new Error('Service unavailable');
-
-      for await (const chunk of liveStream(response.body)) {
-        applyChunk(chunk);
+      // The server is REACHABLE but returned an error. Do NOT fabricate a build —
+      // surface the real condition so the user can act on it (sign in, slow down,
+      // retry). Conflating these with the offline mock was a data-integrity bug.
+      if (!response.ok || !response.body) {
+        let message: string;
+        if (response.status === 401) {
+          message = 'Please sign in to use the live AI build assistant.';
+        } else if (response.status === 429) {
+          message = 'You are sending requests too quickly. Please wait a moment and try again.';
+        } else if (response.status === 422) {
+          message = 'That request was too large to process. Try a shorter message.';
+        } else if (response.status === 503) {
+          message = 'The AI service is starting up or temporarily unavailable. Please retry shortly.';
+        } else {
+          message = `The AI service returned an error (${response.status}). Please try again.`;
+        }
+        applyChunk(`[SERVICE ERROR] ${message}`);
+      } else {
+        for await (const chunk of liveStream(response.body)) {
+          applyChunk(chunk);
+        }
       }
     } catch {
-      // Python service is offline — run the local mock stream so the UI
-      // remains fully demonstrable without the backend running.
-      isMockFallbackRef.current = true;
-      accumulated = '';
-      setMessages(prev =>
-        prev.map(m => (m.id === assistantId ? { ...m, content: '' } : m)),
-      );
-      for await (const chunk of mockTokenStream(MOCK_RESPONSE)) {
-        applyChunk(chunk);
-      }
+      // Reaching here means the request never completed: network failure, DNS
+      // error, or the 10 s AbortController timeout — i.e. the backend is offline.
+      // This is the legitimate graceful-degradation path (SRS §2.3.2).
+      await runMockFallback('OFFLINE MODE — backend unreachable. Showing a sample reference build.');
     }
 
     // Record telemetry for this request and parse any compatibility warnings.

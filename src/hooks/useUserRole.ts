@@ -71,6 +71,7 @@ export function useUserRole(uid?: string | null): UserRoleResult {
   // If uid has changed but the Firestore fetch hasn't settled yet, return
   // loading=true immediately so the AdminProtectedRoute doesn't see a brief
   // isAdmin=false flash and redirect before the role is known.
+  // eslint-disable-next-line react-hooks/refs -- intentional ghost-admin flash prevention
   if (uid !== settledUidRef.current) {
     return { ...DEFAULT, loading: true };
   }

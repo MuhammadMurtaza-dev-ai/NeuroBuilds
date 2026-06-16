@@ -4,11 +4,13 @@ Run: uvicorn main:app --reload --port 8000
 """
 
 import asyncio
+import datetime
+import json
 import logging
 import os
 import re
 from contextlib import asynccontextmanager
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any, Literal, Optional
 
 import firebase_admin
 from firebase_admin import credentials as fb_credentials
@@ -16,14 +18,18 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from pymongo import MongoClient
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from agent import run_pipeline
 from routers.verify import router as verify_router
 from routers.blog_automator import router as blog_automator_router
 from routers.admin_users import router as admin_users_router
-from services.auth_guard import require_admin
+from routers.components import router as components_router, ensure_youtube_cache_index
+from services.auth_guard import require_admin, require_auth
 from services.cache_manager import setup_semantic_cache
 from services.gemini_manager import gemini_manager
 from services.vector_store import VectorStoreEngine
@@ -36,6 +42,59 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# ─── Scheduled-post publisher ─────────────────────────────────────────────────
+
+async def _publish_scheduled_posts() -> int:
+    """
+    Query Firestore for blog posts with status='scheduled' whose publishAt
+    timestamp is <= now, then atomically flip each one to status='published'.
+    Returns the number of posts transitioned.
+    Runs inside asyncio.to_thread so the synchronous Firestore Admin client
+    never blocks the event loop.
+    """
+    def _run() -> int:
+        from firebase_admin import firestore as fb_firestore  # noqa: PLC0415
+
+        db  = fb_firestore.client()
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
+
+        due_docs = list(
+            db.collection("blogs")
+            .where("status", "==", "scheduled")
+            .where("publishAt", "<=", now)
+            .stream()
+        )
+
+        count = 0
+        for doc in due_docs:
+            doc.reference.update({"status": "published", "isPublished": True})
+            count += 1
+            logger.info("Scheduled publisher: published blog id=%s", doc.id)
+
+        return count
+
+    return await asyncio.to_thread(_run)
+
+
+async def _scheduled_publisher_loop() -> None:
+    """
+    Background worker that wakes every 60 s and publishes any overdue
+    scheduled blog posts. Runs an immediate check on startup so posts
+    that fell due while the server was offline are caught right away.
+    Exceptions are logged and swallowed so a transient Firestore error
+    never crashes the service.
+    """
+    logger.info("Scheduled-post publisher started (60 s interval)")
+    while True:
+        try:
+            n = await _publish_scheduled_posts()
+            if n:
+                logger.info("Scheduled publisher: %d post(s) published this cycle", n)
+        except Exception as exc:
+            logger.warning("Scheduled publisher error (will retry in 60 s): %s", exc)
+        await asyncio.sleep(60)
+
+
 # ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 @asynccontextmanager
@@ -44,27 +103,46 @@ async def lifespan(app: FastAPI):
     db_name   = os.getenv("MONGODB_DATABASE", "neurobuilds")
 
     if mongo_uri:
-        # Lazy connect — doesn't block startup if Atlas is temporarily unreachable
-        app.state.mongo  = MongoClient(mongo_uri, serverSelectionTimeoutMS=5_000)
-        # Async Motor client — used by the GET /api/marketplace/search endpoint
-        app.state.motor  = AsyncIOMotorClient(mongo_uri, serverSelectionTimeoutMS=5_000)
-        logger.info("MongoDB clients initialised (sync + async Motor)")
+        try:
+            # MongoClient.__init__ performs a synchronous SRV DNS lookup for
+            # mongodb+srv:// URIs. Wrap in try/except so a DNS timeout or
+            # unreachable Atlas cluster degrades gracefully instead of crashing
+            # the entire lifespan (serverSelectionTimeoutMS only gates server
+            # selection, not the initial SRV resolution).
+            app.state.mongo  = MongoClient(mongo_uri, serverSelectionTimeoutMS=5_000)
+            # Async Motor client — used by the GET /api/marketplace/search endpoint
+            app.state.motor  = AsyncIOMotorClient(mongo_uri, serverSelectionTimeoutMS=5_000)
+            logger.info("MongoDB clients initialised (sync + async Motor)")
 
-        # Wire vector store engine — shared client, zero extra connections
-        app.state.vector_store = VectorStoreEngine(
-            client=app.state.mongo,
-            db_name=db_name,
-            collection_name=os.getenv("MONGODB_COLLECTION", "hardware_specs"),
-            index_name=os.getenv("MONGODB_VECTOR_INDEX", "vector_index"),
-        )
+            # Wire vector store engine — shared client, zero extra connections
+            app.state.vector_store = VectorStoreEngine(
+                client=app.state.mongo,
+                db_name=db_name,
+                collection_name=os.getenv("MONGODB_COLLECTION", "hardware_specs"),
+                index_name=os.getenv("MONGODB_VECTOR_INDEX", "vector_index"),
+            )
 
-        # Bind global LLM semantic cache — silently no-ops on any error
-        setup_semantic_cache(app.state.mongo, db_name)
+            # Bind global LLM semantic cache — silently no-ops on any error
+            setup_semantic_cache(app.state.mongo, db_name)
 
-        # Ensure geospatial + compound indexes for marketplace search
-        listings_col_name = os.getenv("MONGODB_LISTINGS_COLLECTION", "listings")
-        ensure_indexes(app.state.mongo[db_name][listings_col_name])
-        logger.info("Marketplace search indexes verified")
+            # Ensure geospatial + compound indexes for marketplace search
+            listings_col_name = os.getenv("MONGODB_LISTINGS_COLLECTION", "listings")
+            ensure_indexes(app.state.mongo[db_name][listings_col_name])
+            logger.info("Marketplace search indexes verified")
+
+            # Ensure 7-day TTL index for YouTube review cache
+            ensure_youtube_cache_index(app.state.mongo, db_name)
+
+        except Exception as exc:
+            app.state.mongo        = None
+            app.state.motor        = None
+            app.state.vector_store = None
+            logger.warning(
+                "MongoDB could not be reached at startup (%s). "
+                "RAG, marketplace search, and hardware lookup will return 503 "
+                "until the connection is restored and the service is restarted.",
+                exc,
+            )
     else:
         app.state.mongo        = None
         app.state.motor        = None
@@ -105,14 +183,49 @@ async def lifespan(app: FastAPI):
                 exc,
             )
 
+    # ── Scheduled-post publisher ───────────────────────────────────────────────
+    # Only start if Firebase Admin SDK initialised successfully; the worker
+    # imports firebase_admin.firestore lazily so it is safe to guard on _apps.
+    publisher_task: asyncio.Task | None = None
+    if firebase_admin._apps:
+        publisher_task = asyncio.create_task(_scheduled_publisher_loop())
+    else:
+        logger.warning(
+            "Scheduled-post publisher not started — Firebase Admin SDK unavailable."
+        )
+
     logger.info("NeuroBuilds AI service ready on http://localhost:8000")
     yield
+
+    if publisher_task is not None:
+        publisher_task.cancel()
+        try:
+            await publisher_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Scheduled-post publisher stopped.")
 
     if app.state.mongo:
         app.state.mongo.close()
     if app.state.motor:
         app.state.motor.close()
     logger.info("NeuroBuilds AI service shut down.")
+
+
+# ─── Rate limiting ────────────────────────────────────────────────────────────
+
+def _rate_limit_key(request: Request) -> str:
+    """
+    Per-UID rate-limit key. require_auth / require_admin stash the verified
+    Firebase UID on request.state before the endpoint body runs, so
+    authenticated routes are throttled per user, not per IP. Unauthenticated
+    requests (which fail auth anyway) fall back to the client IP.
+    """
+    uid = getattr(request.state, "uid", None)
+    return f"uid:{uid}" if uid else get_remote_address(request)
+
+
+limiter = Limiter(key_func=_rate_limit_key)
 
 
 # ─── App ──────────────────────────────────────────────────────────────────────
@@ -123,6 +236,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Origins are read from CORS_ORIGINS env var (comma-separated) so production
 # and staging domains can be added without touching source code.
@@ -135,23 +251,45 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["X-Cache"],
 )
 
 app.include_router(verify_router)
 app.include_router(blog_automator_router)
 app.include_router(admin_users_router)
+app.include_router(components_router)
 
 
 # ─── Request models ───────────────────────────────────────────────────────────
 
+# Payload caps — reject oversized chat payloads at validation time (422)
+# before any pipeline / LLM work is done, blocking large-payload DoS attempts.
+MAX_CHAT_MESSAGES      = 50      # max conversation turns per request
+MAX_MESSAGE_CHARS      = 8_000   # max characters per individual message
+MAX_ACTIVE_BUILD_BYTES = 16_000  # max serialised size of the activeBuild dict
+
+
 class Message(BaseModel):
-    role: str       # "user" | "assistant"
-    content: str
+    role: Literal["user", "assistant"]
+    content: str = Field(..., max_length=MAX_MESSAGE_CHARS)
 
 
 class ChatRequest(BaseModel):
-    messages: list[Message]
-    activeBuild: dict = {}
+    messages: list[Message] = Field(..., min_length=1, max_length=MAX_CHAT_MESSAGES)
+    activeBuild: dict = Field(default_factory=dict)
+
+    @field_validator("activeBuild")
+    @classmethod
+    def cap_active_build_size(cls, v: dict) -> dict:
+        try:
+            size = len(json.dumps(v, default=str))
+        except (TypeError, ValueError):
+            raise ValueError("activeBuild must be JSON-serialisable")
+        if size > MAX_ACTIVE_BUILD_BYTES:
+            raise ValueError(
+                f"activeBuild payload too large ({size} bytes > {MAX_ACTIVE_BUILD_BYTES})"
+            )
+        return v
 
 
 class HardwareLookupResponse(BaseModel):
@@ -369,10 +507,19 @@ async def marketplace_search(
 
 
 @app.post("/api/chat")
-async def chat(req: ChatRequest):
+@limiter.limit("20/minute")
+async def chat(
+    request: Request,
+    req: ChatRequest,
+    uid: Annotated[str, Depends(require_auth)],
+):
     """
     Accepts the full conversation history plus the current build state from
     useAIAssistant.ts and returns a raw token stream.
+
+    Requires a valid Firebase ID token (any authenticated user) and is
+    rate-limited to 20 requests/minute per UID via slowapi. Payload sizes
+    are capped by the ChatRequest model (50 messages × 8 000 chars).
 
     No SSE framing — the frontend's liveStream() consumes raw bytes directly
     via ReadableStream. Each yielded string is written to the response body

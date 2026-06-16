@@ -16,6 +16,7 @@ import {
 import type { DocumentData } from 'firebase/firestore';
 import { db } from '../Firebase';
 import { useAuth } from './useAuth';
+import { writeNotification } from './useNotifications';
 
 export interface Conversation {
   id: string;
@@ -72,10 +73,12 @@ export const useChats = () => {
 
   useEffect(() => {
     if (!user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear state on logout
       setConversations([]);
       return;
     }
 
+     
     setLoadingConversations(true);
     const q = query(
       collection(db, CONVERSATIONS_COLLECTION),
@@ -135,9 +138,8 @@ export const useChats = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
 
-    const otherParticipants = conversations
-      .find(c => c.id === conversationId)
-      ?.participants.filter(p => p !== user.uid) ?? [];
+    const convo = conversations.find(c => c.id === conversationId);
+    const otherParticipants = convo?.participants.filter(p => p !== user.uid) ?? [];
 
     await addDoc(
       collection(db, CONVERSATIONS_COLLECTION, conversationId, 'messages'),
@@ -154,6 +156,24 @@ export const useChats = () => {
       updatedAt: serverTimestamp(),
       ...(otherParticipants.length > 0 ? { unreadBy: arrayUnion(...otherParticipants) } : {}),
     });
+
+    if (otherParticipants.length > 0) {
+      const senderName = user.displayName || user.email || 'Someone';
+      let body = `${senderName} sent you a message`;
+      if (convo?.type === 'group' && convo.groupName) {
+        body = `${senderName} sent a message in "${convo.groupName}"`;
+      } else if (convo?.listingTitle) {
+        body = `${senderName} sent you a message about "${convo.listingTitle}"`;
+      }
+      for (const recipientId of otherParticipants) {
+        writeNotification(recipientId, {
+          type: 'marketplace_message',
+          title: 'New message',
+          body,
+          linkUrl: '/chat',
+        }).catch(() => {});
+      }
+    }
   };
 
   const markConversationRead = useCallback(async (conversationId: string): Promise<void> => {

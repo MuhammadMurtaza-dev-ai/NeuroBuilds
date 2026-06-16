@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useBlogFeed } from '../../hooks/useBlogCMS';
 import { useCommunity, COMMUNITY_CATEGORIES } from '../../hooks/useCommunity';
 import { useMarketplace } from '../../hooks/useMarketplace';
@@ -79,7 +80,9 @@ function AnalyticsCard({
 export default function AnalyticsDashboard() {
   const { posts, loading: blogsLoading } = useBlogFeed(true);
   const { allThreads, loading: communityLoading } = useCommunity();
-  const { listings, loading: marketLoading } = useMarketplace();
+  const { listings, loading: marketLoading, fetchByScope } = useMarketplace();
+
+  useEffect(() => { fetchByScope(); }, [fetchByScope]);
 
   // Most commented blogs — top 5
   const blogItems: BarItem[] = [...posts]

@@ -9,6 +9,7 @@ import { useChatContext } from '../../context/ChatContext';
 import { COUNTRY_LIST } from '../../data/globalLocations';
 import { useNotifications } from '../../hooks/useNotifications';
 import { NotificationBell } from '../Notifications/NotificationBell';
+import favicon from '../../assets/favicon.png';
 
 interface NavbarProps {
   onAuthClick?: (mode?: 'login' | 'register') => void;
@@ -58,20 +59,20 @@ const Navbar: React.FC<NavbarProps> = ({
           className="flex items-center gap-3 pl-4 hover:opacity-80 transition-opacity"
           onClick={closeMobileMenu}
         >
-          <span className="material-symbols-outlined text-primary">terminal</span>
+          <img src={favicon} alt={brandName} className="size-8 object-contain" />
           <span className="font-bold tracking-tight text-lg text-white">{brandName}</span>
         </Link>
 
         {/* Desktop Navigation Links */}
-        <div className="hidden md:flex items-center gap-1 bg-black/20 rounded-pill p-1 border border-white/5">
+        <div className="hidden md:flex items-center gap-1 bg-black/8 dark:bg-black/20 rounded-pill p-1 border border-border-glass">
           {links.map((link) => (
             <Link
               key={link.path}
               to={link.path}
               className={`px-5 py-2 rounded-pill text-sm font-medium transition-colors ${
                 isActiveLink(link.path)
-                  ? 'bg-white/10 text-white shadow-sm ring-1 ring-white/5'
-                  : 'hover:bg-white/10 text-gray-300'
+                  ? 'bg-black/10 dark:bg-white/10 shadow-sm'
+                  : 'hover:bg-black/8 dark:hover:bg-white/10'
               }`}
             >
               {link.label}
@@ -80,7 +81,7 @@ const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Country Selector */}
-        <div className="hidden md:flex items-center gap-1.5 bg-black/20 border border-white/5 rounded-pill px-3 py-1.5">
+        <div className="hidden md:flex items-center gap-1.5 bg-black/8 dark:bg-black/20 border border-border-glass rounded-pill px-3 py-1.5">
           <span className="material-symbols-outlined text-primary text-[16px]">public</span>
           <select
             value={selectedCountry}
@@ -99,12 +100,12 @@ const Navbar: React.FC<NavbarProps> = ({
         {/* Right Side Actions */}
         <div className="flex items-center gap-2 pr-2">
           {/* Divider */}
-          <div className="w-px h-6 bg-white/10 mx-1 hidden md:block"></div>
+          <div className="w-px h-6 bg-black/10 dark:bg-white/10 mx-1 hidden md:block"></div>
 
           {/* Chat Button */}
           <button
             onClick={() => setIsChatOpen(true)}
-            className="size-10 flex items-center justify-center rounded-full hover:bg-white/10 dark:hover:bg-white/10 hover:bg-black/5 transition-colors relative group"
+            className="size-10 flex items-center justify-center rounded-full hover:bg-black/8 dark:hover:bg-white/10 transition-colors relative group"
             aria-label="Open messages"
           >
             <span className="material-symbols-outlined text-gray-400 text-[20px] group-hover:text-white transition-colors">chat</span>
@@ -155,9 +156,9 @@ const Navbar: React.FC<NavbarProps> = ({
                     className="fixed inset-0 z-30"
                     onClick={() => setIsProfileOpen(false)}
                   />
-                  <div className="absolute right-0 top-12 w-64 glass-panel rounded-bento border border-white/10 shadow-2xl z-40 overflow-hidden">
+                  <div className="absolute right-0 top-12 w-64 glass-panel rounded-bento border border-black/10 dark:border-white/10 shadow-2xl z-40 overflow-hidden">
                     {/* User Info */}
-                    <div className="p-4 border-b border-white/5 bg-black/20">
+                    <div className="p-4 border-b border-border-glass bg-black/5 dark:bg-black/20">
                       <div className="flex items-center gap-3">
                         {user.photoURL ? (
                           <img
@@ -185,19 +186,19 @@ const Navbar: React.FC<NavbarProps> = ({
                     <div className="p-2">
                       <button
                         onClick={() => { navigate('/profile'); setIsProfileOpen(false); }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-white/5 rounded-lg transition-colors flex items-center gap-2"
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors flex items-center gap-2"
                       >
                         <span className="material-symbols-outlined text-[18px]">person</span>
                         Profile Settings
                       </button>
-                      <button className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-white/5 rounded-lg transition-colors flex items-center gap-2">
+                      <button className="w-full px-4 py-2 text-left text-sm hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors flex items-center gap-2">
                         <span className="material-symbols-outlined text-[18px]">settings</span>
                         Preferences
                       </button>
                     </div>
 
                     {/* Logout Button */}
-                    <div className="p-2 border-t border-white/5">
+                    <div className="p-2 border-t border-border-glass">
                       <button
                         onClick={() => {
                           logout();
@@ -250,15 +251,15 @@ const Navbar: React.FC<NavbarProps> = ({
             className="fixed inset-0 bg-black/50 z-40 md:hidden"
             onClick={closeMobileMenu}
           />
-          <div className="absolute top-full left-4 right-4 mt-4 bg-bg-panel border border-white/10 rounded-bento p-4 z-40 md:hidden">
+          <div className="absolute top-full left-4 right-4 mt-4 bg-bg-panel border border-border-glass rounded-bento p-4 z-40 md:hidden">
             {links.map((link) => (
               <Link
                 key={link.path}
                 to={link.path}
                 className={`block px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                   isActiveLink(link.path)
-                    ? 'bg-white/10 text-primary'
-                    : 'hover:bg-white/5 text-gray-300'
+                    ? 'bg-black/8 dark:bg-white/10 text-primary'
+                    : 'hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
                 onClick={closeMobileMenu}
               >

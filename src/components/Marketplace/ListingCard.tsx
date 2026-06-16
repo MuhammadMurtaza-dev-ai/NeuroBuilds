@@ -35,13 +35,13 @@ export default function ListingCard({ listing, savedByCurrentUser, onClick, onSa
   return (
     <div
       onClick={onClick}
-      className="glass-panel rounded-[2rem] border border-white/5 hover:border-primary/50 transition-all group flex flex-col cursor-pointer relative overflow-hidden"
+      className="glass-panel rounded-[2rem] border border-border-glass hover:border-primary/50 transition-all group flex flex-col cursor-pointer relative overflow-hidden"
     >
       {/* Save button */}
       <button
         onClick={onSave}
         aria-label={savedByCurrentUser ? 'Remove from saved' : 'Save listing'}
-        className="absolute top-4 right-4 z-10 p-2 glass-panel rounded-full border border-white/10 hover:border-primary/50 transition-all backdrop-blur-sm"
+        className="absolute top-4 right-4 z-10 p-2 glass-panel rounded-full border border-black/10 dark:border-white/10 hover:border-primary/50 transition-all backdrop-blur-sm"
       >
         <span
           className={`material-symbols-outlined text-lg leading-none ${savedByCurrentUser ? 'text-red-400' : 'text-gray-400 group-hover:text-white'}`}
@@ -52,7 +52,7 @@ export default function ListingCard({ listing, savedByCurrentUser, onClick, onSa
       </button>
 
       {/* Image */}
-      <div className="aspect-[4/3] bg-black/50 overflow-hidden relative">
+      <div className="aspect-[4/3] bg-bg-panel overflow-hidden relative">
         {listing.images[0] ? (
           <img
             src={listing.images[0]}
@@ -83,7 +83,7 @@ export default function ListingCard({ listing, savedByCurrentUser, onClick, onSa
           {listing.condition}
         </div>
 
-        <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full text-xs font-medium bg-black/60 text-gray-300 border border-white/10 backdrop-blur-sm flex items-center gap-1 capitalize">
+        <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full text-xs font-medium bg-black/50 text-white border border-white/20 backdrop-blur-sm flex items-center gap-1 capitalize">
           <span className="material-symbols-outlined text-sm leading-none">{LISTING_TYPE_ICONS[listing.listingType]}</span>
           {listing.listingType}
         </div>
@@ -119,7 +119,7 @@ export default function ListingCard({ listing, savedByCurrentUser, onClick, onSa
           </span>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-gray-600 border-t border-white/5 pt-2.5 mt-auto">
+        <div className="flex items-center gap-2 text-xs text-gray-500 border-t border-border-glass pt-2.5 mt-auto">
           <span className="material-symbols-outlined text-base leading-none">account_circle</span>
           <span className="truncate">{listing.sellerName}</span>
           <span className="ml-auto shrink-0">{formatRelativeDate(listing.postedDate)}</span>

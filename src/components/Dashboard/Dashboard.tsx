@@ -106,6 +106,7 @@ const Dashboard: React.FC = () => {
     if (!user) return;
 
     pendingRef.current = 3;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading reset before parallel subscriptions
     setDataLoading(true);
 
     const uid = user.uid;

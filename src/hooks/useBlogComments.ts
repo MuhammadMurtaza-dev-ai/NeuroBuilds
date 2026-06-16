@@ -40,7 +40,9 @@ export const useBlogComments = (postId: string) => {
 
   useEffect(() => {
     if (!postId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading reset before subscription
     setLoading(true);
+     
     setError(null);
 
     const q = query(
@@ -70,12 +72,14 @@ export const useBlogComments = (postId: string) => {
     const postRef = doc(db, 'blogs', postId);
     const commentsRef = collection(db, 'blogs', postId, 'comments');
     let postAuthorId = '';
+    let postTitle = '';
 
     await runTransaction(db, async (tx) => {
       const postSnap = await tx.get(postRef);
       if (!postSnap.exists()) throw new Error('Post not found');
 
       postAuthorId = (postSnap.data().authorId as string) ?? '';
+      postTitle = (postSnap.data().title as string) ?? '';
 
       const newCommentRef = doc(commentsRef);
       tx.set(newCommentRef, {
@@ -89,11 +93,12 @@ export const useBlogComments = (postId: string) => {
     });
 
     if (postAuthorId && postAuthorId !== user.uid) {
+      const commenterName = user.displayName ?? user.email ?? 'Someone';
       writeNotification(postAuthorId, {
         type: 'blog_comment',
         title: 'New comment on your post',
-        body: `${user.displayName ?? 'Someone'} commented on your blog post.`,
-        linkUrl: '/blog',
+        body: `${commenterName} commented on your article: "${postTitle}"`,
+        linkUrl: `/blog?id=${postId}`,
       }).catch(() => {});
     }
   };

@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mail, Lock, Eye, EyeOff, X, ShieldCheck, RefreshCw, AtSign, CheckCircle, XCircle, Loader } from 'lucide-react';
-import type { MultiFactorResolver, MultiFactorError } from 'firebase/auth';
+import { Mail, Lock, Eye, EyeOff, X, AtSign, CheckCircle, XCircle, Loader } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { firebaseAuth, auth, TotpMultiFactorGenerator, getMultiFactorResolver } from '../../Firebase';
+import { firebaseAuth, auth } from '../../Firebase';
 import { isValidUsernameFormat, checkUsernameAvailable, claimUsername } from '../../utils/usernameValidator';
 
 type AuthMode = 'login' | 'register';
-type View = 'form' | 'reset' | 'resetSent' | 'twoFactorVerify';
+type View = 'form' | 'reset' | 'resetSent';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -54,11 +53,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [formData.username, formMode]);
 
-  // MFA state
-  const [mfaResolver, setMfaResolver] = useState<MultiFactorResolver | null>(null);
-  const [mfaCode, setMfaCode] = useState('');
-  const [mfaLoading, setMfaLoading] = useState(false);
-
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resetEmail) { setLocalError('Please enter your email address'); return; }
@@ -67,8 +61,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
     try {
       await firebaseAuth.sendPasswordReset(resetEmail);
       setView('resetSent');
-    } catch (err: any) {
-      setLocalError(err.message || 'Failed to send reset email');
+    } catch (err: unknown) {
+      setLocalError(err instanceof Error ? err.message : 'Failed to send reset email');
     } finally {
       setResetLoading(false);
     }
@@ -79,8 +73,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
     setFormMode('login');
     setLocalError(null);
     setResetEmail('');
-    setMfaResolver(null);
-    setMfaCode('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,41 +113,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
       onSubmit?.(formData);
       onClose();
       setFormData({ name: '', email: '', password: '', username: '' });
-    } catch (err: any) {
-      if (err.code === 'auth/multi-factor-auth-required') {
-        const resolver = getMultiFactorResolver(auth, err as MultiFactorError);
-        setMfaResolver(resolver);
-        setView('twoFactorVerify');
-        return;
-      }
-      setLocalError(err.message || 'Authentication failed');
-    }
-  };
-
-  const handleMfaVerify = async () => {
-    if (!mfaResolver) return;
-    if (mfaCode.length !== 6) {
-      setLocalError('Enter the full 6-digit code from your authenticator app.');
-      return;
-    }
-    setLocalError(null);
-    setMfaLoading(true);
-    try {
-      const totpHint = mfaResolver.hints.find(
-        h => h.factorId === TotpMultiFactorGenerator.FACTOR_ID
-      );
-      if (!totpHint) throw new Error('No TOTP factor found for this account.');
-      const assertion = TotpMultiFactorGenerator.assertionForSignIn(totpHint.uid, mfaCode);
-      await mfaResolver.resolveSignIn(assertion);
-      onSubmit?.(formData);
-      onClose();
-      setFormData({ name: '', email: '', password: '', username: '' });
-      setMfaCode('');
-      setMfaResolver(null);
-    } catch (err: any) {
-      setLocalError(err.message || 'Invalid code. Please try again.');
-    } finally {
-      setMfaLoading(false);
+    } catch (err: unknown) {
+      setLocalError(err instanceof Error ? err.message : 'Authentication failed');
     }
   };
 
@@ -165,8 +124,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
       await googleSignIn();
       onClose();
       setFormData({ name: '', email: '', password: '', username: '' });
-    } catch (err: any) {
-      setLocalError(err.message || 'Google sign-in failed');
+    } catch (err: unknown) {
+      setLocalError(err instanceof Error ? err.message : 'Google sign-in failed');
     }
   };
 
@@ -274,70 +233,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
                   Back to Login
                 </button>
               </div>
-            </>
-          )}
-
-          {/* ── Two-Factor Verify View ── */}
-          {view === 'twoFactorVerify' && (
-            <>
-              <button
-                onClick={handleBackToLogin}
-                className="flex items-center gap-1 text-sm text-gray-400 hover:text-white mb-6 transition-colors"
-              >
-                <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-                Back to login
-              </button>
-
-              {/* Icon + header */}
-              <div className="flex items-center gap-3 mb-2">
-                <div className="size-10 rounded-lg bg-accent-purple/15 border border-accent-purple/30 flex items-center justify-center shadow-[0_0_14px_rgba(191,0,255,0.2)]">
-                  <ShieldCheck size={20} className="text-accent-purple" />
-                </div>
-                <h2 className="text-2xl font-bold text-white">Two-Factor Auth</h2>
-              </div>
-              <p className="text-gray-400 text-sm mb-8">
-                Enter the 6-digit code from your authenticator app to complete sign-in.
-              </p>
-
-              {localError && (
-                <div className="mb-5 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
-                  {localError}
-                </div>
-              )}
-
-              {/* Token entry bar */}
-              <div className="mb-6">
-                <label className="block text-xs text-gray-500 font-mono uppercase tracking-widest mb-3">
-                  Authenticator Code
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={mfaCode}
-                  onChange={e => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
-                  autoFocus
-                  className="w-full bg-white/5 border border-accent-purple/30 rounded-lg px-6 py-4 text-white placeholder-gray-700 text-center font-mono text-3xl tracking-[0.5em] focus:border-accent-purple focus:bg-white/8 focus:outline-none focus:shadow-[0_0_18px_rgba(191,0,255,0.25)] transition-all"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={handleMfaVerify}
-                disabled={mfaLoading || mfaCode.length !== 6}
-                className="w-full px-6 py-3 bg-accent-purple/20 hover:bg-accent-purple/30 disabled:opacity-40 disabled:cursor-not-allowed border border-accent-purple/40 text-accent-purple font-bold rounded-pill transition-all shadow-[0_0_15px_rgba(191,0,255,0.2)] flex items-center justify-center gap-2"
-              >
-                {mfaLoading ? (
-                  <><RefreshCw size={16} className="animate-spin" /> Verifying…</>
-                ) : (
-                  <><ShieldCheck size={16} /> Verify Identity</>
-                )}
-              </button>
-
-              <p className="text-center text-xs text-gray-600 mt-5">
-                Open your authenticator app to find the current code for <span className="text-gray-400">NeuroBuilds</span>.
-              </p>
             </>
           )}
 

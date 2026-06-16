@@ -74,7 +74,7 @@ The `/share` route uses a standalone layout — all chrome (Navbar, ChatSidebar,
 | `/marketplace` | `MarketplacePage` — Firestore listings |
 | `/community` | `CommunityPage` — Firestore forums; supports deep-linking via `location.state.openThreadId` to auto-open a thread modal on mount |
 | `/dashboard` | `Dashboard` — user's own listings, saved listings, and threads (Firestore real-time) |
-| `/profile` | `ProfilePage` — display name, avatar URL, phone number, email verification, TOTP 2FA (requires auth) |
+| `/profile` | `ProfilePage` — display name, avatar URL, phone number, username (requires auth) |
 | `/admin` | `AdminPage` — admin workspace: review queue, moderation desk, analytics, role management (requires `role: 'admin'`) |
 | `/pricing` | `PricingPage` — renders `GradientBackground` + `Pricing` component |
 | `/share` | `SharedBuildPage` — standalone read-only view of a shared AI build (no auth required) |
@@ -99,11 +99,11 @@ Static/UI-only data: `NavLink`, `FooterLink`, `Feature`, `Testimonial`, `Pricing
 
 ### Authentication
 
-Firebase Auth only — email/password + Google OAuth. `useAuth` exposes `{ user, loading, error, register, login, googleSignIn, logout }`. `src/Firebase.ts` exports `auth`, `db`, `storage`, `firebaseAuth`, and re-exports `multiFactor`, `TotpMultiFactorGenerator`, `getMultiFactorResolver`, `sendEmailVerification` from `firebase/auth`.
+Firebase Auth only — email/password + Google OAuth. `useAuth` exposes `{ user, loading, error, register, login, googleSignIn, logout }`. `src/Firebase.ts` exports `auth`, `db`, `storage`, and `firebaseAuth`.
 
 `firebaseAuth` is a typed wrapper object (not the raw `Auth` instance) exposing: `register`, `login`, `googleSignIn`, `logout`, `updateUserProfile`, `sendPasswordReset`, `getCurrentUser`, `onAuthStateChange`.
 
-**TOTP 2FA** (`ProfilePage`): uses `TotpMultiFactorGenerator` to enroll a TOTP second factor. A QR code is rendered with `qrcode.react` (`QRCodeSVG`) for the user to scan with an authenticator app. Requires the Firebase project to have Multi-factor Auth enabled in the Firebase console.
+> **TOTP 2FA — removed.** The multi-factor authentication feature (TOTP enrollment in `ProfilePage` + the sign-in MFA challenge in `AuthModal`) was removed because the project runs on the Firebase **Spark (free) plan**, which does not support TOTP MFA (the `TotpMultiFactorGenerator` enrollment call fails with `auth/operation-not-allowed`). MFA requires the paid Identity Platform upgrade. `qrcode.react` remains a dependency but is no longer used.
 
 ### Role System
 
@@ -135,7 +135,7 @@ Role changes in Firestore are immutable to non-admins via `firestore.rules`; the
 | `useNotifications` | Firestore `users/{uid}/notifications` | Real-time in-app notifications (limit 30, newest-first); `markRead`, `markAllRead`; exports `writeNotification()` helper for writing to another user's subcollection |
 | `useAIAssistant` | FastAPI / mock | AI chat with streaming, build extraction, voice input |
 | `useAISessions` | Firestore `users/{uid}/aiSessions` | Persist/load AI chat sessions; `saveSession(id, title, messages, activeBuild)`; real-time `onSnapshot`, ordered newest-first, limit 20 |
-| `useSellerVerification` | Firestore `users` | Phone OTP flow (mock only — OTP hardcoded `123456`) |
+| `useSellerVerification` | Firestore `users` + FastAPI `/api/verify` | Phone OTP flow via WhatsApp gateway; `sendVerificationCode` POSTs to `/api/verify/request`, `verifyOTP` POSTs to `/api/verify/confirm` |
 
 ### Notifications System (`src/components/Notifications/`)
 
@@ -192,7 +192,7 @@ Features:
 
 ### Admin System (`src/pages/AdminPage.tsx` + `src/components/Admin/`)
 
-Admin-only workspace at `/admin`. Requires auth + `role: 'admin'` in `users/{uid}` (checked via `useAdminRole()`). Four tabbed sections:
+Admin-only workspace at `/admin`. Requires auth + `role: 'admin'` in `users/{uid}` (checked via `useAdminRole()`). Six tabbed sections (tab order: Review Queue → Platform Moderation → Analytics → Role Management → Blog Automator → Telemetry):
 
 **ReviewConsole.tsx** — Blog post moderation queue
 - Uses `useReviewQueue` — server-side filtered snapshot; posts vanish from the queue the moment they are approved or rejected in Firestore
@@ -214,7 +214,11 @@ Admin-only workspace at `/admin`. Requires auth + `role: 'admin'` in `users/{uid
 - Search users by display name; reassign role (`user` → `vendor` → `moderator` → `admin`)
 - Real-time Firestore updates to `users/{uid}.role`
 
-**TelemetryPanel.tsx** — Thesis evaluation instrumentation (tab 5)
+**BlogAutomatorPanel.tsx** — AI blog generation control panel (tab 5)
+- Trigger the Actor-Critic blog pipeline (research → draft → critique loop → HITL publish)
+- Monitor live job status and critique scores; mock mode available for UI testing without LLM calls
+
+**TelemetryPanel.tsx** — Thesis evaluation instrumentation (tab 6)
 - Auto-refreshes every 2 s from `telemetry.getMetrics()` singleton (sessionStorage-backed)
 - **AI Performance** — avg latency, avg TTFT, P95 latency, mock fallback rate, avg character count
 - **Cache Performance** — YouTube and GNews hit/miss ratios with progress bars
@@ -306,7 +310,7 @@ postedDate: Timestamp
 
 Images upload to **ImgBB** via `src/utils/imageUploader.ts` (`uploadImageToImgBB`). Up to 6 images per listing. Requires `VITE_IMGBB_API_KEY`. Client-side filtering in `getFilteredListings()` — all active listings fetched once on mount.
 
-**Seller verification** (`useSellerVerification`): phone → OTP flow. Currently mocked — any phone accepted, OTP is hardcoded `123456`. Success writes `{ isVerified: true, phoneNumber }` to `users/{uid}`.
+**Seller verification** (`useSellerVerification`): phone → OTP flow. Calls `POST /api/verify/request` (generates a cryptographically random 6-digit OTP, stores it in Firestore `phone_verifications/{uid}` with a 5-minute TTL, dispatches it via the WhatsApp gateway) and `POST /api/verify/confirm` (validates the OTP with constant-time comparison, writes `{ isVerified: true, phoneNumber }` to `users/{uid}`). Requires the WhatsApp gateway (`backend/whatsapp-gateway/`) to be running.
 
 ### Community System (`src/components/Community/`)
 
@@ -438,15 +442,22 @@ New UI should follow: backdrop blur, neon shadows on hover, dark panel backgroun
 - `isAdmin()` checks the JWT custom claim `request.auth.token.admin == true` (set by `promote_admin.py` via Firebase Admin SDK) — zero extra Firestore reads, cannot be forged by a client
 - `isModerator()` falls back to a Firestore doc read on `users/{uid}.role in ['moderator', 'admin']`
 - Authenticated users can read/write their own subcollections (`aiSessions`, `notifications`); any signed-in user may push a notification into another user's subcollection
-- `role` field in `users/{uid}` is immutable to non-admins (`isNotChangingRole()` helper)
+- `role`, `isVerified`, and `phoneNumber` fields in `users/{uid}` are immutable to non-admins (`isNotChangingTrustFields()` helper). `isVerified`/`phoneNumber` are written **only** server-side by `routers/verify.py` via the Admin SDK (which bypasses rules) — a client cannot self-grant the verified badge
+- `listings` create requires `isVerifiedSeller()` (a `get()` on the caller's `users/{uid}.isVerified == true`) — the seller-verification gate is enforced server-side, not just by the React modal overlay
+- `isModerator()` falls back to a Firestore doc read on `users/{uid}.role in ['moderator', 'admin']`
+- Authenticated users can read/write their own subcollections (`aiSessions`, `notifications`); any signed-in user may push a notification into another user's subcollection
 - `threads` update rules are fine-grained: authors can edit content or mark `lifecycleStatus: 'solved'`; moderators can change `lifecycleStatus` only; anyone can make vote-only updates (`upvoteCount`, `upvotedBy`, etc.)
 - `reports` writable by any authenticated user; `read, update, delete` restricted to admins only (moderators cannot read reports)
+- `audit_logs` — append-only trail (§2.2.4): any signed-in user may create an entry attributed to themselves (`actorId == uid`, server `createdAt`); only admins may read; update/delete forever denied. Written by `src/utils/auditLog.ts` (`writeAuditLog`) on listing create + moderation actions (`hideTarget`, `resolveReport`)
 - `blogs` read: published posts are public; admins see all; authors see their own regardless of status
 
 **`firestore.indexes.json`** — composite indexes:
-- `blogs`: `isPublished` + `createdAt` (desc)
-- `listings`: `country` + `postedDate` (desc)
-- `conversations`: `participants` (array) + `updatedAt` (desc); `participants` + `listingId` (asc)
+- `blogs`: `isPublished` ASC + `createdAt` DESC
+- `blogs`: `status` ASC + `publishAt` ASC (supports scheduled-post queries)
+- `blogs`: `authorType` ASC + `createdAt` DESC (AI-agent post feed in `useBlogCMS`)
+- `listings`: `country` ASC + `postedDate` DESC
+- `listings`: `status` ASC + `postedDate` DESC (HomePage active-listings feed)
+- `conversations`: `participants` (array) + `updatedAt` DESC; `participants` (array) + `listingId` ASC
 
 ### FastAPI Backend (`backend/`)
 
@@ -462,6 +473,7 @@ The backend is a standalone Python service — **must be run separately** from t
 - `POST /api/admin/blog-automator/trigger` — queues AI blog generation pipeline; requires `require_admin`
 - `GET /api/admin/blog-automator/jobs` — lists recent automator jobs newest-first; requires `require_admin`
 - `POST /api/admin/users/{uid}/role` — assigns a role; sets BOTH `users/{uid}.role` AND the JWT `admin` custom claim (and revokes the target's refresh tokens) so the Firestore role and the rules' `isAdmin()` claim stay in sync; requires `require_admin` (`routers/admin_users.py`)
+- `GET /api/components/reviews` — YouTube review proxy with server-side MongoDB TTL cache (24 hours — matches SRS §2.2.1 / UC-04); query param: `component` (e.g. `RTX 4070`); returns up to 3 `VideoItem` objects; falls back to empty array if `YOUTUBE_API_KEY` absent or on quota/403, in which case the frontend `VideoReviewCarousel` renders a "Search on YouTube" deep link; cache stored in `youtube_cache` collection with TTL index on `cachedAt` (migrated via `collMod` if a stale TTL exists); no auth required (`routers/components.py`)
 
 **Firebase Admin SDK** is initialised in the FastAPI lifespan handler. Set `FIREBASE_SERVICE_ACCOUNT_PATH` to a service-account JSON file. On GCP the env var may be omitted — Application Default Credentials are used as a fallback. Required by all `require_admin`-guarded endpoints; non-fatal at startup (admin endpoints return 503 until resolved).
 
@@ -550,6 +562,7 @@ This is the core architectural guarantee of the system. Every node belongs to ex
 | `FIREBASE_PROJECT_ID` | Firebase project ID; only needed when `FIREBASE_SERVICE_ACCOUNT_PATH` is absent and ADC doesn't supply it |
 | `WHATSAPP_GATEWAY_URL` | URL of the WhatsApp OTP gateway microservice; defaults to `http://127.0.0.1:3001` |
 | `GATEWAY_SECRET` | Shared Bearer secret for the WhatsApp gateway `/send-otp` endpoint; must match `GATEWAY_SECRET` set in the gateway process |
+| `YOUTUBE_API_KEY` | YouTube Data API v3 key used by the **backend** `GET /api/components/reviews` proxy; distinct from `VITE_YOUTUBE_API_KEY` (frontend direct-call fallback) |
 
 MongoDB Atlas requires a Vector Search index named `vector_index` on the `embedding` field (768 dims, cosine — Gemini `text-embedding-004`). `GPU_Exhaustive_Database.csv` and `CPU_Exhaustive_Database.csv` (repo root) contain hardware data for reference.
 
@@ -587,6 +600,20 @@ python ../misc/scripts/ingest-rag.py
 - Merges hardcoded specs + GPU CSV + CPU CSV data
 - Creates B-tree index on `name` + vector embeddings on `embedding` field
 - Run before starting the backend if hardware lookup is needed
+
+**`backend/scripts/ingest_rag_documents.py`** — idempotent RAG ingestion into `hardware_specs` (the collection `rag_node`/`VectorStoreEngine` query):
+```bash
+cd backend
+python scripts/ingest_rag_documents.py                 # default JSON source
+python scripts/ingest_rag_documents.py --source data/hardware_source.csv
+python scripts/ingest_rag_documents.py --verify        # validate config + parse only (no network)
+python scripts/ingest_rag_documents.py --dry-run       # parse + Mongo diff, no embeddings/writes
+```
+- Source: `backend/data/hardware_source.json` (default) or a structured CSV via `--source`; CPU/GPU rows only. Sample `hardware_source.json` + `hardware_source.csv` ship in `backend/data/`
+- Serialises each component into a LangChain `Document` (`langchain_core.documents`): pipe-delimited `page_content` spec string + flattened spec `metadata` (CPU: `socket/cores/threads/tdp_watts/integrated_graphics`; GPU: `vram_gb/interface/tdp_watts/power_connectors`)
+- **Idempotency**: Mongo `_id` = SHA-256(`brand|model`); a `content_hash` skips unchanged docs (zero re-embedding) and upserts only new/changed ones
+- **Async batch embedding**: `--batch-size` (default 64, 50–100 recommended) chunks, `--concurrency` (default 4) in flight via `GeminiEmbeddings` (768-dim); per-row + per-chunk try/except with structured logging — corrupt rows are skipped, not fatal
+- Writes `content` + `embedding` so docs are immediately queryable; the Atlas `vector_index` (768 dims, cosine) must already exist
 
 **`misc/csv-data/scrapper.py`** — TechPowerUP GPU database scraper:
 - Two-phase scraping: chip discovery (horizontal) → custom board traversal (vertical)
@@ -705,8 +732,8 @@ Standalone TypeScript service — resilient Gemini API key rotation and load-bal
 
 ## Key Gaps / In-Progress Areas
 
-- **Seller verification**: The WhatsApp OTP gateway microservice (`backend/whatsapp-gateway/`) exists and is functional, but the FastAPI backend and frontend `useSellerVerification` hook still use the hardcoded mock OTP (`123456`) — the gateway is not yet wired into the verification flow.
-- **TOTP 2FA**: `ProfilePage` implements Firebase TOTP 2FA enrollment, but Multi-factor Auth must be enabled in the Firebase console for it to work.
+- **Seller verification**: Fully wired **and enforced server-side**. `POST /api/verify/request` generates a real random OTP, persists it to Firestore `phone_verifications/{uid}` (5-min TTL), and dispatches it via the WhatsApp gateway (`backend/whatsapp-gateway/`). `isVerified` is immutable to clients (`isNotChangingTrustFields()`) and `listings` create requires `isVerifiedSeller()` in `firestore.rules` — the gate is no longer just the React modal overlay. Requires the gateway process to be running alongside FastAPI.
+- **TOTP 2FA — removed**: The 2FA feature (TOTP enrollment in `ProfilePage` + MFA sign-in challenge in `AuthModal`) has been removed. The Firebase Spark (free) plan does not support TOTP MFA — enrollment failed with `auth/operation-not-allowed`. Re-enabling would require the paid Identity Platform upgrade and restoring the `multiFactor` / `TotpMultiFactorGenerator` re-exports in `src/Firebase.ts`.
 - **MongoDB RAG data**: Run `scripts/ingest-rag.py` to populate the `hardware_specs` collection before the backend's `rag_node` can return results — it falls back gracefully until this is done.
 - **CSV → RAG pipeline**: `GPU_Exhaustive_Database.csv` and `CPU_Exhaustive_Database.csv` exist but are not yet wired into `ingest-rag.py`; the script uses hardcoded specs instead.
 - **`langchain-mongodb` package**: Listed as optional in `requirements.txt`; `rag_node` falls back to `langchain-community` if not installed.
@@ -714,6 +741,46 @@ Standalone TypeScript service — resilient Gemini API key rotation and load-bal
 - **scoringEngine integration**: `src/utils/scoringEngine.ts` exists but is not yet wired into any UI component.
 - **Notification triggers**: `writeNotification()` is exported but not yet called from marketplace/community/blog hooks — notifications are not yet generated on user actions.
 - **LLM semantic cache**: `cache_manager.setup_semantic_cache()` is wired into `main.py` startup but requires a `semantic_cache_index` Atlas Vector Search index to be created manually before the first cached call.
-- **Blog Automator UI**: The backend pipeline (`backend/routers/blog_automator.py`) is live; no admin UI exists in the frontend yet to trigger it or poll job status — currently requires direct API calls.
+- **Blog Automator UI**: `src/components/Admin/BlogAutomatorPanel.tsx` is wired into `AdminPage.tsx` as tab 5. Backend pipeline at `backend/routers/blog_automator.py` is live.
 - **Location search API exposure**: `GET /api/marketplace/search?area=&city=&limit=` is live in `main.py`. The frontend still uses Firestore client-side filtering; wire it to this endpoint when ready.
 - **`pakistanGeoLocations.ts` ↔ backend sync**: area centroids in `src/data/pakistanGeoLocations.ts` and `backend/services/location_search.py`'s `_AREA_CENTROIDS` are manually kept in sync — no automated check.
+- **YouTube proxy vs client-side**: `GET /api/components/reviews` is a server-side YouTube proxy (7-day MongoDB TTL cache). The frontend `src/services/youtubeService.ts` still calls the YouTube API directly via `VITE_YOUTUBE_API_KEY`. Wire `ListingDetailModal` / `SharedBuildPage` to the backend proxy when ready to avoid exposing the API key client-side.
+- **JS bundle size**: Production build outputs a single 991 kB JS chunk (> 500 kB Vite threshold). Needs route-based code splitting (`React.lazy` + `Suspense`) or `rollupOptions.output.manualChunks` to pass Lighthouse performance budget.
+
+## Known Lint Errors & Technical Debt
+
+**Build status**: TypeScript compiles clean (`tsc -b` passes). ESLint reports **43 errors, 4 warnings** as of last audit.
+
+### React Rule Violations (must fix before stricter lint enforcement)
+
+| File | Line | Rule | Issue |
+|------|------|------|-------|
+| `src/components/AI/AIChatPanel.tsx` | 62 | `react-hooks/refs` | `saveSessionRef.current = saveSession` mutated during render — move into a `useEffect` |
+| `src/hooks/useMarketplace.ts` | 74 | `react-hooks/refs` | Ref mutation during render |
+| `src/pages/MarketplacePage.tsx` | 125 | `react-hooks/purity` | `Date.now()` called during render inside a filter — move to `useMemo` with appropriate deps |
+
+### Cascading-Render Risk (`setState` synchronously inside `useEffect` body)
+
+Affects: `Dashboard.tsx:109`, `NewsFallback.tsx:34`, `useBlogCMS.ts:146,251`, `useBlogComments.ts:43`, `useChats.ts:76`, `useCommunity.ts:137,141`, `CommunityPage.tsx:79`, `ProfilePage.tsx:87,106`. Functionally correct today but violates React's rules; the effect body should only set state asynchronously (inside a callback/subscription) or in a derived-state initialiser.
+
+### Type Safety (`no-explicit-any`)
+
+`AuthModal.tsx:70,124,155,168` · `useAIAssistant.ts:8,190,198` · `useAuth.ts:50,67,84,100` · `ProfilePage.tsx:127,384,400,423,438`. All are `catch (error: any)` blocks — replace with `catch (error: unknown)` + `instanceof Error` guard.
+
+### Fast-Refresh Warnings (DX only, no prod impact)
+
+`ChatContext.tsx:208`, `CountryContext.tsx:33`, `ThemeContext.tsx:34` export non-component values from context files; HMR treats them as non-fast-refreshable. Move the non-component exports to a separate `*Constants.ts` sibling to restore instant hot reload.
+
+### Unused Variables
+
+`gemini-key-manager/src/index.ts:88` — `status` · `gemini-key-manager/src/services/KeyRotationManager.ts:136` — `_redacted` · `CreateListingModal.tsx:171` — `_removed` · `CommunityPage.tsx:127-129` — `_linkedBlogId`, `_linkedBlogTitle`, `_images`.
+
+### Missing Hook Dependency
+
+`MarketplacePage.tsx:96` — `useEffect` missing `user` in dependency array (`react-hooks/exhaustive-deps`).
+
+### Fix Priority
+
+1. **Now**: `AIChatPanel.tsx:62` ref mutation + `MarketplacePage.tsx:125` impure render
+2. **Next sprint**: Wrap all `catch` blocks with `unknown` + `instanceof Error` guard
+3. **Backlog**: Move context non-component exports; fix `setState`-in-effect pattern; add `user` dep; remove unused vars; code-split the bundle

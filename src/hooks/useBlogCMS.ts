@@ -143,6 +143,7 @@ export const useBlogFeed = (isAdmin: boolean) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading reset before subscription
     setLoading(true);
 
     const ref = collection(db, BLOGS_COLLECTION);
@@ -248,10 +249,13 @@ export const useAdminRole = (uid: string | null): { isAdmin: boolean; loading: b
 
   useEffect(() => {
     if (!uid) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- early-return guard when uid absent
       setIsAdmin(false);
+       
       setLoading(false);
       return;
     }
+     
     setLoading(true);
     // Mirror firestore.rules isAdmin(): the authoritative signal is the JWT
     // custom claim, not the Firestore role field. Reading the claim avoids

@@ -1,84 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useBlogFeed } from '../hooks/useBlogCMS';
 import { useUserRole } from '../hooks/useUserRole';
 import type { BlogPost } from '../hooks/useBlogCMS';
+import { timeAgo } from '../hooks/useCommunity';
 import GradientBackground from '../components/GradientBackground/GradientBackground';
 import BlogEditor from '../components/Blog/BlogEditor';
 import BlogPostModal from '../components/Blog/BlogPostModal';
-
-const MOCK_BLOG_POSTS: BlogPost[] = [
-  {
-    id: 'mock-1',
-    title: 'Project: Maniya — The Ultimate Glass Loop Build Log',
-    excerpt:
-      'We break down the component choices, custom loop challenges, and thermal performance metrics of this month\'s top-rated community submission.',
-    thumbnailUrl:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuDH2rJHMDjOLbiDqqSgz11fMCG7YrDjJm2IpFV8hMir43IrhXy7POMb1VnpMikqC7g8VzH4-eeftbSZND0SzXK-IE02BWTyuGlZ6GXvnOMTTXn1gsaeICcc25_DwPBdwv34FvjLS_NixDBbvB3cf5_Bn40uTIP1H0EeIRzO8fXbniVx0pOFccJYBeW0tm8YwH84GyHTrrXzVF-rI5LALC3rdFxbBipcNWwra6UPtUN-DyTxLBXg6TpPeUnTdW4yrqPUJA7hPytRdNM',
-    category: 'Hardware',
-    content: '',
-    authorId: '',
-    authorName: '@cyber_architect',
-    isPublished: true,
-    status: 'published',
-    authorType: 'user',
-    commentCount: 0,
-    createdAt: null,
-    updatedAt: null,
-  },
-  {
-    id: 'mock-2',
-    title: 'The Evolution of PC Gaming Performance in 2024',
-    excerpt: 'Analyzing how modern GPUs and CPUs have changed the gaming landscape over the last twelve months.',
-    thumbnailUrl:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuDH2rJHMDjOLbiDqqSgz11fMCG7YrDjJm2IpFV8hMir43IrhXy7POMb1VnpMikqC7g8VzH4-eeftbSZND0SzXK-IE02BWTyuGlZ6GXvnOMTTXn1gsaeICcc25_DwPBdwv34FvjLS_NixDBbvB3cf5_Bn40uTIP1H0EeIRzO8fXbniVx0pOFccJYBeW0tm8YwH84GyHTrrXzVF-rI5LALC3rdFxbBipcNWwra6UPtUN-DyTxLBXg6TpPeUnTdW4yrqPUJA7hPytRdNM',
-    category: 'Industry',
-    content: '',
-    authorId: '',
-    authorName: '@tech_reviewer',
-    isPublished: true,
-    status: 'published',
-    authorType: 'user',
-    commentCount: 0,
-    createdAt: null,
-    updatedAt: null,
-  },
-  {
-    id: 'mock-3',
-    title: 'Water Cooling 101: Everything You Need to Know',
-    excerpt: 'A comprehensive guide to setting up your first custom loop — from reservoir placement to pump curves.',
-    thumbnailUrl:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuDH2rJHMDjOLbiDqqSgz11fMCG7YrDjJm2IpFV8hMir43IrhXy7POMb1VnpMikqC7g8VzH4-eeftbSZND0SzXK-IE02BWTyuGlZ6GXvnOMTTXn1gsaeICcc25_DwPBdwv34FvjLS_NixDBbvB3cf5_Bn40uTIP1H0EeIRzO8fXbniVx0pOFccJYBeW0tm8YwH84GyHTrrXzVF-rI5LALC3rdFxbBipcNWwra6UPtUN-DyTxLBXg6TpPeUnTdW4yrqPUJA7hPytRdNM',
-    category: 'Tutorial',
-    content: '',
-    authorId: '',
-    authorName: '@cooling_expert',
-    isPublished: true,
-    status: 'published',
-    authorType: 'user',
-    commentCount: 0,
-    createdAt: null,
-    updatedAt: null,
-  },
-];
-
-const MOCK_TRENDING_POSTS = [
-  { category: 'Hardware', title: 'RTX 5090 vs RX 9070 XT — Which Should You Buy?', timeAgo: '2h ago' },
-  { category: 'Tutorial', title: 'DDR5 Tuning Guide: Safe Subtimings for Beginners', timeAgo: '5h ago' },
-  { category: 'Industry', title: 'Intel Arrow Lake Refresh Spotted in EEC Filings', timeAgo: '8h ago' },
-  { category: 'Hardware', title: 'AM5 Longevity: How Long Will the Platform Last?', timeAgo: '1d ago' },
-];
 
 export default function BlogPage() {
   const { user } = useAuth();
   const { isAdmin } = useUserRole(user?.uid ?? null);
   const { posts, loading, error } = useBlogFeed(isAdmin);
+  const location = useLocation();
 
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const [showEditor, setShowEditor] = useState(false);
 
-  const blogPosts: BlogPost[] = posts.length > 0 ? posts : MOCK_BLOG_POSTS;
+  const pendingOpenIdRef = useRef<string | null>(
+    (location.state as { openPostId?: string } | null)?.openPostId ?? null
+  );
+
+  useEffect(() => {
+    if (!pendingOpenIdRef.current || loading || posts.length === 0) return;
+    const post = posts.find(p => p.id === pendingOpenIdRef.current);
+    if (post) {
+      setSelectedPost(post);
+      pendingOpenIdRef.current = null;
+    }
+  }, [posts, loading]);
 
   const openEditor = (post?: BlogPost) => {
     setEditingPost(post ?? null);
@@ -125,8 +77,11 @@ export default function BlogPage() {
     );
   }
 
-  const featuredPost = blogPosts[0];
-  const remainingPosts = blogPosts.slice(1);
+  const featuredPost = posts[0];
+  const remainingPosts = posts.slice(1);
+  const trendingPosts = [...posts]
+    .sort((a, b) => (b.commentCount ?? 0) - (a.commentCount ?? 0))
+    .slice(0, 4);
 
   return (
     <>
@@ -155,32 +110,31 @@ export default function BlogPage() {
         {/* Page title row with admin New Post button */}
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-4xl font-bold text-white tracking-tight">
-            Blog{' '}
-            <span className="text-gray-600 text-xl font-normal">// Community Insights</span>
+            Blog
           </h1>
-          {isAdmin && (
+          {user && (
             <button
               onClick={() => openEditor()}
               className="flex items-center gap-2 px-5 py-2.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full transition-all text-sm font-bold shadow-neon"
             >
-              <span className="material-symbols-outlined text-[18px]">add</span>
-              New Post
+              <span className="material-symbols-outlined text-[18px]">{isAdmin ? 'add' : 'edit'}</span>
+              {isAdmin ? 'New Post' : 'Write a Post'}
             </button>
           )}
         </div>
 
-        {blogPosts.length === 0 ? (
+        {posts.length === 0 ? (
           <div className="glass-panel rounded-bento p-16 text-center">
             <span className="material-symbols-outlined text-5xl text-gray-600 block mb-4">
               article
             </span>
             <p className="text-gray-500 text-lg">No articles published yet.</p>
-            {isAdmin && (
+            {user && (
               <button
                 onClick={() => openEditor()}
                 className="mt-6 px-6 py-2.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full text-sm font-bold transition-all"
               >
-                Write the first post
+                {isAdmin ? 'Write the first post' : 'Write a post'}
               </button>
             )}
           </div>
@@ -190,7 +144,7 @@ export default function BlogPage() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-12">
               {featuredPost && (
                 <div
-                  className="lg:col-span-8 h-[500px] relative rounded-bento overflow-hidden group border border-white/10 shadow-2xl cursor-pointer"
+                  className="lg:col-span-8 h-[500px] relative rounded-bento overflow-hidden group border border-black/10 dark:border-white/10 shadow-2xl cursor-pointer"
                   onClick={() => setSelectedPost(featuredPost)}
                 >
                   {featuredPost.thumbnailUrl ? (
@@ -199,10 +153,10 @@ export default function BlogPage() {
                       style={{ backgroundImage: `url("${featuredPost.thumbnailUrl}")` }}
                     />
                   ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#252526] to-[#1e1e1e]" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-bg-panel to-bg-dark" />
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#1e1e1e] via-[#1e1e1e]/60 to-transparent" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#1e1e1e]/80 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent" />
 
                   <div className="absolute bottom-0 left-0 p-8 md:p-12 w-full z-20">
                     <div className="flex items-center gap-3 mb-4">
@@ -245,13 +199,13 @@ export default function BlogPage() {
               {/* Trending Sidebar */}
               <div className="lg:col-span-4 flex flex-col gap-4">
                 <div className="glass-panel rounded-bento p-8 h-full flex flex-col border-t-4 border-t-accent-purple">
-                  <h3 className="font-bold text-xl mb-6 flex items-center gap-2 pb-4 border-b border-white/5">
+                  <h3 className="font-bold text-xl mb-6 flex items-center gap-2 pb-4 border-b border-black/8 dark:border-white/5">
                     <span className="material-symbols-outlined text-accent-purple">flash_on</span>
                     Trending Now
                   </h3>
                   <div className="flex flex-col gap-6 overflow-y-auto pr-2 flex-grow">
-                    {MOCK_TRENDING_POSTS.map((post, idx) => (
-                      <div key={idx} className="group block hover:opacity-80 transition-opacity cursor-default">
+                    {trendingPosts.length > 0 ? trendingPosts.map(post => (
+                      <div key={post.id} className="group block hover:opacity-80 transition-opacity cursor-pointer" onClick={() => setSelectedPost(post)}>
                         <span className="text-[10px] tracking-wider font-bold text-accent-purple mb-1 block uppercase">
                           {post.category}
                         </span>
@@ -259,10 +213,12 @@ export default function BlogPage() {
                           {post.title}
                         </h4>
                         <span className="text-gray-500 text-xs font-mono mt-2 block">
-                          {post.timeAgo}
+                          {post.createdAt ? timeAgo(post.createdAt.toDate().toISOString()) : '—'}
                         </span>
                       </div>
-                    ))}
+                    )) : (
+                      <p className="text-gray-600 text-xs text-center py-6">No posts yet.</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -291,7 +247,7 @@ export default function BlogPage() {
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                           />
                         ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-[#252526] to-[#1e1e1e] flex items-center justify-center">
+                          <div className="w-full h-full bg-gradient-to-br from-bg-panel to-bg-dark flex items-center justify-center">
                             <span className="material-symbols-outlined text-4xl text-gray-700">
                               article
                             </span>
@@ -318,7 +274,7 @@ export default function BlogPage() {
                           {post.title}
                         </h3>
                         <p className="text-gray-400 text-sm mb-4 line-clamp-2">{post.excerpt}</p>
-                        <div className="flex items-center justify-between text-xs text-gray-500 font-mono pt-4 border-t border-white/5">
+                        <div className="flex items-center justify-between text-xs text-gray-500 font-mono pt-4 border-t border-black/8 dark:border-white/5">
                           <span>
                             {post.authorName}
                             {post.createdAt && (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   collection,
   doc,
@@ -8,6 +8,7 @@ import {
   getDocs,
   query,
   where,
+  orderBy,
   limit,
   increment,
   Timestamp,
@@ -16,14 +17,14 @@ import type { DocumentData } from 'firebase/firestore';
 import { db } from '../Firebase';
 import type { Listing } from './useStorage';
 import { useCountry } from '../context/CountryContext';
-import { getNearbyAreaNames, getCityForArea } from '../data/pakistanGeoLocations';
+import { writeAuditLog } from '../utils/auditLog';
 
 export interface MarketplaceFilters {
   category: string;
   search: string;
   /** City-level filter — "All Locations" disables it. */
   location: string;
-  /** Specific area within a city (enables Tier 1/2/3 fallback when set). */
+  /** Area/neighbourhood — when set, drives the FastAPI geo-search. */
   area?: string;
   /** Province filter — used for province-scoped browsing. */
   province?: string;
@@ -33,17 +34,6 @@ export interface MarketplaceFilters {
   priceMax: number | null;
   sortBy: 'newest' | 'oldest' | 'price_asc' | 'price_desc' | 'most_viewed';
   newOnly: boolean;
-}
-
-// ─── Geo-fallback result ──────────────────────────────────────────────────────
-
-export type FallbackTier = 1 | 2 | 3;
-
-export interface GeoSearchResult {
-  listings: Listing[];
-  tier: FallbackTier;
-  /** Human-readable label shown in the UI ("Tariq Garden" | "Nearby Tariq Garden" | "All of Lahore") */
-  tierLabel: string;
 }
 
 export const DEFAULT_FILTERS: MarketplaceFilters = {
@@ -60,93 +50,100 @@ export const DEFAULT_FILTERS: MarketplaceFilters = {
   newOnly: false,
 };
 
+const AI_URL = (import.meta.env.VITE_AI_SERVICE_URL as string | undefined) ?? 'http://localhost:8000';
 const LISTINGS_COLLECTION = 'listings';
-const DAY_MS = 86_400_000;
 
 const docToListing = (id: string, data: DocumentData): Listing => ({
   ...(data as Omit<Listing, 'id' | 'postedDate'>),
   id,
-  postedDate: data.postedDate instanceof Timestamp
-    ? data.postedDate.toDate().toISOString()
-    : String(data.postedDate ?? ''),
+  postedDate:
+    data.postedDate instanceof Timestamp
+      ? data.postedDate.toDate().toISOString()
+      : String(data.postedDate ?? ''),
+});
+
+const apiToListing = (raw: Record<string, unknown>): Listing => ({
+  ...(raw as unknown as Listing),
+  id: ((raw.id ?? raw._id) as string | undefined) ?? '',
+  postedDate:
+    typeof raw.postedDate === 'string' ? raw.postedDate : new Date().toISOString(),
+  savedBy: Array.isArray(raw.savedBy) ? (raw.savedBy as string[]) : [],
+  views: typeof raw.views === 'number' ? raw.views : 0,
 });
 
 export const useMarketplace = () => {
   const { selectedCountry } = useCountry();
   const [listings, setListings] = useState<Listing[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tier, setTier] = useState<number>(0);
+  const [tierLabel, setTierLabel] = useState('');
 
-  useEffect(() => {
-    let cancelled = false;
+  /**
+   * Geo-search via FastAPI — used when an area is selected.
+   * `area` must be a valid neighbourhood name from the backend's _AREA_CENTROIDS.
+   * `city` narrows the Tier-3 fallback to that city.
+   */
+  const fetchByGeo = useCallback(async (area: string, city?: string) => {
+    setLoading(true);
+    setError(null);
     setListings([]);
+    try {
+      const qs = new URLSearchParams({ area, limit: '30' });
+      if (city) qs.set('city', city);
+      const res = await fetch(`${AI_URL}/api/marketplace/search?${qs}`);
+      if (!res.ok) throw new Error(`Geo-search failed (${res.status})`);
+      const json = await res.json() as {
+        tier: number;
+        tier_label: string;
+        listings: Record<string, unknown>[];
+      };
+      setListings((json.listings ?? []).map(apiToListing));
+      setTier(json.tier ?? 3);
+      setTierLabel(json.tier_label ?? '');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Search failed');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    const fetchListings = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const q = query(
-          collection(db, LISTINGS_COLLECTION),
-          where('country', '==', selectedCountry),
-          limit(50)
-        );
-        const snapshot = await getDocs(q);
-        if (!cancelled) {
-          setListings(snapshot.docs.map(d => docToListing(d.id, d.data())));
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load listings');
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+  /**
+   * Scoped Firestore fetch — used when no area is selected.
+   * Returns the 30 most recent active listings for the selected country,
+   * optionally narrowed to a city (matched against the `location` string).
+   */
+  const fetchByScope = useCallback(async (city?: string) => {
+    setLoading(true);
+    setError(null);
+    setListings([]);
+    setTier(0);
+    setTierLabel('');
+    try {
+      const q = query(
+        collection(db, LISTINGS_COLLECTION),
+        where('country', '==', selectedCountry),
+        orderBy('postedDate', 'desc'),
+        limit(30),
+      );
+      const snap = await getDocs(q);
+      let mapped = snap.docs
+        .map(d => docToListing(d.id, d.data()))
+        .filter(l => l.status === 'active');
+      if (city) {
+        const lc = city.toLowerCase();
+        mapped = mapped.filter(l => l.location.toLowerCase().includes(lc));
       }
-    };
-
-    fetchListings();
-    return () => { cancelled = true; };
+      setListings(mapped);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load listings');
+    } finally {
+      setLoading(false);
+    }
   }, [selectedCountry]);
 
-  const loadMore = async (): Promise<void> => { /* no-op: all listings fetched at once */ };
-
-  const getFilteredListings = (filters: Partial<MarketplaceFilters> = {}): Listing[] => {
-    const f = { ...DEFAULT_FILTERS, ...filters };
-    return listings
-      .filter(l => l.status === 'active')
-      .filter(l => f.category === 'all' || l.category === f.category)
-      .filter(l => {
-        if (!f.search) return true;
-        const q = f.search.toLowerCase();
-        return (
-          l.title.toLowerCase().includes(q) ||
-          l.description.toLowerCase().includes(q) ||
-          l.tags.some(t => t.toLowerCase().includes(q))
-        );
-      })
-      .filter(l => f.location === 'All Locations' || l.location.includes(f.location))
-      .filter(l => !f.conditions.length || f.conditions.includes(l.condition))
-      .filter(l => f.listingType === 'all' || l.listingType === f.listingType)
-      .filter(l => f.priceMin === null || l.price >= f.priceMin)
-      .filter(l => f.priceMax === null || l.price <= f.priceMax)
-      .filter(l => !f.newOnly || Date.now() - new Date(l.postedDate).getTime() < DAY_MS)
-      .sort((a, b) => {
-        switch (f.sortBy) {
-          case 'oldest':
-            return new Date(a.postedDate).getTime() - new Date(b.postedDate).getTime();
-          case 'price_asc':
-            return a.price - b.price;
-          case 'price_desc':
-            return b.price - a.price;
-          case 'most_viewed':
-            return b.views - a.views;
-          default:
-            return new Date(b.postedDate).getTime() - new Date(a.postedDate).getTime();
-        }
-      });
-  };
-
   const createListing = async (
-    listing: Omit<Listing, 'id' | 'views' | 'savedBy' | 'postedDate'>
+    listing: Omit<Listing, 'id' | 'views' | 'savedBy' | 'postedDate'>,
   ): Promise<Listing> => {
     try {
       const postedDate = Timestamp.now();
@@ -165,6 +162,12 @@ export const useMarketplace = () => {
         savedBy: [],
         postedDate: postedDate.toDate().toISOString(),
       };
+      // Immutable audit trail (§2.2.4) — fire-and-forget, never blocks the create.
+      writeAuditLog(listing.sellerId, 'listing.create', {
+        targetId: docRef.id,
+        targetType: 'listing',
+        title: listing.title,
+      });
       setListings(prev => [newListing, ...prev]);
       return newListing;
     } catch (err) {
@@ -180,7 +183,7 @@ export const useMarketplace = () => {
         firestoreUpdates.postedDate = Timestamp.fromDate(new Date(updates.postedDate));
       }
       await updateDoc(doc(db, LISTINGS_COLLECTION, id), firestoreUpdates);
-      setListings(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l));
+      setListings(prev => prev.map(l => (l.id === id ? { ...l, ...updates } : l)));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update listing');
       throw err;
@@ -207,9 +210,7 @@ export const useMarketplace = () => {
           ? listing.savedBy.filter(id => id !== userId)
           : [...listing.savedBy, userId],
       });
-    } catch {
-      // error already surfaced via setError in updateListing
-    }
+    } catch { /* surfaced via setError in updateListing */ }
   };
 
   const isSaved = (userId: string, listingId: string): boolean => {
@@ -219,13 +220,15 @@ export const useMarketplace = () => {
 
   const updateStock = async (id: string, delta: number): Promise<void> => {
     try {
-      await updateDoc(doc(db, LISTINGS_COLLECTION, id), { stockQuantity: increment(delta) });
+      await updateDoc(doc(db, LISTINGS_COLLECTION, id), {
+        stockQuantity: increment(delta),
+      });
       setListings(prev =>
         prev.map(l =>
           l.id === id
             ? { ...l, stockQuantity: Math.max(0, (l.stockQuantity ?? 0) + delta) }
-            : l
-        )
+            : l,
+        ),
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update stock');
@@ -237,84 +240,20 @@ export const useMarketplace = () => {
   const markAsReserved = (id: string) => updateListing(id, { status: 'reserved' });
   const reactivateListing = (id: string) => updateListing(id, { status: 'active' });
 
-  const getUserListings = (userId: string) => listings.filter(l => l.sellerId === userId);
-  const getSavedListings = (userId: string) => listings.filter(l => l.savedBy.includes(userId));
-
-  /**
-   * Cascading geo-fallback search — for Pakistan marketplace with area-level precision.
-   *
-   * Tier 1 — Exact area match:   location includes `areaName`
-   * Tier 2 — Radius expansion:   location includes any area within `radiusKm` of `areaName`
-   * Tier 3 — City-wide fallback: location includes the city that contains `areaName`
-   *
-   * Only active listings are considered. The base `filters` (category, price, etc.) are
-   * applied after the tier resolution so geo results are still filterable.
-   *
-   * @param areaName  The area the user searched for (e.g. "Tariq Garden")
-   * @param baseFilters  Optional subset of MarketplaceFilters to apply on top
-   * @param radiusKm  Radius for Tier-2 expansion (default 8 km)
-   */
-  const searchWithGeoFallback = (
-    areaName: string,
-    baseFilters: Partial<MarketplaceFilters> = {},
-    radiusKm = 8,
-  ): GeoSearchResult => {
-    const active = listings.filter(l => l.status === 'active');
-    const f = { ...DEFAULT_FILTERS, ...baseFilters };
-
-    const applyBaseFilters = (pool: Listing[]) =>
-      pool
-        .filter(l => f.category === 'all' || l.category === f.category)
-        .filter(l => f.listingType === 'all' || l.listingType === f.listingType)
-        .filter(l => !f.conditions.length || f.conditions.includes(l.condition))
-        .filter(l => f.priceMin === null || l.price >= f.priceMin)
-        .filter(l => f.priceMax === null || l.price <= f.priceMax)
-        .filter(l => !f.search || (
-          l.title.toLowerCase().includes(f.search.toLowerCase()) ||
-          l.description.toLowerCase().includes(f.search.toLowerCase()) ||
-          l.tags.some(t => t.toLowerCase().includes(f.search.toLowerCase()))
-        ));
-
-    // ── Tier 1: exact area match ──────────────────────────────────────────────
-    const tier1 = applyBaseFilters(
-      active.filter(l => l.location.toLowerCase().includes(areaName.toLowerCase()))
-    );
-    if (tier1.length > 0) {
-      return { listings: tier1, tier: 1, tierLabel: areaName };
-    }
-
-    // ── Tier 2: nearby areas within radius ────────────────────────────────────
-    const nearby = getNearbyAreaNames(areaName, radiusKm);
-    if (nearby.length > 0) {
-      const tier2 = applyBaseFilters(
-        active.filter(l => nearby.some(na => l.location.toLowerCase().includes(na.toLowerCase())))
-      );
-      if (tier2.length > 0) {
-        return { listings: tier2, tier: 2, tierLabel: `Nearby ${areaName}` };
-      }
-    }
-
-    // ── Tier 3: city-wide fallback ────────────────────────────────────────────
-    const city = getCityForArea(areaName);
-    const tier3 = applyBaseFilters(
-      active.filter(l => city ? l.location.toLowerCase().includes(city.toLowerCase()) : false)
-    );
-    return {
-      listings: tier3,
-      tier: 3,
-      tierLabel: city ? `All of ${city}` : 'All Locations',
-    };
-  };
+  const getUserListings = (userId: string) =>
+    listings.filter(l => l.sellerId === userId);
+  const getSavedListings = (userId: string) =>
+    listings.filter(l => l.savedBy.includes(userId));
 
   return {
     listings,
     loading,
-    loadingMore: false,
-    hasMore: false,
     error,
+    tier,
+    tierLabel,
     selectedCountry,
-    getFilteredListings,
-    loadMore,
+    fetchByGeo,
+    fetchByScope,
     createListing,
     updateListing,
     deleteListing,
@@ -326,6 +265,5 @@ export const useMarketplace = () => {
     reactivateListing,
     getUserListings,
     getSavedListings,
-    searchWithGeoFallback,
   };
 };

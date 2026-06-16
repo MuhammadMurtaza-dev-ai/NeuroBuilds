@@ -111,11 +111,11 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
       onClick={handleBackdropClick}
     >
-      <div className="glass-panel rounded-[2rem] border border-white/10 shadow-neon w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="glass-panel rounded-[2rem] border border-black/10 dark:border-white/10 shadow-neon w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/5 sticky top-0 bg-bg-panel/90 backdrop-blur-md z-10 rounded-t-[2rem]">
+        <div className="flex items-center justify-between p-6 border-b border-border-glass sticky top-0 bg-bg-panel/90 backdrop-blur-md z-10 rounded-t-[2rem]">
           <h2 className="font-bold text-xl">Listing Details</h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-black/8 dark:hover:bg-white/10 transition-colors">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
@@ -123,7 +123,7 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
         <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Images */}
           <div className="flex flex-col gap-3">
-            <div className="aspect-[4/3] rounded-[1.5rem] bg-black/50 overflow-hidden">
+            <div className="aspect-[4/3] rounded-[1.5rem] bg-bg-panel overflow-hidden">
               {listing.images.length > 0 ? (
                 <img src={listing.images[activeImage]} alt={listing.title} className="w-full h-full object-cover" />
               ) : (
@@ -138,7 +138,7 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
                   <button
                     key={i}
                     onClick={() => setActiveImage(i)}
-                    className={`shrink-0 w-20 h-16 rounded-xl overflow-hidden border-2 transition-colors ${i === activeImage ? 'border-primary' : 'border-white/10 hover:border-white/30'}`}
+                    className={`shrink-0 w-20 h-16 rounded-xl overflow-hidden border-2 transition-colors ${i === activeImage ? 'border-primary' : 'border-black/10 dark:border-white/10 hover:border-black/30 dark:hover:border-white/30'}`}
                   >
                     <img src={img} alt="" className="w-full h-full object-cover" />
                   </button>
@@ -154,7 +154,7 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
               <span className={`px-2.5 py-1 rounded-full text-xs font-bold border capitalize ${CONDITION_COLORS[listing.condition]}`}>
                 {listing.condition}
               </span>
-              <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10 capitalize">
+              <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 capitalize">
                 {listing.listingType}
               </span>
               {listing.status !== 'active' && (
@@ -213,7 +213,7 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
             <div className="flex gap-3 flex-wrap">
               <button
                 onClick={onSave}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-sm font-medium ${savedByCurrentUser ? 'border-red-500/50 bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'border-white/10 bg-white/5 text-gray-300 hover:border-primary/50 hover:text-white'}`}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-sm font-medium ${savedByCurrentUser ? 'border-red-500/50 bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 hover:border-primary/50'}`}
               >
                 <span
                   className="material-symbols-outlined text-lg leading-none"
@@ -225,7 +225,7 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
               </button>
               <button
                 onClick={handleShare}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:border-primary/50 hover:text-white transition-all text-sm font-medium"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 hover:border-primary/50 transition-all text-sm font-medium"
               >
                 <span className="material-symbols-outlined text-lg leading-none">
                   {copied ? 'check' : 'share'}
@@ -263,7 +263,7 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
               </div>
             ) : (
               <>
-                <div className="glass-panel rounded-xl p-4 border border-white/10">
+                <div className="glass-panel rounded-xl p-4 border border-black/10 dark:border-white/10">
                   <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm text-gray-400 uppercase tracking-wider">
                     <span className="material-symbols-outlined text-primary leading-none">account_circle</span>
                     Seller
@@ -275,7 +275,7 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
                     <button
                       onClick={() => isLoggedIn && setContactRevealed(true)}
                       disabled={!isLoggedIn}
-                      className={`mt-3 w-full text-sm px-4 py-2.5 rounded-xl transition-all font-bold ${isLoggedIn ? 'bg-primary text-bg-dark hover:bg-cyan-300 shadow-[0_0_12px_rgba(13,242,242,0.3)]' : 'bg-white/5 text-gray-500 cursor-not-allowed'}`}
+                      className={`mt-3 w-full text-sm px-4 py-2.5 rounded-xl transition-all font-bold ${isLoggedIn ? 'bg-primary text-bg-dark hover:bg-cyan-300 shadow-[0_0_12px_rgba(13,242,242,0.3)]' : 'bg-black/5 dark:bg-white/5 text-gray-500 cursor-not-allowed'}`}
                     >
                       {isLoggedIn ? 'Reveal Contact Info' : 'Sign in to Contact Seller'}
                     </button>
@@ -289,7 +289,7 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
                     className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all ${
                       isLoggedIn
                         ? 'bg-accent-purple/20 text-accent-purple border border-accent-purple/40 hover:bg-accent-purple/30 shadow-[0_0_12px_rgba(191,0,255,0.15)]'
-                        : 'bg-white/5 text-gray-500 border border-white/10 cursor-not-allowed'
+                        : 'bg-black/5 dark:bg-white/5 text-gray-500 border border-black/10 dark:border-white/10 cursor-not-allowed'
                     } disabled:opacity-60 disabled:cursor-not-allowed`}
                   >
                     {contactingseller ? (
@@ -306,7 +306,7 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
         </div>
 
         {/* Description & Specs */}
-        <div className="px-6 pb-6 grid grid-cols-1 lg:grid-cols-2 gap-6 border-t border-white/5 pt-6">
+        <div className="px-6 pb-6 grid grid-cols-1 lg:grid-cols-2 gap-6 border-t border-border-glass pt-6">
           <div>
             <h3 className="font-semibold mb-3 text-sm text-gray-400 uppercase tracking-wider">Description</h3>
             <p className="text-gray-300 text-sm leading-relaxed">{listing.description}</p>
@@ -316,7 +316,7 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
               <h3 className="font-semibold mb-3 text-sm text-gray-400 uppercase tracking-wider">Specifications</h3>
               <div className="flex flex-col">
                 {specEntries.map(([key, value]) => (
-                  <div key={key} className="flex justify-between text-sm py-2.5 border-b border-white/5 last:border-0">
+                  <div key={key} className="flex justify-between text-sm py-2.5 border-b border-border-glass last:border-0">
                     <span className="text-gray-500">{key}</span>
                     <span className="text-white font-medium">{value}</span>
                   </div>
@@ -327,7 +327,7 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
         </div>
 
         {/* Video Reviews */}
-        <VideoReviewCarousel videos={reviewVideos} loading={reviewsLoading} />
+        <VideoReviewCarousel videos={reviewVideos} loading={reviewsLoading} searchTerm={listing.title} />
       </div>
     </div>
   );

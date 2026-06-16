@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useBlogFeed, useBlogCMS } from '../../hooks/useBlogCMS';
-import type { BlogPost, BlogStatus } from '../../hooks/useBlogCMS';
+import { useReviewQueue, useBlogCMS } from '../../hooks/useBlogCMS';
+import type { BlogPost } from '../../hooks/useBlogCMS';
 import type { Timestamp } from 'firebase/firestore';
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
@@ -23,15 +23,15 @@ interface EditState {
 }
 
 export default function ReviewConsole() {
-  const { posts, loading } = useBlogFeed(true);
+  // useReviewQueue gives a server-side filtered onSnapshot — posts disappear
+  // from this list the instant they are approved or rejected in Firestore.
+  const { posts: queue, loading } = useReviewQueue();
   const { approvePost, rejectPost, updateBlogPost } = useBlogCMS();
 
   const [editState, setEditState] = useState<EditState | null>(null);
   const [rejectState, setRejectState] = useState<{ id: string; note: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const queuedStatuses: BlogStatus[] = ['pending_review', 'scheduled'];
-  const queue = posts.filter((p) => queuedStatuses.includes(p.status));
 
   const handleApprove = async (post: BlogPost) => {
     setBusy(post.id);
@@ -157,7 +157,7 @@ export default function ReviewConsole() {
                 <input
                   value={rejectState.note}
                   onChange={(e) => setRejectState((s) => s && { ...s, note: e.target.value })}
-                  placeholder="Rejection note for the author…"
+                  placeholder="Rejection note for the author (optional)…"
                   className="w-full bg-black/40 border border-red-500/40 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-red-500"
                 />
               </div>
@@ -186,7 +186,7 @@ export default function ReviewConsole() {
                 <>
                   <button
                     onClick={handleReject}
-                    disabled={isBusy || !rejectState?.note.trim()}
+                    disabled={isBusy}
                     className="px-4 py-2 text-xs font-bold rounded-full bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50 flex items-center gap-1.5"
                   >
                     <span className="material-symbols-outlined text-[14px]">block</span>

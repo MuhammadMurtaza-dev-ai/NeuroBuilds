@@ -157,7 +157,7 @@ const ALL_CHECK_TYPES: ValidationCheckType[] = [
 
 function loadLog(): TelemetryLog {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw) as TelemetryLog;
   } catch { /* corrupt — fall through */ }
   return { aiRequests: [], cacheEvents: [], validationEvents: [], sessionStart: Date.now() };
@@ -165,7 +165,7 @@ function loadLog(): TelemetryLog {
 
 function saveLog(log: TelemetryLog): void {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(log));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(log));
   } catch { /* storage full — skip */ }
 }
 

@@ -39,10 +39,11 @@ import yaml
 from dotenv import load_dotenv
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import END, START, StateGraph
 from pymongo import MongoClient
 
+from services.gemini_manager import gemini_manager as _gm
 from services.selection_engine import AllocationResult, run_allocation
 from services.validation_engine import ValidationResult, run_checks
 
@@ -143,10 +144,8 @@ async def rag_node(state: BuildState) -> dict:
         ][
             os.environ.get("MONGODB_COLLECTION", "hardware_specs")
         ]
-        embeddings = OpenAIEmbeddings(
-            model="text-embedding-3-small",
-            api_key=os.environ["OPENAI_API_KEY"],
-        )
+        from services.embeddings import GeminiEmbeddings
+        embeddings = GeminiEmbeddings()
         store = MongoDBAtlasVectorSearch(
             collection=collection,
             embedding=embeddings,
@@ -177,10 +176,15 @@ async def intent_node(state: BuildState) -> dict:
     """
     last = _last_user_message(state["messages"])
 
-    llm = ChatOpenAI(
-        model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+    api_key = (
+        await _gm.get_available_key()
+        if _gm is not None
+        else os.environ.get("GOOGLE_API_KEY", "")
+    )
+    llm = ChatGoogleGenerativeAI(
+        model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
         temperature=0,
-        api_key=os.environ["OPENAI_API_KEY"],
+        google_api_key=api_key,
     )
 
     search_snippet = (state.get("search_context") or "")[:600]
@@ -209,7 +213,21 @@ async def intent_node(state: BuildState) -> dict:
             SystemMessage(content=_INTENT_SYSTEM),
             HumanMessage(content=f"User Query: {last}\n\nContext:\n{search_snippet}"),
         ])
-        raw = result.content.strip()
+        if _gm is not None:
+            _gm.record_success(api_key)
+        # Gemini via LangChain may return `content` as a str OR a list of parts.
+        # Normalise to a single string before parsing so a list-shaped response
+        # doesn't raise AttributeError and silently collapse to default intent.
+        content = result.content
+        if isinstance(content, str):
+            raw = content.strip()
+        elif isinstance(content, list):
+            raw = "".join(
+                part if isinstance(part, str) else str(part.get("text", part))
+                for part in content
+            ).strip()
+        else:
+            raw = str(content).strip()
         raw = re.sub(r"^```(?:yaml)?\s*", "", raw, flags=re.MULTILINE)
         raw = re.sub(r"\s*```\s*$",        "", raw, flags=re.MULTILINE)
         parsed = yaml.safe_load(raw)
@@ -403,15 +421,19 @@ def _identify_failing_slot(issue: str) -> Optional[str]:
 
 async def response_node(state: BuildState) -> dict:
     """
-    Calls ChatOpenAI with streaming=True.  The system prompt explicitly
-    prohibits the LLM from performing hardware checks, price arithmetic, or
-    suggesting alternative component names — those are owned by Layers B–C.
+    Narration-only Layer D.  The system prompt explicitly prohibits the LLM
+    from performing hardware checks, price arithmetic, or suggesting alternative
+    component names — those are owned by Layers B–C.
     """
-    llm = ChatOpenAI(
-        model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
-        streaming=True,
+    api_key = (
+        await _gm.get_available_key()
+        if _gm is not None
+        else os.environ.get("GOOGLE_API_KEY", "")
+    )
+    llm = ChatGoogleGenerativeAI(
+        model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
         temperature=0.7,
-        api_key=os.environ["OPENAI_API_KEY"],
+        google_api_key=api_key,
     )
 
     lc_messages = [
@@ -427,6 +449,8 @@ async def response_node(state: BuildState) -> dict:
             lc_messages.append(AIMessage(content=content))
 
     result = await llm.ainvoke(lc_messages)
+    if _gm is not None:
+        _gm.record_success(api_key)
     return {"response": result.content}
 
 

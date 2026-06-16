@@ -2,6 +2,8 @@ import { Component, type ErrorInfo, type ReactNode } from 'react'
 
 interface Props {
   children: ReactNode
+  /** Render a compact inline fallback instead of a full-screen overlay */
+  inline?: boolean
 }
 
 interface State {
@@ -22,6 +24,28 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (!this.state.hasError) return this.props.children
+
+    if (this.props.inline) {
+      return (
+        <div className="glass-panel rounded-bento border border-amber-500/30 p-6 flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-amber-400 text-[20px]">warning</span>
+            <p className="text-amber-400 font-bold font-mono text-sm">Panel Error</p>
+          </div>
+          {this.state.error && (
+            <pre className="text-xs text-red-400/80 font-mono overflow-auto max-h-24 whitespace-pre-wrap break-all bg-black/40 rounded-lg p-3 border border-red-900/30">
+              {this.state.error.message}
+            </pre>
+          )}
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="self-start px-4 py-2 text-xs font-bold font-mono rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all"
+          >
+            RETRY
+          </button>
+        </div>
+      )
+    }
 
     return (
       <div className="min-h-screen bg-bg-dark flex items-center justify-center p-8">
