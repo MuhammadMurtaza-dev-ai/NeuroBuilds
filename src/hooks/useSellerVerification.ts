@@ -81,10 +81,13 @@ export function useSellerVerification(): UseSellerVerification {
       startCountdown();
     } catch (err: unknown) {
       const name = err instanceof Error ? err.name : '';
+      const msg  = err instanceof Error ? err.message : '';
       if (name === 'TimeoutError' || name === 'AbortError') {
         setError('Request timed out. Make sure the backend and WhatsApp gateway are running.');
+      } else if (msg === 'Failed to fetch' || msg.includes('NetworkError')) {
+        setError('Cannot reach the backend server (port 8000). Run: cd backend && uvicorn main:app --reload --port 8000');
       } else {
-        setError(err instanceof Error ? err.message : 'Failed to send verification code.');
+        setError(msg || 'Failed to send verification code.');
       }
     } finally {
       setLoading(false);

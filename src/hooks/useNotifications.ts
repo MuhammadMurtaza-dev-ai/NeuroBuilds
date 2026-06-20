@@ -17,7 +17,7 @@ import { db } from '../Firebase';
 
 export interface AppNotification {
   id: string;
-  type: 'blog_comment' | 'thread_reply' | 'marketplace_message' | 'ai_build_ready';
+  type: 'blog_comment' | 'thread_reply' | 'marketplace_message' | 'ai_build_ready' | 'listing_expired';
   title: string;
   body: string;
   isRead: boolean;
@@ -51,9 +51,11 @@ export function useNotifications(uid?: string | null): UseNotificationsResult {
 
   useEffect(() => {
     if (!uid) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear notifications on logout
       setNotifications([]);
       return;
     }
+     
     setLoading(true);
     const q = query(
       collection(db, 'users', uid, 'notifications'),

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
-import { db } from '../Firebase';
+import { db, auth } from '../Firebase';
 
 const SEED_THREADS = [
   {
@@ -240,6 +240,101 @@ const SEED_LISTINGS = [
   },
 ];
 
+const hoursAgo = (h: number) => Timestamp.fromDate(new Date(Date.now() - h * 3_600_000));
+
+interface SeedComment { authorId: string; authorName: string; body: string; createdAt: Timestamp }
+interface SeedBlog {
+  title: string; content: string; thumbnailUrl: string; category: 'Tutorial' | 'Hardware' | 'Industry';
+  authorId: string; authorName: string; authorType: 'user' | 'ai_agent';
+  status: 'pending_review' | 'published'; isPublished: boolean;
+  createdAt: Timestamp; updatedAt: Timestamp;
+  comments?: SeedComment[];
+}
+
+const SEED_BLOGS: SeedBlog[] = [
+  // ─── pending_review ────────────────────────────────────────────────────────
+  {
+    title: 'Is the RTX 5090 Worth It for the Average Gamer?',
+    category: 'Hardware', status: 'pending_review', isPublished: false,
+    authorId: 'seed_user_1', authorName: 'Ahmed Raza', authorType: 'user',
+    thumbnailUrl: '',
+    createdAt: hoursAgo(3), updatedAt: hoursAgo(3),
+    content: `# Is the RTX 5090 Worth It for the Average Gamer?\n\nNVIDIA's flagship RTX 5090 arrived with a jaw-dropping price tag and equally jaw-dropping specs. But does it make sense for a typical gamer running a 1440p monitor?\n\n## What the Numbers Say\n\nThe 5090 posts 4K frame-rates that simply didn't exist at launch, but at 1440p you're leaving roughly 60 % of its throughput on the table. Frame generation helps, yet introduces input latency that competitive players will immediately notice.\n\n## The Pakistan Context\n\nImported grey-market 5090s are landing around 350,000–400,000 PKR. For that budget you could build **two** respectable 1440p gaming rigs around the RTX 4070 Super. The opportunity cost is significant.\n\n## Verdict\n\nIf you're a content creator who also games, the VRAM alone (32 GB GDDR7) justifies the premium. For pure gaming, the RTX 4070 Ti Super at ~140k PKR is the rational choice — it delivers 95 % of the real-world experience at 35 % of the price.`,
+  },
+  {
+    title: 'Step-by-Step: Delidding Your Intel CPU in 2025 — Is It Still Worth It?',
+    category: 'Tutorial', status: 'pending_review', isPublished: false,
+    authorId: 'seed_user_3', authorName: 'Usman Tariq', authorType: 'user',
+    thumbnailUrl: '',
+    createdAt: hoursAgo(7), updatedAt: hoursAgo(7),
+    content: `# Delidding Your Intel CPU in 2025\n\nDelidding used to be a right of passage for enthusiasts. With Raptor Lake's notoriously hot TIM, it's back in the spotlight.\n\n## What You Need\n\n- Der8auer Delid-Die-Mate X (or vice grip + luck)\n- Liquid metal (Thermal Grizzly Conductonaut Extreme)\n- Isopropyl alcohol 99 %\n- Cotton swabs and steady hands\n\n## The Process\n\n1. Remove the CPU from your motherboard.\n2. Use the Delid-Die-Mate to slide the IHS sideways — apply slow, even pressure.\n3. Clean the old TIM off both the die and the IHS with IPA.\n4. Apply a micro-bead of liquid metal **only** to the die — spread to cover, but not to the SMD components around the edge.\n5. Re-seat the IHS and use the Relid tool to press it back.\n\n## Expected Results\n\nTypical drops on an i9-13900K: **15–22 °C** under Cinebench. That translates to sustained higher clocks and a quieter system.\n\n## Risk\n\nLiquid metal is electrically conductive. One slip and you have a PKR 90,000 paperweight. Proceed with full awareness.`,
+  },
+  {
+    title: "Pakistan's PC Gaming Market in 2025: Growth, Challenges & Opportunities",
+    category: 'Industry', status: 'pending_review', isPublished: false,
+    authorId: 'seed_user_9', authorName: 'Kamran Ali', authorType: 'user',
+    thumbnailUrl: '',
+    createdAt: hoursAgo(1), updatedAt: hoursAgo(1),
+    content: `# Pakistan's PC Gaming Market in 2025\n\n## A Market Coming of Age\n\nPakistan's PC gaming segment has quietly doubled over three years. Broadband penetration, falling peripheral prices, and a young median age (22 years) are converging into a meaningful market.\n\n## Key Trends\n\n**E-sports infrastructure** — PUBG Mobile and Valorant tournaments now attract live audiences at Expo Centre Karachi and Lahore Expo. Prize pools crossed PKR 10M for the first time in 2024.\n\n**Grey market maturity** — Buyers are increasingly choosing authorized dealers over grey imports, driven by warranty horror stories and improved authorized pricing.\n\n**Content creation crossover** — A growing cohort of Pakistani YouTubers review hardware in Urdu and Punjabi, making component selection accessible to a non-English audience.\n\n## Challenges\n\n- Dollar-denominated import costs make hardware expensive relative to median income\n- Unstable electricity (load-shedding) pushes buyers toward UPS solutions, adding 15–20 % to build cost\n- Counterfeit components, especially RAM and SSDs, remain a problem in smaller cities\n\n## The Opportunity\n\nFor platforms like NeuroBuilds, this transition is the moment — a community that helps Pakistani builders make informed, local-context decisions fills a genuine gap.`,
+  },
+
+  // ─── published with comments ───────────────────────────────────────────────
+  {
+    title: 'Top 5 Budget PC Builds Under 100k PKR in 2025',
+    category: 'Tutorial', status: 'published', isPublished: true,
+    authorId: 'seed_user_2', authorName: 'Bilal Khan', authorType: 'user',
+    thumbnailUrl: '',
+    createdAt: daysAgo(14), updatedAt: daysAgo(14),
+    content: `# Top 5 Budget PC Builds Under 100k PKR in 2025\n\nBuilding a capable PC in Pakistan doesn't require a six-figure spend. Here are five balanced builds, priced at current Metro and Computer Adda rates.\n\n## Build 1 — The 1080p Starter (65k PKR)\n- **CPU**: Ryzen 5 5600 (~22k)\n- **GPU**: RX 6600 (~38k grey / 42k retail)\n- **Mobo**: MSI B550M Pro (~14k)\n- **RAM**: 16 GB DDR4-3200 (~8k)\n- **PSU**: Cooler Master 650W Bronze (~8k)\n- **Storage**: 500 GB Kingston NV2 (~4k)\n\nCapable of 1080p/High in every modern title at 60–100 FPS.\n\n## Build 2 — The Sweet Spot (85k PKR)\n- **CPU**: Ryzen 5 7600 (~28k)\n- **GPU**: RX 7600 (~62k)\n- **Mobo**: B650M DS3H (~16k)\n- **RAM**: 16 GB DDR5-4800 (~11k)\n\nAM5 platform means CPU upgrades for years.\n\n## Final Advice\n\nAlways buy RAM and SSD from authorized dealers — counterfeits are rampant on social media marketplaces. Stick to Computer Adda or Metro for warranties.`,
+    comments: [
+      { authorId: 'seed_user_4', authorName: 'Sara Malik', createdAt: hoursAgo(300), body: 'Build 1 is exactly what I put together for my cousin last month. RX 6600 runs Valorant at 200+ FPS on 1080p Medium. Great shout.' },
+      { authorId: 'seed_user_6', authorName: 'Zara Hussain', createdAt: hoursAgo(280), body: 'Any reason you went with Ryzen 5 7600 over the 7600X for Build 2? Seen the X variant on sale lately.' },
+      { authorId: 'seed_user_2', authorName: 'Bilal Khan', createdAt: hoursAgo(270), body: '@Zara — the non-X is basically the same die with a slightly lower boost and no bundled cooler premium. Save the difference for better RAM timings.' },
+      { authorId: 'seed_user_8', authorName: 'Imran Chaudhry', createdAt: hoursAgo(240), body: 'Worth mentioning: add a decent UPS to any budget build. WAPDA cuts cost more in the long run than a cheap PSU.' },
+    ],
+  },
+  {
+    title: 'DDR5 vs DDR4: Does Memory Generation Actually Matter for Gaming?',
+    category: 'Hardware', status: 'published', isPublished: true,
+    authorId: 'seed_user_7', authorName: 'Faisal Sheikh', authorType: 'user',
+    thumbnailUrl: '',
+    createdAt: daysAgo(10), updatedAt: daysAgo(10),
+    content: `# DDR5 vs DDR4 for Gaming — The Real Answer\n\nSince AMD moved to DDR5-only with AM5, buyers often ask: is the extra cost justified?\n\n## Bandwidth vs Latency\n\nDDR5 at 6000 MHz CL30 delivers roughly 2× the raw bandwidth of DDR4-3600. However, primary latency (CL to actual nanoseconds) is similar or slightly worse at equivalent price points.\n\n## Gaming Benchmarks\n\nIn CPU-bound scenarios (CS2, Valorant at 1080p), the 5800X3D on DDR4-3600 still beats the 7600 on DDR5-4800. **But** pair the 7600 with DDR5-6000 at the FCLK-synced sweet spot (2000 MHz Infinity Fabric) and the tables turn.\n\n## The Verdict\n\n| Scenario | Winner |\n|----------|--------|\n| Budget gaming (DDR4 platform) | DDR4 — no argument |\n| AM5 + gaming | DDR5-6000 CL30 |\n| Workloads (video editing, ML) | DDR5 by a clear margin |\n\n## What to Buy in Pakistan\n\nCorsair Vengeance DDR5-6000 CL30 32 GB kit sits at ~28k PKR. That's a meaningful but justifiable premium if you're on AM5 for the long haul.`,
+    comments: [
+      { authorId: 'seed_user_1', authorName: 'Ahmed Raza', createdAt: hoursAgo(220), body: 'Tested this myself — 7600 + DDR5-6000 C30 gave me 15 FPS more in CS2 at 1080p vs DDR5-4800. The FCLK sync is real.' },
+      { authorId: 'seed_user_10', authorName: 'Naveed Iqbal', createdAt: hoursAgo(200), body: 'What about 3D V-Cache CPUs? The 7800X3D seems to care less about RAM speed because of the on-die cache.' },
+      { authorId: 'seed_user_7', authorName: 'Faisal Sheikh', createdAt: hoursAgo(195), body: '@Naveed — correct! 7800X3D is barely affected by RAM speed in gaming. The cache absorbs most latency. Different story for creative apps though.' },
+    ],
+  },
+  {
+    title: 'How to Optimize Windows 11 for Gaming — The Complete 2025 Guide',
+    category: 'Tutorial', status: 'published', isPublished: true,
+    authorId: 'seed_user_4', authorName: 'Sara Malik', authorType: 'user',
+    thumbnailUrl: '',
+    createdAt: daysAgo(6), updatedAt: daysAgo(6),
+    content: `# Windows 11 Gaming Optimization — Full Checklist\n\nWindows 11 ships with settings that actively hurt gaming performance. Here's the definitive fix list.\n\n## Core Settings\n\n1. **Game Mode ON** — Settings → Gaming → Game Mode → On\n2. **Hardware-Accelerated GPU Scheduling (HAGS)** — Settings → Display → Graphics → Change default graphics settings → ON *(requires DirectX 12 GPU)*\n3. **Variable Refresh Rate** — Enable in the same menu\n4. **Disable Xbox Game Bar** — Settings → Gaming → Xbox Game Bar → Off\n\n## Power Plan\n\nFor Intel: set to **High Performance**. For AMD Ryzen: install the **AMD Ryzen Balanced** plan from AMD's chipset driver package — it enables the correct C-state transitions that "High Performance" breaks on Ryzen.\n\n## NVIDIA-Specific\n\n- NVIDIA Control Panel → Manage 3D Settings → Power management mode → **Prefer maximum performance**\n- Shader Cache Size → **Unlimited**\n- Disable "Whisper Mode" if enabled\n\n## Background Processes\n\nDisable: Xbox services, Connected User Experiences, Windows Search indexing during gaming sessions (via Services.msc — set to Manual).\n\n## Thermal Paste\n\nNot a Windows setting, but: if your CPU hits 95 °C under Cinebench, no software fix will save your frame times. Replace thermal paste after 2–3 years.`,
+    comments: [
+      { authorId: 'seed_user_5', authorName: 'Hassan Iftikhar', createdAt: hoursAgo(130), body: 'HAGS broke SLI / multi-GPU on older setups — good reminder to only enable it on DX12 hardware. Saved me from a rabbit hole last week.' },
+      { authorId: 'seed_user_3', authorName: 'Usman Tariq', createdAt: hoursAgo(110), body: 'The AMD Ryzen Balanced plan tip is underrated. My 7600X dropped 8°C idle after switching from High Performance.' },
+      { authorId: 'seed_user_9', authorName: 'Kamran Ali', createdAt: hoursAgo(95), body: 'Would add: disable "Memory Integrity" (Core Isolation) if your anticheat software complains. It does add latency on older systems.' },
+    ],
+  },
+  {
+    title: 'AMD vs NVIDIA in Pakistan 2025 — Where Does Your Money Actually Go?',
+    category: 'Industry', status: 'published', isPublished: true,
+    authorId: 'seed_user_6', authorName: 'Zara Hussain', authorType: 'user',
+    thumbnailUrl: '',
+    createdAt: daysAgo(3), updatedAt: daysAgo(3),
+    content: `# AMD vs NVIDIA in Pakistan — An Honest Breakdown\n\nThe AMD vs NVIDIA debate is often framed around benchmarks. In Pakistan, import duties, availability, and after-sales support change the calculus significantly.\n\n## Price Parity at Each Tier (Jun 2025)\n\n| AMD | Price (PKR) | NVIDIA Equivalent | Price (PKR) | Verdict |\n|-----|-------------|-------------------|-------------|---------|\n| RX 7600 | 62–67k | RTX 4060 | 78–82k | AMD wins |\n| RX 7700 XT | 90–98k | RTX 4060 Ti | 95–105k | AMD wins |\n| RX 7900 GRE | 120–130k | RTX 4070 Super | 128–135k | Draw |\n| RX 7900 XTX | 195–210k | RTX 4080 Super | 230–250k | AMD wins |\n\n## Where NVIDIA Justifies Its Premium\n\n- **DLSS 3 Frame Generation** — genuinely useful in supported titles\n- **NVENC encoder** — still the best for content creators streaming at high quality\n- **CUDA ecosystem** — non-negotiable for ML/AI workloads\n\n## Where AMD Wins in Pakistan\n\n- **Price** — consistently 15–25 % cheaper at each tier\n- **Driver maturity** — 2023–25 AMD drivers are solid; the stability reputation gap has closed\n- **Availability** — local authorized RX stock is more consistent than RTX 40-series\n\n## Bottom Line\n\nFor pure gaming: AMD's RX 7000 series offers better rupee-per-frame. If you edit video, stream, or run any ML pipeline, NVIDIA's ecosystem extras tip the balance back.`,
+    comments: [
+      { authorId: 'seed_user_1', authorName: 'Ahmed Raza', createdAt: hoursAgo(60), body: 'Switched from RTX 3070 to RX 7900 GRE when I saw the price gap. Zero regrets. FSR 3 frame gen works in more titles than I expected.' },
+      { authorId: 'seed_user_2', authorName: 'Bilal Khan', createdAt: hoursAgo(45), body: "The NVENC point is huge. I stream on Twitch and the quality difference vs AMF is still noticeable at 6000 kbps. Team NVIDIA for me until AMD closes that gap." },
+      { authorId: 'seed_user_5', authorName: 'Hassan Iftikhar', createdAt: hoursAgo(30), body: 'Any idea if the RX 9070 will hit local shelves before Q3? Import timelines from Newegg resellers are all over the place.' },
+      { authorId: 'seed_user_6', authorName: 'Zara Hussain', createdAt: hoursAgo(20), body: "@Hassan — I've seen estimates of 3–4 months post-global launch for authorized stock. Grey market will have it sooner but expect a 10–15k premium." },
+    ],
+  },
+];
+
 export default function DevSeedPage() {
   const [listingsLog, setListingsLog] = useState<string[]>([]);
   const [listingsRunning, setListingsRunning] = useState(false);
@@ -248,6 +343,10 @@ export default function DevSeedPage() {
   const [threadsLog, setThreadsLog] = useState<string[]>([]);
   const [threadsRunning, setThreadsRunning] = useState(false);
   const [threadsDone, setThreadsDone] = useState(false);
+
+  const [blogsLog, setBlogsLog] = useState<string[]>([]);
+  const [blogsRunning, setBlogsRunning] = useState(false);
+  const [blogsDone, setBlogsDone] = useState(false);
 
   const seedListings = async () => {
     setListingsRunning(true);
@@ -266,6 +365,79 @@ export default function DevSeedPage() {
     setListingsLog(prev => [...prev, `\nDone — ${ok}/10 listings seeded.`]);
     setListingsRunning(false);
     setListingsDone(ok > 0);
+  };
+
+  const seedBlogs = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setBlogsLog(['✗ You must be signed in to seed blogs. Please log in first.']);
+      return;
+    }
+
+    setBlogsRunning(true);
+    setBlogsLog([]);
+
+    const tokenResult = await currentUser.getIdTokenResult();
+    const userIsAdmin = tokenResult.claims.admin === true;
+
+    if (!userIsAdmin) {
+      setBlogsLog(prev => [...prev,
+        '⚠ Not signed in as admin — all posts will be created as pending_review.',
+        '  Published posts require the admin JWT claim. Go to /admin → Role Management to promote yourself,',
+        '  then sign out and back in before re-running this seed.',
+        '',
+      ]);
+    }
+
+    const blogsCol = collection(db, 'blogs');
+    let ok = 0;
+    const total = SEED_BLOGS.length;
+
+    for (let i = 0; i < total; i++) {
+      const { comments, ...templateData } = SEED_BLOGS[i];
+
+      // Non-admins: must use real UID as authorId and force status to pending_review
+      const blogData = {
+        ...templateData,
+        authorId: userIsAdmin ? templateData.authorId : currentUser.uid,
+        authorName: userIsAdmin ? templateData.authorName : (currentUser.displayName ?? 'Developer'),
+        status: userIsAdmin ? templateData.status : 'pending_review' as const,
+        isPublished: userIsAdmin ? templateData.isPublished : false,
+      };
+
+      try {
+        const blogRef = await addDoc(blogsCol, {
+          ...blogData,
+          excerpt: blogData.content.replace(/[#*_`>[\]]/g, '').slice(0, 160).trimEnd() + '…',
+          commentCount: comments?.length ?? 0,
+          rejectionNote: null,
+          publishAt: null,
+          videoUrl: null,
+        });
+
+        if (comments && comments.length > 0) {
+          const commentsCol = collection(db, 'blogs', blogRef.id, 'comments');
+          for (const c of comments) {
+            await addDoc(commentsCol, c);
+          }
+        }
+
+        ok++;
+        const tag = blogData.status === 'pending_review' ? '[REVIEW]' : '[PUBLISHED]';
+        setBlogsLog(prev => [...prev, `✓ [${i + 1}/${total}] ${tag} ${blogData.title.slice(0, 50)} → ${blogRef.id}${comments?.length ? ` + ${comments.length} comments` : ''}`]);
+      } catch (err) {
+        setBlogsLog(prev => [...prev, `✗ [${i + 1}/${total}] ${blogData.title.slice(0, 40)} — ${(err as Error).message}`]);
+      }
+    }
+
+    const publishedCount = userIsAdmin ? 4 : 0;
+    const reviewCount = userIsAdmin ? 3 : total;
+    setBlogsLog(prev => [...prev, `\nDone — ${ok}/${total} posts seeded (${reviewCount} pending review, ${publishedCount} published).`]);
+    if (!userIsAdmin && ok > 0) {
+      setBlogsLog(prev => [...prev, 'Tip: Approve the 4 "published" posts from /admin → Review Queue to make them appear on /blog.']);
+    }
+    setBlogsRunning(false);
+    setBlogsDone(ok > 0);
   };
 
   const seedThreads = async () => {
@@ -326,6 +498,23 @@ export default function DevSeedPage() {
         {threadsLog.length > 0 && (
           <pre className="font-mono text-xs text-gray-300 bg-black/40 rounded-xl p-4 overflow-auto max-h-48 whitespace-pre-wrap">
             {threadsLog.join('\n')}
+          </pre>
+        )}
+
+        <hr className="border-white/10 mb-6" />
+
+        <button
+          onClick={seedBlogs}
+          disabled={blogsRunning || blogsDone}
+          className="w-full py-3 rounded-xl font-semibold text-bg-dark bg-primary hover:bg-primary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all mb-4"
+          style={{ background: blogsRunning || blogsDone ? undefined : 'linear-gradient(135deg,#0df2f2,#bf00ff)' }}
+        >
+          {blogsRunning ? 'Seeding…' : blogsDone ? 'Done! ✓ Navigate to /blog or /admin' : 'Seed 7 Blog Posts (3 in review + 4 published w/ comments)'}
+        </button>
+
+        {blogsLog.length > 0 && (
+          <pre className="font-mono text-xs text-gray-300 bg-black/40 rounded-xl p-4 overflow-auto max-h-48 whitespace-pre-wrap">
+            {blogsLog.join('\n')}
           </pre>
         )}
       </div>

@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useCommunity, COMMUNITY_COUNTRIES } from '../hooks/useCommunity';
 import { useAuth } from '../hooks/useAuth';
 import { useBlogFeed } from '../hooks/useBlogCMS';
+import CyberSelect from '../components/CyberSelect';
 import { useCountry } from '../context/CountryContext';
 import { useUserRole } from '../hooks/useUserRole';
 import GradientBackground from '../components/GradientBackground/GradientBackground';
@@ -28,8 +30,10 @@ export default function CommunityPage({ onOpenAuth }: Props) {
   const { user } = useAuth();
   const { selectedCountry } = useCountry();
   const { role } = useUserRole(user?.uid);
+  const location = useLocation();
   const {
     threads,
+    allThreads,
     loading,
     error,
     filters,
@@ -56,10 +60,24 @@ export default function CommunityPage({ onOpenAuth }: Props) {
     category: p.category,
   }));
 
+  const pendingOpenThreadIdRef = useRef<string | null>(
+    (location.state as { openThreadId?: string } | null)?.openThreadId ?? null
+  );
+
+  useEffect(() => {
+    if (!pendingOpenThreadIdRef.current || loading || allThreads.length === 0) return;
+    const thread = allThreads.find(t => t.id === pendingOpenThreadIdRef.current);
+    if (thread) {
+      setActiveThread(thread);
+      pendingOpenThreadIdRef.current = null;
+    }
+  }, [allThreads, loading]);
+
   // Keep open modal in sync with live Firestore snapshot updates
   useEffect(() => {
     if (!activeThread) return;
     const updated = threads.find((t) => t.id === activeThread.id);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: keep open modal in sync with Firestore updates
     if (updated) setActiveThread(updated);
   }, [threads]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -161,7 +179,7 @@ export default function CommunityPage({ onOpenAuth }: Props) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search topics..."
-                className="w-full bg-black/20 border border-white/10 rounded-pill py-2.5 pl-10 pr-4 text-sm text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder-gray-600"
+                className="w-full bg-bg-panel border border-border-glass rounded-pill py-2.5 pl-10 pr-4 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder-[var(--text-muted)]"
               />
             </div>
             <button
@@ -183,8 +201,8 @@ export default function CommunityPage({ onOpenAuth }: Props) {
                 onClick={() => setFilters({ ...filters, category: cat.id })}
                 className={`flex items-center gap-2 px-5 py-2 rounded-pill text-sm font-medium whitespace-nowrap transition-all ${
                   filters.category === cat.id
-                    ? 'bg-white/10 border border-white/10 text-white'
-                    : 'glass-panel text-gray-300 hover:text-primary hover:border-primary/50'
+                    ? 'bg-black/8 dark:bg-white/10 border border-black/12 dark:border-white/10'
+                    : 'glass-panel hover:text-primary hover:border-primary/50'
                 }`}
               >
                 <span className={`material-symbols-outlined text-[18px] ${cat.color ?? ''}`}>
@@ -196,16 +214,15 @@ export default function CommunityPage({ onOpenAuth }: Props) {
           </div>
 
           {/* Country filter */}
-          <select
+          <CyberSelect
             value={filters.country}
-            onChange={(e) => setFilters({ ...filters, country: e.target.value })}
-            className="shrink-0 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:border-primary/50 focus:outline-none cursor-pointer"
-          >
-            <option value="All">All Countries</option>
-            {COMMUNITY_COUNTRIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
+            onChange={v => setFilters({ ...filters, country: v })}
+            options={[
+              { value: 'All', label: 'All Countries' },
+              ...COMMUNITY_COUNTRIES.map(c => ({ value: c, label: c })),
+            ]}
+            className="shrink-0"
+          />
         </div>
 
         {/* Thread list */}

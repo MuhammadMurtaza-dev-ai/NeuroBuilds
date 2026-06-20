@@ -31,7 +31,9 @@ export default function NewsFallback({ country, context }: Props) {
 
   useEffect(() => {
     if (!apiKey) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- early-return guard for missing API key
       setFetchError('News API key not configured (VITE_GNEWS_API_KEY).');
+       
       setLoading(false);
       return;
     }

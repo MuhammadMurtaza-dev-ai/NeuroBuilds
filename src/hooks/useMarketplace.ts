@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   collection,
   doc,
@@ -8,6 +8,7 @@ import {
   getDocs,
   query,
   where,
+  orderBy,
   limit,
   increment,
   Timestamp,
@@ -16,17 +17,17 @@ import type { DocumentData } from 'firebase/firestore';
 import { db } from '../Firebase';
 import type { Listing } from './useStorage';
 import { useCountry } from '../context/CountryContext';
-import { getNearbyAreaNames, getCityForArea } from '../data/pakistanGeoLocations';
+import { writeAuditLog } from '../utils/auditLog';
 
 export interface MarketplaceFilters {
   category: string;
   search: string;
+  /** Province filter. */
+  province?: string;
   /** City-level filter — "All Locations" disables it. */
   location: string;
-  /** Specific area within a city (enables Tier 1/2/3 fallback when set). */
+  /** Area/neighbourhood — when set, drives Tier-1 exact area search. */
   area?: string;
-  /** Province filter — used for province-scoped browsing. */
-  province?: string;
   conditions: string[];
   listingType: string;
   priceMin: number | null;
@@ -35,23 +36,12 @@ export interface MarketplaceFilters {
   newOnly: boolean;
 }
 
-// ─── Geo-fallback result ──────────────────────────────────────────────────────
-
-export type FallbackTier = 1 | 2 | 3;
-
-export interface GeoSearchResult {
-  listings: Listing[];
-  tier: FallbackTier;
-  /** Human-readable label shown in the UI ("Tariq Garden" | "Nearby Tariq Garden" | "All of Lahore") */
-  tierLabel: string;
-}
-
 export const DEFAULT_FILTERS: MarketplaceFilters = {
   category: 'all',
   search: '',
+  province: '',
   location: 'All Locations',
   area: '',
-  province: '',
   conditions: [],
   listingType: 'all',
   priceMin: null,
@@ -61,101 +51,239 @@ export const DEFAULT_FILTERS: MarketplaceFilters = {
 };
 
 const LISTINGS_COLLECTION = 'listings';
-const DAY_MS = 86_400_000;
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 const docToListing = (id: string, data: DocumentData): Listing => ({
   ...(data as Omit<Listing, 'id' | 'postedDate'>),
   id,
-  postedDate: data.postedDate instanceof Timestamp
-    ? data.postedDate.toDate().toISOString()
-    : String(data.postedDate ?? ''),
+  postedDate:
+    data.postedDate instanceof Timestamp
+      ? data.postedDate.toDate().toISOString()
+      : String(data.postedDate ?? ''),
+  expiresAt:
+    data.expiresAt instanceof Timestamp
+      ? data.expiresAt.toDate().toISOString()
+      : typeof data.expiresAt === 'string' ? data.expiresAt : undefined,
+  lastActivatedAt:
+    data.lastActivatedAt instanceof Timestamp
+      ? data.lastActivatedAt.toDate().toISOString()
+      : typeof data.lastActivatedAt === 'string' ? data.lastActivatedAt : undefined,
 });
 
 export const useMarketplace = () => {
   const { selectedCountry } = useCountry();
   const [listings, setListings] = useState<Listing[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tier, setTier] = useState<number>(0);
+  const [tierLabel, setTierLabel] = useState('');
 
-  useEffect(() => {
-    let cancelled = false;
+  /**
+   * Firestore-native cascading location search:
+   * Tier 1 — exact area match.
+   * Tier 2 — same city (falls back when area returns nothing).
+   * Tier 3 — country-wide (no city selected).
+   */
+  const fetchByLocation = useCallback(async (opts: {
+    area?: string;
+    city?: string;
+    province?: string;
+  }) => {
+    setLoading(true);
+    setError(null);
     setListings([]);
 
-    const fetchListings = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const q = query(
+    const { area, city } = opts;
+
+    try {
+      // Tier 1: exact area
+      if (area) {
+        const q1 = query(
           collection(db, LISTINGS_COLLECTION),
           where('country', '==', selectedCountry),
-          limit(50)
+          where('area', '==', area),
+          where('status', '==', 'active'),
+          orderBy('postedDate', 'desc'),
+          limit(50),
         );
-        const snapshot = await getDocs(q);
-        if (!cancelled) {
-          setListings(snapshot.docs.map(d => docToListing(d.id, d.data())));
+        const snap1 = await getDocs(q1);
+        if (!snap1.empty) {
+          setListings(snap1.docs.map(d => docToListing(d.id, d.data())));
+          setTier(1);
+          setTierLabel(area);
+          return;
         }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load listings');
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
 
-    fetchListings();
-    return () => { cancelled = true; };
+        // Tier 1 miss — fall back to city or do legacy substring fallback
+        if (city) {
+          const q2 = query(
+            collection(db, LISTINGS_COLLECTION),
+            where('country', '==', selectedCountry),
+            where('city', '==', city),
+            where('status', '==', 'active'),
+            orderBy('postedDate', 'desc'),
+            limit(50),
+          );
+          const snap2 = await getDocs(q2);
+
+          // Also include legacy docs (no city field) via substring match
+          const fromCity = snap2.docs.map(d => docToListing(d.id, d.data()));
+          if (fromCity.length === 0) {
+            // Further legacy fallback: country-scoped + substring
+            const legacySnap = await getDocs(query(
+              collection(db, LISTINGS_COLLECTION),
+              where('country', '==', selectedCountry),
+              where('status', '==', 'active'),
+              orderBy('postedDate', 'desc'),
+              limit(100),
+            ));
+            const lc = city.toLowerCase();
+            const legacy = legacySnap.docs
+              .map(d => docToListing(d.id, d.data()))
+              .filter(l => !l.city && l.location.toLowerCase().includes(lc));
+            setListings(legacy);
+          } else {
+            setListings(fromCity);
+          }
+          setTier(2);
+          setTierLabel(`All of ${city}`);
+          return;
+        }
+      }
+
+      // Tier 2 entry: city selected, no area
+      if (city) {
+        const q2 = query(
+          collection(db, LISTINGS_COLLECTION),
+          where('country', '==', selectedCountry),
+          where('city', '==', city),
+          where('status', '==', 'active'),
+          orderBy('postedDate', 'desc'),
+          limit(50),
+        );
+        const snap2 = await getDocs(q2);
+        const fromCity = snap2.docs.map(d => docToListing(d.id, d.data()));
+
+        // Legacy docs: substring on the denormalized location string
+        const legacySnap = await getDocs(query(
+          collection(db, LISTINGS_COLLECTION),
+          where('country', '==', selectedCountry),
+          where('status', '==', 'active'),
+          orderBy('postedDate', 'desc'),
+          limit(100),
+        ));
+        const lc = city.toLowerCase();
+        const legacy = legacySnap.docs
+          .map(d => docToListing(d.id, d.data()))
+          .filter(l => !l.city && l.location.toLowerCase().includes(lc));
+
+        // Merge, deduplicate by id
+        const seen = new Set(fromCity.map(l => l.id));
+        const merged = [...fromCity, ...legacy.filter(l => !seen.has(l.id))];
+        setListings(merged);
+        setTier(2);
+        setTierLabel(merged.length > 0 ? city : `All of ${selectedCountry}`);
+        return;
+      }
+
+      // Tier 3: country-wide
+      await fetchByScope();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load listings');
+      setLoading(false);
+    }
+  }, [selectedCountry]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * Country-scoped Firestore fetch — used when no location filters are active.
+   */
+  const fetchByScope = useCallback(async (city?: string) => {
+    setLoading(true);
+    setError(null);
+    setListings([]);
+    setTier(0);
+    setTierLabel('');
+    try {
+      const q = query(
+        collection(db, LISTINGS_COLLECTION),
+        where('country', '==', selectedCountry),
+        where('status', '==', 'active'),
+        orderBy('postedDate', 'desc'),
+        limit(50),
+      );
+      const snap = await getDocs(q);
+      let mapped = snap.docs.map(d => docToListing(d.id, d.data()));
+      if (city) {
+        const lc = city.toLowerCase();
+        mapped = mapped.filter(l => l.location.toLowerCase().includes(lc));
+      }
+      setListings(mapped);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load listings');
+    } finally {
+      setLoading(false);
+    }
   }, [selectedCountry]);
 
-  const loadMore = async (): Promise<void> => { /* no-op: all listings fetched at once */ };
+  /** Fetch all listings belonging to a specific seller (all statuses). */
+  const fetchMine = useCallback(async (uid: string) => {
+    setLoading(true);
+    setError(null);
+    setListings([]);
+    setTier(0);
+    setTierLabel('');
+    try {
+      const q = query(
+        collection(db, LISTINGS_COLLECTION),
+        where('sellerId', '==', uid),
+        orderBy('postedDate', 'desc'),
+      );
+      const snap = await getDocs(q);
+      setListings(snap.docs.map(d => docToListing(d.id, d.data())));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load your listings');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const getFilteredListings = (filters: Partial<MarketplaceFilters> = {}): Listing[] => {
-    const f = { ...DEFAULT_FILTERS, ...filters };
-    return listings
-      .filter(l => l.status === 'active')
-      .filter(l => f.category === 'all' || l.category === f.category)
-      .filter(l => {
-        if (!f.search) return true;
-        const q = f.search.toLowerCase();
-        return (
-          l.title.toLowerCase().includes(q) ||
-          l.description.toLowerCase().includes(q) ||
-          l.tags.some(t => t.toLowerCase().includes(q))
-        );
-      })
-      .filter(l => f.location === 'All Locations' || l.location.includes(f.location))
-      .filter(l => !f.conditions.length || f.conditions.includes(l.condition))
-      .filter(l => f.listingType === 'all' || l.listingType === f.listingType)
-      .filter(l => f.priceMin === null || l.price >= f.priceMin)
-      .filter(l => f.priceMax === null || l.price <= f.priceMax)
-      .filter(l => !f.newOnly || Date.now() - new Date(l.postedDate).getTime() < DAY_MS)
-      .sort((a, b) => {
-        switch (f.sortBy) {
-          case 'oldest':
-            return new Date(a.postedDate).getTime() - new Date(b.postedDate).getTime();
-          case 'price_asc':
-            return a.price - b.price;
-          case 'price_desc':
-            return b.price - a.price;
-          case 'most_viewed':
-            return b.views - a.views;
-          default:
-            return new Date(b.postedDate).getTime() - new Date(a.postedDate).getTime();
-        }
-      });
-  };
+  /** Fetch all listings saved by a specific user. */
+  const fetchSaved = useCallback(async (uid: string) => {
+    setLoading(true);
+    setError(null);
+    setListings([]);
+    setTier(0);
+    setTierLabel('');
+    try {
+      const q = query(
+        collection(db, LISTINGS_COLLECTION),
+        where('savedBy', 'array-contains', uid),
+        orderBy('postedDate', 'desc'),
+        limit(50),
+      );
+      const snap = await getDocs(q);
+      setListings(snap.docs.map(d => docToListing(d.id, d.data())));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load saved listings');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const createListing = async (
-    listing: Omit<Listing, 'id' | 'views' | 'savedBy' | 'postedDate'>
+    listing: Omit<Listing, 'id' | 'views' | 'savedBy' | 'postedDate'>,
   ): Promise<Listing> => {
     try {
-      const postedDate = Timestamp.now();
+      const now = Timestamp.now();
+      const expiresAt = Timestamp.fromMillis(now.toMillis() + THIRTY_DAYS_MS);
       const docRef = await addDoc(collection(db, LISTINGS_COLLECTION), {
         ...listing,
         country: listing.country || selectedCountry,
         views: 0,
         savedBy: [],
-        postedDate,
+        postedDate: now,
+        expiresAt,
+        lastActivatedAt: now,
       });
       const newListing: Listing = {
         ...listing,
@@ -163,8 +291,15 @@ export const useMarketplace = () => {
         id: docRef.id,
         views: 0,
         savedBy: [],
-        postedDate: postedDate.toDate().toISOString(),
+        postedDate: now.toDate().toISOString(),
+        expiresAt: expiresAt.toDate().toISOString(),
+        lastActivatedAt: now.toDate().toISOString(),
       };
+      writeAuditLog(listing.sellerId, 'listing.create', {
+        targetId: docRef.id,
+        targetType: 'listing',
+        title: listing.title,
+      });
       setListings(prev => [newListing, ...prev]);
       return newListing;
     } catch (err) {
@@ -179,8 +314,14 @@ export const useMarketplace = () => {
       if (updates.postedDate) {
         firestoreUpdates.postedDate = Timestamp.fromDate(new Date(updates.postedDate));
       }
+      if (updates.expiresAt) {
+        firestoreUpdates.expiresAt = Timestamp.fromDate(new Date(updates.expiresAt));
+      }
+      if (updates.lastActivatedAt) {
+        firestoreUpdates.lastActivatedAt = Timestamp.fromDate(new Date(updates.lastActivatedAt));
+      }
       await updateDoc(doc(db, LISTINGS_COLLECTION, id), firestoreUpdates);
-      setListings(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l));
+      setListings(prev => prev.map(l => (l.id === id ? { ...l, ...updates } : l)));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update listing');
       throw err;
@@ -207,9 +348,7 @@ export const useMarketplace = () => {
           ? listing.savedBy.filter(id => id !== userId)
           : [...listing.savedBy, userId],
       });
-    } catch {
-      // error already surfaced via setError in updateListing
-    }
+    } catch { /* surfaced via setError in updateListing */ }
   };
 
   const isSaved = (userId: string, listingId: string): boolean => {
@@ -219,13 +358,15 @@ export const useMarketplace = () => {
 
   const updateStock = async (id: string, delta: number): Promise<void> => {
     try {
-      await updateDoc(doc(db, LISTINGS_COLLECTION, id), { stockQuantity: increment(delta) });
+      await updateDoc(doc(db, LISTINGS_COLLECTION, id), {
+        stockQuantity: increment(delta),
+      });
       setListings(prev =>
         prev.map(l =>
           l.id === id
             ? { ...l, stockQuantity: Math.max(0, (l.stockQuantity ?? 0) + delta) }
-            : l
-        )
+            : l,
+        ),
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update stock');
@@ -235,86 +376,33 @@ export const useMarketplace = () => {
 
   const markAsSold = (id: string) => updateListing(id, { status: 'sold' });
   const markAsReserved = (id: string) => updateListing(id, { status: 'reserved' });
-  const reactivateListing = (id: string) => updateListing(id, { status: 'active' });
 
-  const getUserListings = (userId: string) => listings.filter(l => l.sellerId === userId);
-  const getSavedListings = (userId: string) => listings.filter(l => l.savedBy.includes(userId));
-
-  /**
-   * Cascading geo-fallback search — for Pakistan marketplace with area-level precision.
-   *
-   * Tier 1 — Exact area match:   location includes `areaName`
-   * Tier 2 — Radius expansion:   location includes any area within `radiusKm` of `areaName`
-   * Tier 3 — City-wide fallback: location includes the city that contains `areaName`
-   *
-   * Only active listings are considered. The base `filters` (category, price, etc.) are
-   * applied after the tier resolution so geo results are still filterable.
-   *
-   * @param areaName  The area the user searched for (e.g. "Tariq Garden")
-   * @param baseFilters  Optional subset of MarketplaceFilters to apply on top
-   * @param radiusKm  Radius for Tier-2 expansion (default 8 km)
-   */
-  const searchWithGeoFallback = (
-    areaName: string,
-    baseFilters: Partial<MarketplaceFilters> = {},
-    radiusKm = 8,
-  ): GeoSearchResult => {
-    const active = listings.filter(l => l.status === 'active');
-    const f = { ...DEFAULT_FILTERS, ...baseFilters };
-
-    const applyBaseFilters = (pool: Listing[]) =>
-      pool
-        .filter(l => f.category === 'all' || l.category === f.category)
-        .filter(l => f.listingType === 'all' || l.listingType === f.listingType)
-        .filter(l => !f.conditions.length || f.conditions.includes(l.condition))
-        .filter(l => f.priceMin === null || l.price >= f.priceMin)
-        .filter(l => f.priceMax === null || l.price <= f.priceMax)
-        .filter(l => !f.search || (
-          l.title.toLowerCase().includes(f.search.toLowerCase()) ||
-          l.description.toLowerCase().includes(f.search.toLowerCase()) ||
-          l.tags.some(t => t.toLowerCase().includes(f.search.toLowerCase()))
-        ));
-
-    // ── Tier 1: exact area match ──────────────────────────────────────────────
-    const tier1 = applyBaseFilters(
-      active.filter(l => l.location.toLowerCase().includes(areaName.toLowerCase()))
-    );
-    if (tier1.length > 0) {
-      return { listings: tier1, tier: 1, tierLabel: areaName };
-    }
-
-    // ── Tier 2: nearby areas within radius ────────────────────────────────────
-    const nearby = getNearbyAreaNames(areaName, radiusKm);
-    if (nearby.length > 0) {
-      const tier2 = applyBaseFilters(
-        active.filter(l => nearby.some(na => l.location.toLowerCase().includes(na.toLowerCase())))
-      );
-      if (tier2.length > 0) {
-        return { listings: tier2, tier: 2, tierLabel: `Nearby ${areaName}` };
-      }
-    }
-
-    // ── Tier 3: city-wide fallback ────────────────────────────────────────────
-    const city = getCityForArea(areaName);
-    const tier3 = applyBaseFilters(
-      active.filter(l => city ? l.location.toLowerCase().includes(city.toLowerCase()) : false)
-    );
-    return {
-      listings: tier3,
-      tier: 3,
-      tierLabel: city ? `All of ${city}` : 'All Locations',
-    };
+  const reactivateListing = (id: string) => {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + THIRTY_DAYS_MS);
+    return updateListing(id, {
+      status: 'active',
+      lastActivatedAt: now.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+    });
   };
+
+  const getUserListings = (userId: string) =>
+    listings.filter(l => l.sellerId === userId);
+  const getSavedListings = (userId: string) =>
+    listings.filter(l => l.savedBy.includes(userId));
 
   return {
     listings,
     loading,
-    loadingMore: false,
-    hasMore: false,
     error,
+    tier,
+    tierLabel,
     selectedCountry,
-    getFilteredListings,
-    loadMore,
+    fetchByLocation,
+    fetchByScope,
+    fetchMine,
+    fetchSaved,
     createListing,
     updateListing,
     deleteListing,
@@ -326,6 +414,5 @@ export const useMarketplace = () => {
     reactivateListing,
     getUserListings,
     getSavedListings,
-    searchWithGeoFallback,
   };
 };

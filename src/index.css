@@ -37,15 +37,75 @@
 }
 
 /* ── Light-mode text overrides ───────────────────────────── */
-/* Prevent white/near-white text from being invisible on light backgrounds */
+/* Prevent white/near-white text from being invisible on light backgrounds.
+   We must target every Tailwind variant separately because Tailwind generates
+   separate class names: .text-white, .hover\:text-white, .group-hover\:text-white
+   etc. — the base override does NOT cascade to the variant-prefixed classes. */
+
+/* Base state */
 html:not(.dark) .text-white { color: var(--text-base); }
 html:not(.dark) .text-gray-100,
 html:not(.dark) .text-gray-200,
 html:not(.dark) .text-gray-300 { color: var(--text-muted); }
 html:not(.dark) .text-gray-400,
 html:not(.dark) .text-gray-500 { color: #6b7280; }
+
+/* hover: variants */
+html:not(.dark) .hover\:text-white:hover       { color: var(--text-base); }
+html:not(.dark) .hover\:text-gray-100:hover,
+html:not(.dark) .hover\:text-gray-200:hover,
+html:not(.dark) .hover\:text-gray-300:hover    { color: var(--text-muted); }
+
+/* group-hover: variants (Tailwind v3 — parent carries .group, child carries .group-hover\:…) */
+html:not(.dark) .group:hover .group-hover\:text-white      { color: var(--text-base); }
+html:not(.dark) .group:hover .group-hover\:text-gray-100,
+html:not(.dark) .group:hover .group-hover\:text-gray-200,
+html:not(.dark) .group:hover .group-hover\:text-gray-300   { color: var(--text-muted); }
+
+/* focus-within: variants (used on form containers) */
+html:not(.dark) .focus-within\:text-white:focus-within { color: var(--text-base); }
+
 /* Keep semantic/accent colours unchanged in both modes */
-html:not(.dark) .text-primary  { color: #0bbcbc; }   /* slightly darker cyan on light bg */
+html:not(.dark) .text-primary              { color: #0bbcbc; }
+html:not(.dark) .hover\:text-primary:hover { color: #0bbcbc; }
+html:not(.dark) .group:hover .group-hover\:text-primary { color: #0bbcbc; }
+
+/* ── Light-mode background overrides ─────────────────────── */
+/* Ensure interactive elements with dark-only bg look right */
+html:not(.dark) select option {
+  background-color: var(--bg-panel);
+  color: var(--text-base);
+}
+
+/* White-opacity backgrounds → flip to black-opacity in light mode */
+html:not(.dark) .bg-white\/5  { background-color: rgba(0,0,0,0.04); }
+html:not(.dark) .bg-white\/10 { background-color: rgba(0,0,0,0.06); }
+html:not(.dark) .bg-white\/20 { background-color: rgba(0,0,0,0.08); }
+
+/* hover: variants */
+html:not(.dark) .hover\:bg-white\/5:hover   { background-color: rgba(0,0,0,0.04); }
+html:not(.dark) .hover\:bg-white\/10:hover  { background-color: rgba(0,0,0,0.06); }
+html:not(.dark) .hover\:bg-white\/\[3\%\]:hover { background-color: rgba(0,0,0,0.03); }
+
+/* focus: variants (form inputs) */
+html:not(.dark) .focus\:bg-white\/10:focus  { background-color: rgba(0,0,0,0.06); }
+
+/* White-opacity borders → flip to black-opacity in light mode */
+html:not(.dark) .border-white\/5  { border-color: rgba(0,0,0,0.05); }
+html:not(.dark) .border-white\/10 { border-color: rgba(0,0,0,0.08); }
+html:not(.dark) .border-white\/20 { border-color: rgba(0,0,0,0.10); }
+
+/* High-opacity black background used as dark input field style → lighten for light mode */
+html:not(.dark) .bg-black\/40 { background-color: rgba(0,0,0,0.04); }
+
+/* Hardcoded dark section backgrounds that need to follow the theme */
+html:not(.dark) .bg-\[\#1a1a1a\] { background-color: var(--bg-panel); }
+html:not(.dark) .bg-\[\#111\]    { background-color: var(--bg-panel); }
+html:not(.dark) .bg-\[\#1e1e1e\] { background-color: var(--bg-dark); }
+html:not(.dark) .bg-\[\#252526\] { background-color: var(--bg-panel); }
+html:not(.dark) .from-\[\#1e1e1e\]  { --tw-gradient-from: var(--bg-dark); }
+html:not(.dark) .from-\[\#252526\]  { --tw-gradient-from: var(--bg-panel); }
+html:not(.dark) .to-\[\#1e1e1e\]   { --tw-gradient-to: var(--bg-dark); }
 
 ::-webkit-scrollbar {
   width: 8px;
@@ -115,6 +175,45 @@ html:not(.dark) .text-primary  { color: #0bbcbc; }   /* slightly darker cyan on 
   display: none;
 }
 
+/* ── Cyber-themed <select> ─────────────────────────────────── */
+.select-cyber {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-glass-strong);
+  border-radius: 0.75rem;
+  padding: 0.625rem 2.25rem 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--text-base);
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  /* Cyan chevron arrow */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230df2f2' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+}
+
+.select-cyber:hover {
+  border-color: rgba(13, 242, 242, 0.3);
+}
+
+.select-cyber:focus {
+  outline: none;
+  border-color: rgba(13, 242, 242, 0.55);
+  box-shadow: 0 0 0 3px rgba(13, 242, 242, 0.1), 0 0 8px rgba(13, 242, 242, 0.15);
+}
+
+.select-cyber:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.select-cyber option {
+  background-color: var(--bg-panel);
+  color: var(--text-base);
+}
+
 .mask-gradient {
   mask-image: linear-gradient(90deg, black 0%, black 85%, transparent 100%);
 }
@@ -155,5 +254,32 @@ a {
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+}
+
+/* ── Splash screen animations ─────────────────────────────── */
+@keyframes splashIconEnter {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+@keyframes splashIconPop {
+  0%   { transform: scale(1);   opacity: 1; }
+  35%  { transform: scale(1.4); opacity: 0.9; }
+  100% { transform: scale(3);   opacity: 0; }
+}
+
+@keyframes splashRingEnter {
+  from { transform: scale(0.4); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+@keyframes splashRingPop {
+  0%   { transform: scale(1);   opacity: 1; }
+  100% { transform: scale(4);   opacity: 0; }
+}
+
+@keyframes splashOverlayOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }
 

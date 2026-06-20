@@ -1,5 +1,8 @@
 import { useState, useRef } from 'react';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db, auth } from '../../Firebase';
 import { useSellerVerification } from '../../hooks/useSellerVerification';
+import { MARKETPLACE_RULES } from '../../data/marketplaceRules';
 
 interface Props {
   onClose: () => void;
@@ -8,12 +11,24 @@ interface Props {
 
 export default function SellerVerificationModal({ onClose, onSuccess }: Props) {
   const { loading, statusMessage, step, timer, error, phone, sendVerificationCode, verifyOTP, resetToPhone } = useSellerVerification();
+  const [rulesAccepted, setRulesAccepted] = useState(false);
+  const [agreeChecked, setAgreeChecked] = useState(false);
   const [phoneInput, setPhoneInput] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null, null, null]);
 
+  const handleAcceptRules = () => {
+    if (!agreeChecked) return;
+    setRulesAccepted(true);
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      // Record acceptance (not a trust field — self-write is allowed by rules).
+      setDoc(doc(db, 'users', uid), { rulesAcceptedAt: serverTimestamp() }, { merge: true }).catch(() => {});
+    }
+  };
+
   const handleSend = () => {
-    const cleaned = phoneInput.replace(/\D/g, '');
+    const cleaned = phoneInput.replace(/\D/g, '').replace(/^0/, '');
     if (cleaned.length < 10) return;
     sendVerificationCode('+92' + cleaned);
   };
@@ -61,9 +76,11 @@ export default function SellerVerificationModal({ onClose, onSuccess }: Props) {
               <h2 className="font-bold text-xl leading-tight">Seller Verification</h2>
             </div>
             <p className="text-gray-500 text-sm mt-1 ml-[52px]">
-              {step === 'phone'
-                ? 'Enter your phone number to receive a verification code.'
-                : `Code sent to +92 ${phone}. Enter it below.`}
+              {!rulesAccepted
+                ? 'Review and accept the marketplace rules to continue.'
+                : step === 'phone'
+                  ? 'Enter your phone number to receive a verification code.'
+                  : `Code sent to +92 ${phone}. Enter it below.`}
             </p>
           </div>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 transition-colors shrink-0">
@@ -71,6 +88,44 @@ export default function SellerVerificationModal({ onClose, onSuccess }: Props) {
           </button>
         </div>
 
+        {/* Step 0 — Rules & Regulations agreement */}
+        {!rulesAccepted && (
+          <div className="flex flex-col gap-4 relative">
+            <div className="rounded-xl border border-white/10 bg-black/30 max-h-64 overflow-y-auto p-4 flex flex-col gap-3">
+              {MARKETPLACE_RULES.map((rule, i) => (
+                <div key={i} className="flex gap-3">
+                  <span className="text-primary font-mono text-xs shrink-0 mt-0.5">{String(i + 1).padStart(2, '0')}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{rule.title}</p>
+                    <p className="text-xs text-gray-400 leading-relaxed mt-0.5">{rule.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={agreeChecked}
+                onChange={e => setAgreeChecked(e.target.checked)}
+                className="accent-primary w-4 h-4 mt-0.5 shrink-0"
+              />
+              <span className="text-xs text-gray-300 leading-relaxed">
+                I have read and agree to the marketplace rules. I understand that scams or dishonest
+                conduct confirmed by a valid report will result in my listings and account being disabled.
+              </span>
+            </label>
+            <button
+              onClick={handleAcceptRules}
+              disabled={!agreeChecked}
+              className="w-full py-3 rounded-xl bg-primary text-bg-dark font-bold text-sm hover:bg-cyan-300 transition-all shadow-[0_0_15px_rgba(13,242,242,0.3)] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined text-base leading-none">gavel</span>
+              Agree &amp; Continue
+            </button>
+          </div>
+        )}
+
+        {rulesAccepted && (<>
         {/* Step indicators */}
         <div className="flex items-center gap-2 relative">
           <div className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center border transition-all ${
@@ -119,6 +174,12 @@ export default function SellerVerificationModal({ onClose, onSuccess }: Props) {
               <div className="flex items-center gap-2 text-primary text-sm bg-primary/10 border border-primary/30 rounded-xl px-4 py-3 font-mono">
                 <span className="material-symbols-outlined text-base leading-none animate-spin">progress_activity</span>
                 {statusMessage}
+              </div>
+            )}
+            {error && (
+              <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+                <span className="material-symbols-outlined text-base leading-none">error</span>
+                {error}
               </div>
             )}
             <button
@@ -214,6 +275,7 @@ export default function SellerVerificationModal({ onClose, onSuccess }: Props) {
             </div>
           </div>
         )}
+        </>)}
 
       </div>
     </div>

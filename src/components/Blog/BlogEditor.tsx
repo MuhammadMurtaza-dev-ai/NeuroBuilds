@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { BlogPost, BlogPostInput, BlogStatus, AuthorType } from '../../hooks/useBlogCMS';
 import { useBlogCMS } from '../../hooks/useBlogCMS';
 import { Timestamp } from 'firebase/firestore';
+import CyberSelect from '../CyberSelect';
 
 interface BlogEditorProps {
   isAdmin: boolean;
@@ -13,7 +14,7 @@ interface BlogEditorProps {
 
 const CATEGORIES: BlogPost['category'][] = ['Tutorial', 'Hardware', 'Industry'];
 
-const STATUS_OPTIONS: { value: BlogStatus; label: string }[] = [
+const ADMIN_STATUS_OPTIONS: { value: BlogStatus; label: string }[] = [
   { value: 'draft',          label: 'Draft' },
   { value: 'pending_review', label: 'Submit for Review' },
   { value: 'scheduled',      label: 'Scheduled' },
@@ -22,8 +23,6 @@ const STATUS_OPTIONS: { value: BlogStatus; label: string }[] = [
 
 const INPUT_CLS =
   'w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-primary/60 transition-colors';
-const SELECT_CLS =
-  'w-full bg-[#252526] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary/60 transition-colors';
 const LABEL_CLS =
   'block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2';
 
@@ -42,37 +41,15 @@ export default function BlogEditor({
     category:     (editingPost?.category    ?? 'Hardware') as BlogPost['category'],
     content:      editingPost?.content      ?? '',
     videoUrl:     editingPost?.videoUrl     ?? '',
-    status:       (editingPost?.status      ?? 'draft') as BlogStatus,
+    // Admins default to 'draft'; regular users always target 'pending_review'
+    status:       (editingPost?.status      ?? (isAdmin ? 'draft' : 'pending_review')) as BlogStatus,
     authorType:   (editingPost?.authorType  ?? 'user') as AuthorType,
     publishAt:    editingPost?.publishAt
       ? editingPost.publishAt.toDate().toISOString().slice(0, 16)
       : '',
   });
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  if (!isAdmin) {
-    return (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-md">
-        <div className="glass-panel rounded-bento p-12 max-w-md w-full text-center border border-red-500/30 shadow-[0_0_40px_rgba(239,68,68,0.15)]">
-          <span className="material-symbols-outlined text-6xl text-red-400 mb-6 block">
-            shield_lock
-          </span>
-          <h2 className="text-2xl font-bold text-white mb-3 tracking-tight">Access Denied</h2>
-          <p className="text-gray-400 mb-2">Administrator Credentials Required</p>
-          <p className="text-gray-600 text-sm mb-8">
-            This module is restricted to verified platform administrators.
-          </p>
-          <button
-            onClick={onClose}
-            className="px-6 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-full transition-all text-sm font-bold"
-          >
-            Go Back
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const [error, setError]   = useState<string | null>(null);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -80,12 +57,22 @@ export default function BlogEditor({
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const submit = async (forceDraft = false) => {
+  // overrideStatus: when provided, always wins over form.status.
+  // Non-admins always end up in 'draft' or 'pending_review' — never 'published'.
+  const submit = async (overrideStatus?: BlogStatus) => {
     if (!form.title.trim() || !form.content.trim()) {
       setError('Title and Content are required.');
       return;
     }
-    if (form.status === 'scheduled' && !form.publishAt) {
+
+    const resolvedStatus: BlogStatus =
+      overrideStatus !== undefined
+        ? overrideStatus
+        : isAdmin
+          ? form.status
+          : 'pending_review';
+
+    if (isAdmin && resolvedStatus === 'scheduled' && !form.publishAt) {
       setError('A publish date is required for scheduled posts.');
       return;
     }
@@ -94,8 +81,6 @@ export default function BlogEditor({
     setError(null);
 
     try {
-      const resolvedStatus: BlogStatus = forceDraft ? 'draft' : form.status;
-
       let publishAt: Timestamp | undefined;
       if (resolvedStatus === 'scheduled' && form.publishAt) {
         publishAt = Timestamp.fromDate(new Date(form.publishAt));
@@ -110,13 +95,17 @@ export default function BlogEditor({
         authorName,
         isPublished:  resolvedStatus === 'published',
         status:       resolvedStatus,
-        authorType:   form.authorType,
+        authorType:   isAdmin ? form.authorType : 'user',
         ...(form.videoUrl.trim() ? { videoUrl: form.videoUrl.trim() } : {}),
         ...(publishAt ? { publishAt } : {}),
       };
 
       if (editingPost) {
-        await updateBlogPost(editingPost.id, payload);
+        // Clear any stale rejection note when the author resubmits for review
+        await updateBlogPost(editingPost.id, {
+          ...payload,
+          ...(resolvedStatus === 'pending_review' ? { rejectionNote: '' } : {}),
+        });
       } else {
         await createBlogPost(payload);
       }
@@ -135,7 +124,11 @@ export default function BlogEditor({
         <div className="flex items-center justify-between px-8 py-5 border-b border-white/10 shrink-0">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <span className="material-symbols-outlined text-primary">edit_note</span>
-            {editingPost ? 'Edit Post' : 'New Blog Post'}
+            {editingPost
+              ? 'Edit Post'
+              : isAdmin
+                ? 'New Blog Post'
+                : 'Write a Post'}
           </h2>
           <button
             onClick={onClose}
@@ -148,6 +141,25 @@ export default function BlogEditor({
 
         {/* Form body */}
         <div className="overflow-y-auto flex-grow px-8 py-6 space-y-5">
+          {/* Rejection note — shown when the author is editing a post that was sent back */}
+          {!isAdmin && editingPost?.rejectionNote && (
+            <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-start gap-2">
+              <span className="material-symbols-outlined text-[16px] mt-0.5 shrink-0">cancel</span>
+              <div>
+                <p className="font-bold mb-0.5">Your post was returned by an admin</p>
+                <p className="text-red-300/80">{editingPost.rejectionNote}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Pending-review info banner for regular users */}
+          {!isAdmin && (
+            <div className="px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px] shrink-0">info</span>
+              Your post will be reviewed by an admin before it is published.
+            </div>
+          )}
+
           {error && (
             <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
               {error}
@@ -166,22 +178,31 @@ export default function BlogEditor({
               placeholder="https://example.com/image.jpg" className={INPUT_CLS} />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Category is useful for all authors; AuthorType is admin-only */}
+          <div className={isAdmin ? 'grid grid-cols-2 gap-4' : ''}>
             <div>
               <label className={LABEL_CLS}>Category</label>
-              <select name="category" value={form.category} onChange={handleChange} className={SELECT_CLS}>
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+              <CyberSelect
+                value={form.category}
+                onChange={v => setForm(prev => ({ ...prev, category: v as BlogPost['category'] }))}
+                options={CATEGORIES.map(cat => ({ value: cat, label: cat }))}
+                className="w-full"
+              />
             </div>
-            <div>
-              <label className={LABEL_CLS}>Author Type</label>
-              <select name="authorType" value={form.authorType} onChange={handleChange} className={SELECT_CLS}>
-                <option value="user">Human Author</option>
-                <option value="ai_agent">AI Agent</option>
-              </select>
-            </div>
+            {isAdmin && (
+              <div>
+                <label className={LABEL_CLS}>Author Type</label>
+                <CyberSelect
+                  value={form.authorType}
+                  onChange={v => setForm(prev => ({ ...prev, authorType: v as AuthorType }))}
+                  options={[
+                    { value: 'user', label: 'Human Author' },
+                    { value: 'ai_agent', label: 'AI Agent' },
+                  ]}
+                  className="w-full"
+                />
+              </div>
+            )}
           </div>
 
           <div>
@@ -192,23 +213,27 @@ export default function BlogEditor({
               placeholder="https://youtube.com/watch?v=…" className={INPUT_CLS} />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={LABEL_CLS}>Status</label>
-              <select name="status" value={form.status} onChange={handleChange} className={SELECT_CLS}>
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-            {form.status === 'scheduled' && (
+          {/* Status + Publish At — admin-only controls */}
+          {isAdmin && (
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={LABEL_CLS}>Publish At</label>
-                <input type="datetime-local" name="publishAt" value={form.publishAt}
-                  onChange={handleChange} className={INPUT_CLS} />
+                <label className={LABEL_CLS}>Status</label>
+                <CyberSelect
+                  value={form.status}
+                  onChange={v => setForm(prev => ({ ...prev, status: v as BlogStatus }))}
+                  options={ADMIN_STATUS_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
+                  className="w-full"
+                />
               </div>
-            )}
-          </div>
+              {form.status === 'scheduled' && (
+                <div>
+                  <label className={LABEL_CLS}>Publish At</label>
+                  <input type="datetime-local" name="publishAt" value={form.publishAt}
+                    onChange={handleChange} className={INPUT_CLS} />
+                </div>
+              )}
+            </div>
+          )}
 
           <div>
             <label className={LABEL_CLS}>
@@ -235,21 +260,32 @@ export default function BlogEditor({
             Cancel
           </button>
           <button
-            onClick={() => submit(true)}
+            onClick={() => submit('draft')}
             disabled={saving}
             className="px-5 py-2 bg-accent-purple/10 hover:bg-accent-purple/20 border border-accent-purple/30 text-accent-purple rounded-full transition-all text-sm font-bold disabled:opacity-50 flex items-center gap-2"
           >
             <span className="material-symbols-outlined text-[16px]">save</span>
             {saving ? 'Saving…' : 'Save Draft'}
           </button>
-          <button
-            onClick={() => submit(false)}
-            disabled={saving}
-            className="px-5 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full transition-all text-sm font-bold disabled:opacity-50 flex items-center gap-2 shadow-neon"
-          >
-            <span className="material-symbols-outlined text-[16px]">publish</span>
-            {saving ? 'Saving…' : 'Save Post'}
-          </button>
+          {isAdmin ? (
+            <button
+              onClick={() => submit()}
+              disabled={saving}
+              className="px-5 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full transition-all text-sm font-bold disabled:opacity-50 flex items-center gap-2 shadow-neon"
+            >
+              <span className="material-symbols-outlined text-[16px]">publish</span>
+              {saving ? 'Saving…' : 'Save Post'}
+            </button>
+          ) : (
+            <button
+              onClick={() => submit('pending_review')}
+              disabled={saving}
+              className="px-5 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full transition-all text-sm font-bold disabled:opacity-50 flex items-center gap-2 shadow-neon"
+            >
+              <span className="material-symbols-outlined text-[16px]">send</span>
+              {saving ? 'Submitting…' : 'Submit for Review'}
+            </button>
+          )}
         </div>
       </div>
     </div>

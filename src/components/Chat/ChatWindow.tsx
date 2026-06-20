@@ -127,6 +127,24 @@ export default function ChatWindow({
                       {msg.senderName}
                     </p>
                   )}
+                  {msg.listingRef && (
+                    <div
+                      className={`flex items-center gap-2 mb-2 rounded-xl px-2 py-1.5 ${
+                        isMine ? 'bg-black/15' : 'bg-black/30'
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-md overflow-hidden bg-black/30 shrink-0 flex items-center justify-center">
+                        {msg.listingRef.image ? (
+                          <img src={msg.listingRef.image} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="material-symbols-outlined text-[16px] leading-none opacity-60">sell</span>
+                        )}
+                      </div>
+                      <span className={`text-[11px] font-medium truncate ${isMine ? 'text-bg-dark/80' : 'text-gray-300'}`}>
+                        Re: {msg.listingRef.title}
+                      </span>
+                    </div>
+                  )}
                   <p style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                     {msg.text}
                   </p>

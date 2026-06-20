@@ -37,12 +37,65 @@ service cloud.firestore {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
     }
 
-    // True when the incoming update touches ONLY vote/count fields.
+    // Blocks any self-service write to trust/identity fields. `isVerified` and
+    // `phoneNumber` are written ONLY by the server (verify.py via the Admin SDK,
+    // which bypasses rules), so a client must never be able to forge them — that
+    // is the entire point of the OTP flow. `role` is included here too so this
+    // single helper covers every privilege-bearing field. `username` is
+    // deliberately excluded: it is claimed client-side via usernameValidator's
+    // writeBatch and is not a trust boundary.
+    function isNotChangingTrustFields() {
+      return !request.resource.data.diff(resource.data)
+        .affectedKeys().hasAny(
+          ['role', 'isVerified', 'phoneNumber', 'accountStatus', 'disabledReason']);
+    }
+
+    // True when the signed-in user has not been disabled by a moderator. A
+    // disabled seller cannot create new listings (their existing ones are
+    // hidden separately by the moderation flow). `accountStatus` is written ONLY
+    // server-side (admin_users.py via the Admin SDK), so it cannot be forged.
+    function isNotDisabled() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid))
+        .data.get('accountStatus', 'active') != 'disabled';
+    }
+
+    // True when the incoming update touches ONLY vote/count fields AND moves
+    // upvoteCount by at most one step.  The delta clamp stops a client from
+    // injecting an arbitrary tally (e.g. jumping straight to 9999); a single
+    // vote action may only +1 (new upvote), -1 (retract upvote / switch to a
+    // downvote), or leave the count unchanged (a downvote-only or reply-count
+    // update, since downvotes live in downvotedBy[] not in upvoteCount).
     function isVoteOnlyUpdate() {
       return !request.resource.data.diff(resource.data)
-        .affectedKeys()
-        .hasAny(['title', 'body', 'authorId', 'authorName',
-                 'category', 'country', 'lifecycleStatus', 'status']);
+          .affectedKeys()
+          .hasAny(['title', 'body', 'authorId', 'authorName',
+                   'category', 'country', 'lifecycleStatus', 'status'])
+        && request.resource.data.upvoteCount is int
+        && request.resource.data.upvoteCount >= 0
+        && (
+          request.resource.data.upvoteCount == resource.data.upvoteCount + 1
+          || request.resource.data.upvoteCount == resource.data.upvoteCount - 1
+          || request.resource.data.upvoteCount == resource.data.upvoteCount
+        );
+    }
+
+    // Validates a notification payload so a signed-in user pushing into another
+    // user's subcollection cannot spoof arbitrary documents.  Only the known
+    // shape is accepted, the type is whitelisted, isRead must start false, and
+    // createdAt must be the server-stamped request time (no back/post-dating).
+    function isValidNotification() {
+      return request.resource.data.keys().hasOnly(
+               ['type', 'title', 'body', 'isRead', 'linkUrl', 'createdAt'])
+        && request.resource.data.keys().hasAll(
+               ['type', 'title', 'body', 'isRead', 'createdAt'])
+        && request.resource.data.type in
+               ['blog_comment', 'thread_reply', 'marketplace_message', 'ai_build_ready']
+        && request.resource.data.title is string
+        && request.resource.data.body is string
+        && request.resource.data.isRead == false
+        && request.resource.data.createdAt == request.time
+        && (!('linkUrl' in request.resource.data)
+            || request.resource.data.linkUrl is string);
     }
 
     // True when the update touches ONLY the lifecycleStatus field.
@@ -63,9 +116,12 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create: if request.auth.uid == userId;
+      allow create: if request.auth.uid == userId
+        // A self-created profile may not arrive pre-verified — the OTP flow
+        // (server, Admin SDK) is the only path that may set isVerified: true.
+        && request.resource.data.get('isVerified', false) == false;
       allow update: if isAdmin()
-        || (request.auth.uid == userId && isNotChangingRole());
+        || (request.auth.uid == userId && isNotChangingTrustFields());
       allow delete: if false;
 
       match /aiSessions/{sessionId} {
@@ -76,7 +132,7 @@ service cloud.firestore {
       // fire-and-forget write into another user's subcollection.
       match /notifications/{notifId} {
         allow read, update: if request.auth.uid == userId;
-        allow create: if isSignedIn();
+        allow create: if isSignedIn() && isValidNotification();
         allow delete: if false;
       }
     }
@@ -97,11 +153,37 @@ service cloud.firestore {
 
     // ── listings/{listingId} ────────────────────────────────────────────────
 
+    // Seller verification is enforced HERE, server-side, not in the React modal.
+    // A listing may only be created by a signed-in user who (a) owns it and
+    // (b) carries isVerified == true on their own profile. This is the wall the
+    // OTP flow guards — without it the verification gate is just a CSS overlay.
+    function isVerifiedSeller() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+             .data.get('isVerified', false) == true;
+    }
+
     match /listings/{listingId} {
       allow read: if true;
-      allow create: if isSignedIn();
+      allow create: if isVerifiedSeller()
+        && isNotDisabled()
+        && request.resource.data.sellerId == request.auth.uid;
       allow update, delete: if isSignedIn()
         && resource.data.sellerId == request.auth.uid;
+
+      // Contact-reveal log (UC: "seller can see who accessed their info").
+      // A buyer records, under their own uid, that they revealed the seller's
+      // contact details. Only the listing owner (or an admin) may read the log.
+      match /contactReveals/{viewerId} {
+        allow read: if isSignedIn()
+          && (get(/databases/$(database)/documents/listings/$(listingId)).data.sellerId
+                == request.auth.uid
+              || isAdmin());
+        allow create: if isSignedIn()
+          && request.auth.uid == viewerId
+          && request.resource.data.viewerId == request.auth.uid;
+        allow update, delete: if false;
+      }
     }
 
 
@@ -109,7 +191,8 @@ service cloud.firestore {
 
     match /threads/{threadId} {
       allow read: if true;
-      allow create: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.authorId == request.auth.uid;
       allow update: if isSignedIn()
         && (
           (resource.data.authorId == request.auth.uid && !isLifecycleOnlyUpdate())
@@ -124,7 +207,8 @@ service cloud.firestore {
 
       match /replies/{replyId} {
         allow read: if true;
-        allow create: if isSignedIn();
+        allow create: if isSignedIn()
+          && request.resource.data.authorId == request.auth.uid;
         allow update, delete: if isSignedIn()
           && resource.data.authorId == request.auth.uid;
       }
@@ -132,20 +216,60 @@ service cloud.firestore {
 
 
     // ── blogs/{blogId} ──────────────────────────────────────────────────────
+    //
+    // Public reads only for published posts.  Admins see everything.
+    // Authors can read their own posts regardless of status.
+    //
+    // Regular users may create draft / pending_review posts attributed to
+    // themselves.  They may also update their own non-published posts as long
+    // as the post stays in the draft/pending_review lifecycle and isPublished
+    // remains false.  Only admins may approve (set isPublished: true) or delete.
 
     match /blogs/{blogId} {
-      allow read: if resource.data.isPublished == true || isAdmin();
-      allow write: if isAdmin();
+      allow read: if resource.data.isPublished == true
+        || isAdmin()
+        || (isSignedIn() && resource.data.authorId == request.auth.uid);
+
+      allow create: if isAdmin()
+        || (isSignedIn()
+            && request.resource.data.status in ['draft', 'pending_review']
+            && request.resource.data.isPublished == false
+            && request.resource.data.authorId == request.auth.uid
+            && request.resource.data.authorType == 'user');
+
+      allow update: if isAdmin()
+        || (isSignedIn()
+            && resource.data.authorId == request.auth.uid
+            && request.resource.data.authorId == request.auth.uid
+            && request.resource.data.status in ['draft', 'pending_review']
+            && request.resource.data.isPublished == false);
+
+      allow delete: if isAdmin();
 
       match /comments/{commentId} {
         allow read: if resource == null
           || get(/databases/$(database)/documents/blogs/$(blogId)).data.isPublished == true
           || isAdmin();
-        allow create: if isSignedIn();
+        allow create: if isSignedIn()
+          && request.resource.data.authorId == request.auth.uid;
         allow delete: if isSignedIn()
           && (resource.data.authorId == request.auth.uid || isAdmin());
         allow update: if false;
       }
+    }
+
+
+    // ── advertisements/{adId} ───────────────────────────────────────────────
+    //
+    // Sponsored ad slots (homepage banner/feed, marketplace grid, micro tickers).
+    // Public marketing content — readable by everyone (including anonymous
+    // visitors) so ads render on public pages. Only admins may create/update/
+    // delete; the AdsManagerPanel is the sole authoring surface, and the
+    // `featured` flag (premium marketplace-grid placement) is an admin decision.
+
+    match /advertisements/{adId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
 
@@ -159,6 +283,43 @@ service cloud.firestore {
     match /reports/{reportId} {
       allow create: if isSignedIn();
       allow read, update, delete: if isAdmin();
+    }
+
+
+    // ── appeals/{appealId} ──────────────────────────────────────────────────
+    //
+    // A disabled user may contest a moderation action. The appellant may file
+    // an appeal attributed to themselves and read back their own; admins may
+    // read every appeal and resolve it (update). Nobody may delete.
+
+    match /appeals/{appealId} {
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow read: if isSignedIn()
+        && (resource.data.uid == request.auth.uid || isAdmin());
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+
+    // ── audit_logs/{logId} ──────────────────────────────────────────────────
+    //
+    // Append-only, tamper-evident trail for sensitive marketplace and
+    // moderation actions (§2.2.4 Audit functions). Any signed-in actor may
+    // append an entry attributed to themselves; only admins may read the trail;
+    // nobody may ever edit or delete an entry (immutability is the whole point).
+
+    function isValidAuditLog() {
+      return request.resource.data.keys().hasAll(['actorId', 'action', 'createdAt'])
+        && request.resource.data.actorId == request.auth.uid
+        && request.resource.data.action is string
+        && request.resource.data.createdAt == request.time;
+    }
+
+    match /audit_logs/{logId} {
+      allow create: if isSignedIn() && isValidAuditLog();
+      allow read:   if isAdmin();
+      allow update, delete: if false;
     }
 
 

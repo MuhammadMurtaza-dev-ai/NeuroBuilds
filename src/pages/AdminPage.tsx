@@ -1,33 +1,33 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import { useUserRole } from '../hooks/useUserRole';
 import GradientBackground from '../components/GradientBackground/GradientBackground';
+import ErrorBoundary from '../components/ErrorBoundary';
 import ReviewConsole from '../components/Admin/ReviewConsole';
 import ModerationDesk from '../components/Admin/ModerationDesk';
 import AnalyticsDashboard from '../components/Admin/AnalyticsDashboard';
 import { RoleAssignmentMatrix } from '../components/Admin/RoleAssignmentMatrix';
 import TelemetryPanel from '../components/Admin/TelemetryPanel';
+import BlogAutomatorPanel from '../components/Admin/BlogAutomatorPanel';
+import AdsManagerPanel from '../components/Admin/AdsManagerPanel';
+import MarketIntelPanel from '../components/Admin/MarketIntelPanel';
 
-type AdminTab = 'review' | 'moderation' | 'analytics' | 'roles' | 'telemetry';
+type AdminTab = 'review' | 'moderation' | 'analytics' | 'roles' | 'telemetry' | 'automator' | 'ads' | 'market';
 
 const TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: 'review',     label: 'Review Queue',        icon: 'rate_review' },
   { key: 'moderation', label: 'Platform Moderation', icon: 'shield' },
   { key: 'analytics',  label: 'Analytics',           icon: 'bar_chart' },
+  { key: 'market',     label: 'Market Intel',        icon: 'insights' },
   { key: 'roles',      label: 'Role Management',     icon: 'manage_accounts' },
+  { key: 'automator',  label: 'Blog Automator',      icon: 'auto_awesome' },
+  { key: 'ads',        label: 'Ads Manager',         icon: 'campaign' },
   { key: 'telemetry',  label: 'Telemetry',           icon: 'monitoring' },
 ];
 
 export default function AdminPage() {
-  const { user, loading: authLoading } = useAuth();
-  const { isAdmin, loading: adminLoading } = useUserRole(user?.uid ?? null);
+  // Access control (auth + admin JWT claim + loading state) is handled entirely
+  // by <AdminProtectedRoute> in App.tsx — this component only ever mounts for a
+  // confirmed admin, so it carries no gating logic of its own.
   const [activeTab, setActiveTab] = useState<AdminTab>('review');
-
-  if (authLoading) return null;
-  if (!user) return <Navigate to="/" replace />;
-
-  if (!adminLoading && !isAdmin) return <Navigate to="/" replace />;
 
   return (
     <>
@@ -58,50 +58,41 @@ export default function AdminPage() {
           </p>
         </div>
 
-        {/* Loading skeleton while admin role confirms */}
-        {adminLoading ? (
-          <div className="space-y-6">
-            <div className="flex gap-2">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-10 w-40 glass-panel rounded-full animate-pulse border border-white/5" />
-              ))}
-            </div>
-            <div className="glass-panel rounded-bento h-64 animate-pulse border border-white/5" />
-          </div>
-        ) : (
-          <>
-            {/* Tab navigation */}
-            <div className="flex items-center gap-2 mb-8 border-b border-white/10 pb-4 overflow-x-auto">
-              {TABS.map(({ key, label, icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveTab(key)}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all whitespace-nowrap border ${
-                    activeTab === key
-                      ? 'bg-accent-purple/10 text-accent-purple border-accent-purple/30 shadow-glow-purple'
-                      : 'text-gray-400 hover:text-white border-transparent hover:border-white/10'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[16px]">{icon}</span>
-                  {label}
-                </button>
-              ))}
-            </div>
+        {/* Tab navigation */}
+        <div className="flex items-center gap-2 mb-8 border-b border-white/10 pb-4 overflow-x-auto">
+          {TABS.map(({ key, label, icon }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all whitespace-nowrap border ${
+                activeTab === key
+                  ? 'bg-accent-purple/10 text-accent-purple border-accent-purple/30 shadow-glow-purple'
+                  : 'text-gray-400 hover:text-white border-transparent hover:border-white/10'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">{icon}</span>
+              {label}
+            </button>
+          ))}
+        </div>
 
-            {/* Tab content */}
-            <div>
-              {activeTab === 'review'     && <ReviewConsole />}
-              {activeTab === 'moderation' && <ModerationDesk />}
-              {activeTab === 'analytics'  && <AnalyticsDashboard />}
-              {activeTab === 'telemetry'  && <TelemetryPanel />}
-              {activeTab === 'roles'      && (
-                <div className="glass-panel rounded-bento border border-white/10 p-6">
-                  <RoleAssignmentMatrix />
-                </div>
-              )}
-            </div>
-          </>
-        )}
+        {/* Tab content */}
+        <div>
+          {activeTab === 'review'     && <ErrorBoundary inline><ReviewConsole /></ErrorBoundary>}
+          {activeTab === 'moderation' && <ErrorBoundary inline><ModerationDesk /></ErrorBoundary>}
+          {activeTab === 'analytics'  && <ErrorBoundary inline><AnalyticsDashboard /></ErrorBoundary>}
+          {activeTab === 'market'     && <ErrorBoundary inline><div className="glass-panel rounded-bento border border-white/10 p-6"><MarketIntelPanel /></div></ErrorBoundary>}
+          {activeTab === 'telemetry'  && <ErrorBoundary inline><TelemetryPanel /></ErrorBoundary>}
+          {activeTab === 'automator'  && <ErrorBoundary inline><BlogAutomatorPanel /></ErrorBoundary>}
+          {activeTab === 'ads'        && <ErrorBoundary inline><div className="glass-panel rounded-bento border border-white/10 p-6"><AdsManagerPanel /></div></ErrorBoundary>}
+          {activeTab === 'roles'      && (
+            <ErrorBoundary inline>
+              <div className="glass-panel rounded-bento border border-white/10 p-6">
+                <RoleAssignmentMatrix />
+              </div>
+            </ErrorBoundary>
+          )}
+        </div>
       </main>
     </>
   );

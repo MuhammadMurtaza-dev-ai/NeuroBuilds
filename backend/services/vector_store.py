@@ -14,7 +14,7 @@ hardware_specs collection — index name: vector_index  (already required)
     {
       "type": "vector",
       "path": "embedding",
-      "numDimensions": 1536,
+      "numDimensions": 768,
       "similarity": "cosine"
     }
   ]
@@ -26,7 +26,7 @@ semantic_cache collection — index name: semantic_cache_index  (NEW — must be
     {
       "type": "vector",
       "path": "embedding",
-      "numDimensions": 1536,
+      "numDimensions": 768,
       "similarity": "cosine"
     }
   ]
@@ -37,7 +37,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from langchain_core.documents import Document
-from langchain_openai import OpenAIEmbeddings
+from services.embeddings import GeminiEmbeddings
 
 if TYPE_CHECKING:
     from pymongo import MongoClient
@@ -72,7 +72,7 @@ class VectorStoreEngine:
             from langchain_community.vectorstores import MongoDBAtlasVectorSearch  # type: ignore
 
         self._collection = client[db_name][collection_name]
-        self._embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+        self._embeddings = GeminiEmbeddings()
         self._store = MongoDBAtlasVectorSearch(
             collection=self._collection,
             embedding=self._embeddings,

@@ -38,7 +38,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/verify", tags=["verification"])
 
 _PENDING_COL = "phone_verifications"
+_RATE_COL    = "otp_request_limits"
 _E164_RE     = re.compile(r"^\+\d{7,15}$")
+
+# Brute-force / spam protection
+_MAX_OTP_ATTEMPTS    = 5          # failed /confirm tries before the OTP is invalidated
+_REQUEST_COOLDOWN_S  = 30         # min seconds between /request calls per UID
+_HOURLY_REQUEST_CAP  = 5          # max /request calls per rolling hour per UID
 
 
 # ── Config helpers ────────────────────────────────────────────────────────────
@@ -98,6 +104,77 @@ def _generate_otp() -> str:
     return str(secrets.randbelow(900_000) + 100_000)
 
 
+def _as_utc(dt: datetime | None) -> datetime | None:
+    """Firestore Timestamps come back tz-aware, but guard anyway."""
+    if dt is not None and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _enforce_request_rate_limit(db, uid: str, now: datetime) -> None:
+    """
+    Per-UID OTP request throttle, persisted in Firestore `otp_request_limits/{uid}`:
+      * cooldown — at most 1 request per _REQUEST_COOLDOWN_S seconds
+      * rolling hourly window — at most _HOURLY_REQUEST_CAP requests per hour
+    Raises HTTP 429 when either limit is hit; otherwise records this request.
+    The counter is updated BEFORE the WhatsApp dispatch so failed dispatches
+    still count — the limit exists to protect gateway cost, not UX.
+    """
+    rate_ref = db.collection(_RATE_COL).document(uid)
+
+    try:
+        snap = rate_ref.get()
+    except Exception:
+        logger.exception("Rate-limit read failed for uid=%s", uid)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to check request limits. Please try again.",
+        )
+
+    window_start = now
+    count        = 1
+
+    if snap.exists:
+        data         = snap.to_dict() or {}
+        last_request = _as_utc(data.get("lastRequestAt"))
+        prev_window  = _as_utc(data.get("windowStart"))
+        prev_count   = int(data.get("count", 0))
+
+        if last_request is not None:
+            elapsed = (now - last_request).total_seconds()
+            if elapsed < _REQUEST_COOLDOWN_S:
+                retry_after = int(_REQUEST_COOLDOWN_S - elapsed) + 1
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"Please wait {retry_after} seconds before requesting another code.",
+                    headers={"Retry-After": str(retry_after)},
+                )
+
+        if prev_window is not None and now - prev_window < timedelta(hours=1):
+            if prev_count >= _HOURLY_REQUEST_CAP:
+                retry_after = int((prev_window + timedelta(hours=1) - now).total_seconds()) + 1
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Too many verification requests. Please try again later.",
+                    headers={"Retry-After": str(retry_after)},
+                )
+            window_start = prev_window
+            count        = prev_count + 1
+
+    try:
+        rate_ref.set({
+            "lastRequestAt": now,
+            "windowStart":   window_start,
+            "count":         count,
+        })
+    except Exception:
+        logger.exception("Rate-limit write failed for uid=%s", uid)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to record request. Please try again.",
+        )
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/request", status_code=status.HTTP_200_OK)
@@ -107,8 +184,12 @@ async def request_verification(
 ):
     """Generate an OTP, persist it to Firestore, and dispatch it via WhatsApp."""
     db  = _get_firestore()
-    otp = _generate_otp()
     now = datetime.now(timezone.utc)
+
+    # Throttle: 1 request / 30 s and 5 requests / hour per UID (raises 429).
+    _enforce_request_rate_limit(db, uid, now)
+
+    otp = _generate_otp()
 
     # Persist — overwrite any previous pending entry for this UID so only the
     # latest OTP is ever valid (prevents replay of stale codes).
@@ -118,6 +199,7 @@ async def request_verification(
             "phone":     body.phone,
             "expiresAt": now + timedelta(minutes=5),
             "createdAt": now,
+            "attempts":  0,
         })
     except Exception:
         logger.exception("Firestore write failed for uid=%s", uid)
@@ -196,12 +278,9 @@ async def confirm_verification(
         )
 
     record     = snap.to_dict()
-    expires_at: datetime = record["expiresAt"]
+    expires_at = _as_utc(record["expiresAt"])
     now        = datetime.now(timezone.utc)
-
-    # Firestore Timestamps are returned as tz-aware datetimes; guard anyway.
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    attempts   = int(record.get("attempts", 0))
 
     if now > expires_at:
         ref.delete()
@@ -210,18 +289,41 @@ async def confirm_verification(
             detail="Verification code has expired. Please request a new one.",
         )
 
-    # Constant-time comparison prevents timing oracle on the OTP.
-    if not secrets.compare_digest(record["otp"], body.otp):
+    # Brute-force guard: invalidate the OTP after _MAX_OTP_ATTEMPTS failures.
+    if attempts >= _MAX_OTP_ATTEMPTS:
+        ref.delete()
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Invalid verification code. Please check and try again.",
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed attempts. The code has been invalidated — request a new one.",
         )
 
-    if record.get("phone") != body.phone:
+    def _register_failure(reason: str) -> None:
+        """Count a failed attempt; invalidate the OTP once the cap is hit."""
+        remaining = _MAX_OTP_ATTEMPTS - (attempts + 1)
+        try:
+            if remaining <= 0:
+                ref.delete()
+            else:
+                ref.update({"attempts": attempts + 1})
+        except Exception:
+            logger.exception("Attempt-counter update failed for uid=%s", uid)
+        if remaining <= 0:
+            logger.warning("OTP invalidated after %d failed attempts: uid=%s", _MAX_OTP_ATTEMPTS, uid)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many failed attempts. The code has been invalidated — request a new one.",
+            )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Phone number does not match the one the code was sent to.",
+            detail=f"{reason} {remaining} attempt(s) remaining.",
         )
+
+    # Constant-time comparison prevents timing oracle on the OTP.
+    if not secrets.compare_digest(record["otp"], body.otp):
+        _register_failure("Invalid verification code.")
+
+    if record.get("phone") != body.phone:
+        _register_failure("Phone number does not match the one the code was sent to.")
 
     # Commit verification to the user profile and clean up the pending doc.
     try:

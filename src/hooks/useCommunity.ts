@@ -134,11 +134,14 @@ export const useCommunity = () => {
   });
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs user-editable country filter with global country context
     setFilters(prev => prev.country === selectedCountry ? prev : { ...prev, country: selectedCountry });
   }, [selectedCountry]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading reset before subscription
     setLoading(true);
+     
     setError(null);
 
     const q = query(collection(db, THREADS), orderBy('createdAt', 'desc'));
@@ -158,7 +161,7 @@ export const useCommunity = () => {
     );
 
     return () => unsub();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const threads = allThreads.filter((t) => {
     if (filters.country !== 'All' && t.country !== filters.country) return false;
@@ -210,12 +213,14 @@ export const useCommunity = () => {
     if (!user) throw new Error('Must be signed in to reply');
     const threadRef = doc(db, THREADS, threadId);
     let threadAuthorId = '';
+    let threadTitle = '';
 
     await runTransaction(db, async (tx) => {
       const threadSnap = await tx.get(threadRef);
       if (!threadSnap.exists()) throw new Error('Thread not found');
 
       threadAuthorId = (threadSnap.data().authorId as string) ?? '';
+      threadTitle = (threadSnap.data().title as string) ?? '';
 
       const newReplyRef = doc(collection(db, THREADS, threadId, 'replies'));
       tx.set(newReplyRef, {
@@ -230,11 +235,12 @@ export const useCommunity = () => {
     });
 
     if (threadAuthorId && threadAuthorId !== user.uid) {
+      const replierName = user.displayName ?? user.email ?? 'Someone';
       writeNotification(threadAuthorId, {
         type: 'thread_reply',
         title: 'New reply on your thread',
-        body: `${user.displayName ?? 'Someone'} replied to your thread.`,
-        linkUrl: '/community',
+        body: `${replierName} replied to your thread: "${threadTitle}"`,
+        linkUrl: `/community?threadId=${threadId}`,
       }).catch(() => {});
     }
   };

@@ -1,15 +1,15 @@
 """
 NeuroBuilds — MongoDB Atlas RAG Ingest Script
 Populates the hardware_specs collection with GPU, CPU, motherboard, RAM, and PSU data.
-Generates OpenAI embeddings for each document and upserts into Atlas.
+Generates Gemini embeddings for each document and upserts into Atlas.
 
 Usage:
     cd backend
     python ../scripts/ingest-rag.py
 
-Requires backend/.env with OPENAI_API_KEY and MONGODB_ATLAS_URI.
+Requires backend/.env with GOOGLE_API_KEY and MONGODB_ATLAS_URI.
 After ingestion, create the Atlas Vector Search index named 'vector_index'
-on the 'embedding' field (dimensions: 1536, similarity: cosine).
+on the 'embedding' field (dimensions: 768, similarity: cosine).
 """
 
 import csv
@@ -25,11 +25,11 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / "backend" / ".env")
 
 try:
-    from openai import OpenAI
+    from google import genai
     from pymongo import MongoClient, UpdateOne
 except ImportError as e:
     print(f"Missing dependency: {e}")
-    print("Run: pip install openai pymongo python-dotenv")
+    print("Run: pip install google-genai pymongo python-dotenv")
     sys.exit(1)
 
 
@@ -390,25 +390,27 @@ def load_csv_gpus(csv_path: Path) -> list[dict]:
     return rows
 
 
-def embed_batch(client: OpenAI, texts: list[str], model: str = "text-embedding-3-small") -> list[list[float]]:
-    """Embed a batch of texts, with a small delay to avoid rate limits."""
+def embed_batch(texts: list[str], model: str = "models/embedding-001") -> list[list[float]]:
+    """Embed a batch of texts using Gemini, with a small delay to avoid rate limits."""
+    api_key = os.environ.get("GOOGLE_API_KEY", "")
+    client = genai.Client(api_key=api_key)
     BATCH_SIZE = 20
     all_embeddings: list[list[float]] = []
     for i in range(0, len(texts), BATCH_SIZE):
         batch = texts[i : i + BATCH_SIZE]
-        resp = client.embeddings.create(input=batch, model=model)
-        all_embeddings.extend([e.embedding for e in resp.data])
+        result = client.models.embed_content(model=model, contents=batch)
+        all_embeddings.extend([list(e.values) for e in result.embeddings])
         if i + BATCH_SIZE < len(texts):
             time.sleep(0.3)  # stay within rate limits
     return all_embeddings
 
 
 def main() -> None:
-    openai_key = os.environ.get("OPENAI_API_KEY")
+    google_key = os.environ.get("GOOGLE_API_KEY")
     mongo_uri = os.environ.get("MONGODB_ATLAS_URI")
 
-    if not openai_key:
-        print("ERROR: OPENAI_API_KEY not set in backend/.env")
+    if not google_key:
+        print("ERROR: GOOGLE_API_KEY not set in backend/.env")
         sys.exit(1)
     if not mongo_uri:
         print("ERROR: MONGODB_ATLAS_URI not set in backend/.env")
@@ -430,11 +432,11 @@ def main() -> None:
           f"({len(HARDWARE_SPECS)} hardcoded + {len(csv_new)} from CSV)")
 
     # ── Generate embeddings ───────────────────────────────────────────────────
-    oai = OpenAI(api_key=openai_key)
+    genai.configure(api_key=google_key)
     contents = [make_content(s) for s in all_specs]
 
-    print(f"Generating embeddings via text-embedding-3-small …")
-    embeddings = embed_batch(oai, contents)
+    print("Generating embeddings via Gemini embedding-001 …")
+    embeddings = embed_batch(contents)
     print(f"  ✓ {len(embeddings)} embeddings generated")
 
     # ── Upsert into MongoDB Atlas ─────────────────────────────────────────────
@@ -468,7 +470,7 @@ def main() -> None:
     print("  4. Paste this index definition:")
     print(json.dumps({
         "fields": [{
-            "numDimensions": 1536,
+            "numDimensions": 768,
             "path": "embedding",
             "similarity": "cosine",
             "type": "vector",

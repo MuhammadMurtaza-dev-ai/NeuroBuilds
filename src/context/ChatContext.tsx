@@ -2,10 +2,13 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import {
   collection,
+  doc,
   addDoc,
+  updateDoc,
   getDocs,
   query,
   where,
+  arrayUnion,
   serverTimestamp,
   onSnapshot,
 } from 'firebase/firestore';
@@ -26,6 +29,16 @@ interface ChatContextValue {
     listingTitle: string,
     listingImage: string
   ) => Promise<string>;
+  /**
+   * Open (or create) the buyer↔seller conversation for a listing AND post the
+   * buyer's typed message as the first message, with the listing attached as a
+   * `listingRef` so the seller sees both the post reference and the text.
+   */
+  sendListingMessage: (
+    sellerId: string,
+    listing: { id: string; title: string; image: string },
+    text: string
+  ) => Promise<void>;
   startDirectMessage: (targetUid: string) => Promise<void>;
   createGroupChat: (participantUids: string[], groupName: string) => Promise<void>;
   unreadCount: number;
@@ -37,6 +50,7 @@ const ChatContext = createContext<ChatContextValue>({
   activeConversationId: null,
   openChatWithConversation: () => {},
   startOrGetConversation: async () => '',
+  sendListingMessage: async () => {},
   startDirectMessage: async () => {},
   createGroupChat: async () => {},
   unreadCount: 0,
@@ -122,6 +136,42 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     return docRef.id;
   };
 
+  const sendListingMessage = async (
+    sellerId: string,
+    listing: { id: string; title: string; image: string },
+    text: string
+  ): Promise<void> => {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Must be logged in to message a seller');
+    if (user.uid === sellerId) throw new Error('Cannot message your own listing');
+
+    const conversationId = await startOrGetConversation(
+      sellerId,
+      listing.id,
+      listing.title,
+      listing.image
+    );
+
+    const trimmed = text.trim();
+    if (trimmed) {
+      await addDoc(collection(db, CONVERSATIONS_COLLECTION, conversationId, 'messages'), {
+        senderId: user.uid,
+        senderName: user.displayName ?? user.email ?? 'User',
+        text: trimmed,
+        // The attached post reference travels with the message itself.
+        listingRef: { id: listing.id, title: listing.title, image: listing.image },
+        createdAt: serverTimestamp(),
+      });
+      await updateDoc(doc(db, CONVERSATIONS_COLLECTION, conversationId), {
+        lastMessageText: trimmed,
+        updatedAt: serverTimestamp(),
+        unreadBy: arrayUnion(sellerId),
+      });
+    }
+
+    openChatWithConversation(conversationId);
+  };
+
   const startDirectMessage = async (targetUid: string): Promise<void> => {
     const user = auth.currentUser;
     if (!user) throw new Error('Must be logged in to start a direct message');
@@ -195,6 +245,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         activeConversationId,
         openChatWithConversation,
         startOrGetConversation,
+        sendListingMessage,
         startDirectMessage,
         createGroupChat,
         unreadCount,
@@ -205,4 +256,5 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- co-located for module cohesion
 export const useChatContext = () => useContext(ChatContext);

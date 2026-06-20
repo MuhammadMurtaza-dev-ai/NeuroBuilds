@@ -15,7 +15,7 @@ Usage:
     cd backend
     python scripts/ingest_hardware.py
 
-Requires backend/.env with OPENAI_API_KEY and MONGODB_ATLAS_URI.
+Requires backend/.env with GOOGLE_API_KEY and MONGODB_ATLAS_URI.
 """
 
 import csv
@@ -33,11 +33,10 @@ _env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(_env_path)
 
 try:
-    from openai import OpenAI
     from pymongo import MongoClient, UpdateOne
 except ImportError as e:
     print(f"Missing dependency: {e}")
-    print("Run: pip install openai pymongo python-dotenv")
+    print("Run: pip install langchain-google-genai pymongo python-dotenv")
     sys.exit(1)
 
 
@@ -434,29 +433,33 @@ def make_content(doc: dict) -> str:
 
 # ─── Embedding helper ──────────────────────────────────────────────────────────
 
-def embed_batch(client: OpenAI, texts: list[str]) -> list[list[float]]:
-    """Embed texts in batches of 20 with a short delay to respect rate limits."""
+def embed_batch(api_key: str, texts: list[str]) -> list[list[float]]:
+    """
+    Embed texts using Gemini embedding-001 (768 dims, cosine).
+    Batches of 20 with a short inter-batch delay to respect per-minute quotas.
+    """
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+    from services.embeddings import GeminiEmbeddings
+    model = GeminiEmbeddings(api_key=api_key)
     BATCH = 20
     out: list[list[float]] = []
     for i in range(0, len(texts), BATCH):
-        resp = client.embeddings.create(
-            input=texts[i : i + BATCH],
-            model="text-embedding-3-small",
-        )
-        out.extend(e.embedding for e in resp.data)
+        batch = texts[i : i + BATCH]
+        out.extend(model.embed_documents(batch))
         if i + BATCH < len(texts):
-            time.sleep(0.3)
+            time.sleep(0.5)
     return out
 
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 def main() -> None:
-    openai_key = os.environ.get("OPENAI_API_KEY")
+    google_key = os.environ.get("GOOGLE_API_KEY", "").strip()
     mongo_uri  = os.environ.get("MONGODB_ATLAS_URI")
 
-    if not openai_key:
-        print("ERROR: OPENAI_API_KEY not set in backend/.env")
+    if not google_key:
+        print("ERROR: GOOGLE_API_KEY not set in backend/.env")
         sys.exit(1)
     if not mongo_uri:
         print("ERROR: MONGODB_ATLAS_URI not set in backend/.env")
@@ -466,10 +469,10 @@ def main() -> None:
     col_name = os.environ.get("MONGODB_CATALOG_COLLECTION", "hardware_catalog")
 
     t0 = time.time()
-    print(f"\n{'─'*60}")
-    print(f"  NeuroBuilds — Hardware Catalog Ingestion")
+    print(f"\n{'-'*60}")
+    print(f"  NeuroBuilds -- Hardware Catalog Ingestion")
     print(f"  Target: {db_name}.{col_name}")
-    print(f"{'─'*60}\n")
+    print(f"{'-'*60}\n")
 
     # ── Source 1: hardcoded authoritative specs ────────────────────────────────
     docs: list[dict] = list(HARDCODED_SPECS)
@@ -477,8 +480,19 @@ def main() -> None:
     print(f"[1/3] Hardcoded specs   : {len(docs)} entries loaded")
 
     # ── Source 2: CPU CSV ──────────────────────────────────────────────────────
-    _repo_root = Path(__file__).parent.parent.parent
-    cpu_csv = _repo_root / "CPU_Exhaustive_Database.csv"
+    def _find_csv(filename: str) -> Path:
+        """Locate a CSV by checking script-relative repo root, then CWD variants."""
+        candidates = [
+            Path(__file__).resolve().parent.parent.parent / filename,
+            Path.cwd().parent / filename,
+            Path.cwd() / filename,
+        ]
+        for p in candidates:
+            if p.exists():
+                return p
+        return Path(__file__).resolve().parent.parent.parent / filename
+
+    cpu_csv = _find_csv("CPU_Exhaustive_Database.csv")
     cpu_ok = cpu_anomaly = 0
 
     if cpu_csv.exists():
@@ -503,7 +517,7 @@ def main() -> None:
         print(f"[2/3] CPU CSV          : not found ({cpu_csv})")
 
     # ── Source 3: GPU CSV ──────────────────────────────────────────────────────
-    gpu_csv = _repo_root / "GPU_Exhaustive_Database.csv"
+    gpu_csv = _find_csv("GPU_Exhaustive_Database.csv")
     gpu_ok = gpu_anomaly = 0
 
     if gpu_csv.exists():
@@ -530,38 +544,52 @@ def main() -> None:
 
     print(f"\nTotal documents      : {len(docs)}")
 
-    # ── Generate embeddings ────────────────────────────────────────────────────
-    print(f"\nGenerating embeddings via text-embedding-3-small …")
-    oai      = OpenAI(api_key=openai_key)
-    contents = [make_content(d) for d in docs]
-    t_embed  = time.time()
-    embeddings = embed_batch(oai, contents)
-    print(f"  ✓ {len(embeddings)} embeddings in {time.time() - t_embed:.1f}s")
+    # ── Generate embeddings (optional — /api/hardware/lookup uses B-tree only) ──
+    print(f"\nGenerating embeddings via Gemini text-embedding-004 ...")
+    contents   = [make_content(d) for d in docs]
+    embeddings: list[list[float]] | None = None
+    try:
+        t_embed    = time.time()
+        embeddings = embed_batch(google_key, contents)
+        print(f"  [OK] {len(embeddings)} embeddings in {time.time() - t_embed:.1f}s")
+    except Exception as exc:
+        print(f"  [WARN] Embedding generation skipped: {exc}")
+        print(f"    Docs will be upserted without vectors -- text search still works.")
 
     # ── Bulk upsert ────────────────────────────────────────────────────────────
-    print(f"\nConnecting to MongoDB Atlas …")
+    print(f"\nConnecting to MongoDB Atlas ...")
     mongo = MongoClient(mongo_uri, serverSelectionTimeoutMS=10_000)
     col   = mongo[db_name][col_name]
 
-    ops = [
-        UpdateOne(
-            {"name": doc["name"]},
-            {"$set": {**doc, "content": content, "embedding": emb}},
-            upsert=True,
-        )
-        for doc, content, emb in zip(docs, contents, embeddings)
-    ]
+    if embeddings is not None:
+        ops = [
+            UpdateOne(
+                {"name": doc["name"]},
+                {"$set": {**doc, "content": content, "embedding": emb}},
+                upsert=True,
+            )
+            for doc, content, emb in zip(docs, contents, embeddings)
+        ]
+    else:
+        ops = [
+            UpdateOne(
+                {"name": doc["name"]},
+                {"$set": {**doc, "content": content}},
+                upsert=True,
+            )
+            for doc, content in zip(docs, contents)
+        ]
     result = col.bulk_write(ops)
-    print(f"  ✓ Upsert complete — {result.upserted_count} inserted, "
+    print(f"  [OK] Upsert complete -- {result.upserted_count} inserted, "
           f"{result.modified_count} updated")
 
     # ── B-tree index on name ───────────────────────────────────────────────────
     col.create_index("name", name="name_btree")
-    print(f"  ✓ B-tree index 'name_btree' ensured on {col_name}.name")
+    print(f"  [OK] B-tree index 'name_btree' ensured on {col_name}.name")
 
     # ── Summary ────────────────────────────────────────────────────────────────
     elapsed = time.time() - t0
-    print(f"\n{'─'*60}")
+    print(f"\n{'-'*60}")
     print(f"  Done in {elapsed:.1f}s")
     print(f"  Collection : {db_name}.{col_name}")
     print(f"  Documents  : {len(docs)} total")
@@ -570,12 +598,12 @@ def main() -> None:
         by_cat[d["category"]] = by_cat.get(d["category"], 0) + 1
     for cat, n in sorted(by_cat.items()):
         print(f"    {cat:<14}: {n}")
-    print(f"\nNext — create the Atlas Vector Search index on the 'embedding' field:")
+    print(f"\nNext -- create the Atlas Vector Search index on the 'embedding' field:")
     print(json.dumps({
-        "fields": [{"numDimensions": 1536, "path": "embedding",
+        "fields": [{"numDimensions": 768, "path": "embedding",
                     "similarity": "cosine", "type": "vector"}]
     }, indent=2))
-    print(f"{'─'*60}\n")
+    print(f"{'-'*60}\n")
 
 
 if __name__ == "__main__":

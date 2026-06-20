@@ -4,6 +4,8 @@ import type { VideoItem } from '../../services/youtubeService';
 interface Props {
   videos: VideoItem[];
   loading: boolean;
+  /** Component / product name used to build the YouTube deep-link fallback. */
+  searchTerm?: string;
 }
 
 function SkeletonCard() {
@@ -62,8 +64,8 @@ function VideoCard({ video }: { video: VideoItem }) {
   );
 }
 
-export default function VideoReviewCarousel({ videos, loading }: Props) {
-  if (!loading && videos.length === 0) return null;
+export default function VideoReviewCarousel({ videos, loading, searchTerm }: Props) {
+  const empty = !loading && videos.length === 0;
 
   return (
     <div className="px-6 pb-6 border-t border-white/5 pt-6">
@@ -71,12 +73,33 @@ export default function VideoReviewCarousel({ videos, loading }: Props) {
         <span className="material-symbols-outlined text-primary leading-none">bolt</span>
         Trusted Technical Analysis Logs
       </h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {loading
-          ? [0, 1, 2].map(i => <SkeletonCard key={i} />)
-          : videos.map(v => <VideoCard key={v.videoId} video={v} />)
-        }
-      </div>
+
+      {empty ? (
+        // Graceful degradation (SRS UC-04 A1): when the API returns no videos —
+        // quota exhausted (HTTP 403), no key configured, or simply no matches —
+        // fall back to a YouTube deep-link search instead of rendering nothing.
+        <a
+          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(
+            `${searchTerm ?? ''} review`.trim(),
+          )}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="glass-panel rounded-[1.25rem] border border-white/10 hover:border-primary/40 hover:shadow-neon transition-all duration-300 flex items-center gap-3 px-5 py-4 text-sm text-gray-300"
+        >
+          <span className="material-symbols-outlined text-red-400 leading-none">smart_display</span>
+          <span>
+            No cached reviews available.{' '}
+            <span className="text-primary font-semibold">Search trusted reviews on YouTube →</span>
+          </span>
+        </a>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {loading
+            ? [0, 1, 2].map(i => <SkeletonCard key={i} />)
+            : videos.map(v => <VideoCard key={v.videoId} video={v} />)
+          }
+        </div>
+      )}
     </div>
   );
 }

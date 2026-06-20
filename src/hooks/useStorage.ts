@@ -38,14 +38,24 @@ export interface Listing {
   images: string[];
   country: string;
   province?: string;
+  /** Queryable city field — stored separately from `location` string for Firestore cascade search. */
+  city?: string;
+  /** Queryable area/neighbourhood — drives Tier-1 exact-area search. */
+  area?: string;
   location: string;
   sellerId: string;
   sellerName: string;
   sellerContact: string;
+  /** Verified (SMS/WhatsApp) phone number, shown to buyers instead of email. */
+  sellerPhone?: string;
   postedDate: string;
+  /** ISO string — 30 days after listing goes active; reset on reactivation. */
+  expiresAt?: string;
+  /** ISO string — when the listing was last set to 'active'. */
+  lastActivatedAt?: string;
   views: number;
   savedBy: string[];
-  status: 'active' | 'sold' | 'reserved' | 'hidden';
+  status: 'active' | 'sold' | 'reserved' | 'hidden' | 'expired';
   tags: string[];
   specs: Record<string, string>;
   stockQuantity?: number;

@@ -59,7 +59,7 @@ export default function AIChatPanel({ initialMessage }: Props) {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const wasStreamingRef = useRef(false);
   const saveSessionRef = useRef(saveSession);
-  saveSessionRef.current = saveSession;
+  useEffect(() => { saveSessionRef.current = saveSession; }, [saveSession]);
 
   // Guards the one-shot initial message so it never fires twice.
   const initialHandledRef = useRef(false);
@@ -81,6 +81,7 @@ export default function AIChatPanel({ initialMessage }: Props) {
 
   // ── Sync voice transcript into the input buffer ─────────────────────────────
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- voice transcript drives input value
     if (voiceTranscript) setInputValue(voiceTranscript);
   }, [voiceTranscript]);
 
@@ -154,8 +155,8 @@ export default function AIChatPanel({ initialMessage }: Props) {
   return (
     <>
       {/* ── Left: session logs ────────────────────────────────────────────── */}
-      <aside className="hidden md:flex flex-col w-1/4 h-full glass-panel rounded-bento overflow-hidden border border-white/5">
-        <div className="p-5 border-b border-white/5 bg-black/20 shrink-0">
+      <aside className="hidden md:flex flex-col w-1/4 h-full glass-panel rounded-bento overflow-hidden border border-border-glass">
+        <div className="p-5 border-b border-border-glass bg-black/5 dark:bg-black/20 shrink-0">
           <h2 className="text-[10px] font-bold text-gray-400 tracking-[0.15em] font-mono flex items-center gap-2">
             <span className="material-symbols-outlined text-sm">history</span>
             SESSION_LOGS
@@ -185,11 +186,11 @@ export default function AIChatPanel({ initialMessage }: Props) {
                   className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors group ${
                     s.id === currentSessionId
                       ? 'bg-primary/5 border border-primary/20'
-                      : 'hover:bg-white/5 border border-transparent'
+                      : 'hover:bg-black/5 dark:hover:bg-white/5 border border-transparent'
                   }`}
                 >
                   <p className={`text-[10px] font-mono truncate transition-colors ${
-                    s.id === currentSessionId ? 'text-primary' : 'text-gray-400 group-hover:text-white'
+                    s.id === currentSessionId ? 'text-primary' : 'text-gray-400 group-hover:text-[var(--text-base)]'
                   }`}>
                     {s.title}
                   </p>
@@ -202,13 +203,13 @@ export default function AIChatPanel({ initialMessage }: Props) {
           )}
         </div>
 
-        <div className="p-4 border-t border-white/5 shrink-0">
+        <div className="p-4 border-t border-border-glass shrink-0">
           <button
             onClick={() => {
               resetSession();
               setCurrentSessionId(crypto.randomUUID());
             }}
-            className="w-full py-3 rounded-xl border border-white/10 hover:bg-white/5 text-[10px] font-mono text-gray-500 hover:text-white flex items-center justify-center gap-2 transition-colors tracking-widest"
+            className="w-full py-3 rounded-xl border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 text-[10px] font-mono text-gray-500 hover:text-[var(--text-base)] flex items-center justify-center gap-2 transition-colors tracking-widest"
           >
             <span className="material-symbols-outlined text-sm">add</span>
             NEW_SESSION
@@ -224,7 +225,7 @@ export default function AIChatPanel({ initialMessage }: Props) {
           <div className="absolute inset-0 scanline pointer-events-none z-20 opacity-30" />
 
           {/* Terminal chrome */}
-          <div className="bg-[#111] px-4 py-3 flex items-center justify-between border-b border-white/5 z-30 shrink-0">
+          <div className="bg-bg-panel px-4 py-3 flex items-center justify-between border-b border-border-glass z-30 shrink-0">
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-full bg-red-500/80" />
               <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
@@ -246,7 +247,7 @@ export default function AIChatPanel({ initialMessage }: Props) {
           {/* Messages */}
           <div
             ref={chatContainerRef}
-            className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#151515] relative z-10 min-h-0"
+            className="flex-1 overflow-y-auto p-6 space-y-6 bg-bg-dark relative z-10 min-h-0"
           >
             {messages.map((msg, index) => {
               const isLastAssistant =
@@ -286,8 +287,8 @@ export default function AIChatPanel({ initialMessage }: Props) {
                     <div
                       className={`rounded-2xl p-4 text-xs leading-5 font-mono ${
                         msg.role === 'user'
-                          ? 'bg-accent-purple/10 border border-accent-purple/20 rounded-tr-none text-white shadow-[0_0_15px_rgba(191,0,255,0.05)]'
-                          : 'bg-white/5 border border-white/5 rounded-tl-none text-gray-300'
+                          ? 'bg-accent-purple/10 border border-accent-purple/20 rounded-tr-none shadow-[0_0_15px_rgba(191,0,255,0.05)]'
+                          : 'bg-black/5 dark:bg-white/5 border border-black/8 dark:border-white/5 rounded-tl-none'
                       }`}
                     >
                       <p className="whitespace-pre-wrap">
@@ -304,12 +305,12 @@ export default function AIChatPanel({ initialMessage }: Props) {
           </div>
 
           {/* Input bar */}
-          <div className="p-4 bg-[#111] border-t border-white/5 z-30 shrink-0">
+          <div className="p-4 bg-bg-panel border-t border-border-glass z-30 shrink-0">
             <div
-              className={`relative flex items-end gap-2 bg-[#1e1e1e] p-2 rounded-xl border transition-all ${
+              className={`relative flex items-end gap-2 bg-bg-dark p-2 rounded-xl border transition-all ${
                 isRecording
                   ? 'border-red-500/60 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
-                  : 'border-white/10 focus-within:border-primary/50 focus-within:shadow-[0_0_15px_rgba(13,242,242,0.1)]'
+                  : 'border-black/10 dark:border-white/10 focus-within:border-primary/50 focus-within:shadow-[0_0_15px_rgba(13,242,242,0.1)]'
               }`}
             >
               {/* Mic button */}
@@ -320,7 +321,7 @@ export default function AIChatPanel({ initialMessage }: Props) {
                 className={`relative p-2 rounded-lg transition-all shrink-0 disabled:opacity-30 disabled:cursor-not-allowed ${
                   isRecording
                     ? 'text-red-400 bg-red-500/10'
-                    : 'text-gray-500 hover:text-white hover:bg-white/5'
+                    : 'text-gray-500 hover:text-[var(--text-base)] hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
               >
                 {/* Pulsing ring when recording */}
@@ -339,7 +340,7 @@ export default function AIChatPanel({ initialMessage }: Props) {
                 onKeyDown={handleKeyDown}
                 disabled={isStreaming}
                 rows={1}
-                className="w-full bg-transparent border-none focus:ring-0 text-sm font-mono text-white placeholder-gray-600 resize-none py-2.5 leading-5 disabled:opacity-40"
+                className="w-full bg-transparent border-none focus:ring-0 text-sm font-mono placeholder-[var(--text-muted)] resize-none py-2.5 leading-5 disabled:opacity-40"
                 placeholder={isStreaming ? 'Neuro is thinking...' : 'Reply to Neuro...'}
               />
 

@@ -39,10 +39,11 @@ import yaml
 from dotenv import load_dotenv
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import END, START, StateGraph
 from pymongo import MongoClient
 
+from services.gemini_manager import gemini_manager as _gm
 from services.selection_engine import AllocationResult, run_allocation
 from services.validation_engine import ValidationResult, run_checks
 
@@ -85,6 +86,7 @@ class BuildState(TypedDict):
     active_build:         dict                  # component map; filled by Layer B, read by Layer C/D
     search_context:       str                   # Tavily web search results
     rag_context:          str                   # MongoDB Atlas vector results
+    market_context:       str                   # latest weekly market-intel brief (reference only)
     build_intent:         BuildIntent           # structured intent from Layer A
     selection_report:     str                   # deterministic budget/price analysis (Layer B)
     compatibility_report: str                   # deterministic hardware validation (Layer C)
@@ -143,10 +145,8 @@ async def rag_node(state: BuildState) -> dict:
         ][
             os.environ.get("MONGODB_COLLECTION", "hardware_specs")
         ]
-        embeddings = OpenAIEmbeddings(
-            model="text-embedding-3-small",
-            api_key=os.environ["OPENAI_API_KEY"],
-        )
+        from services.embeddings import GeminiEmbeddings
+        embeddings = GeminiEmbeddings()
         store = MongoDBAtlasVectorSearch(
             collection=collection,
             embedding=embeddings,
@@ -163,6 +163,30 @@ async def rag_node(state: BuildState) -> dict:
     return {"rag_context": ctx}
 
 
+# ─── Node 2.5 — Weekly Market Intelligence (reference context) ────────────────
+
+async def market_node(state: BuildState) -> dict:
+    """
+    Loads the latest weekly market-intel snapshot (hot products, price ranges,
+    week-over-week price movements, stale inventory) produced by
+    services/market_intel.py and stored in MongoDB. Read-only reference context
+    for Layer D — the response_node is forbidden from doing arithmetic on it.
+    Degrades to an empty string when no snapshot exists or Mongo is unreachable.
+    """
+    try:
+        from services.market_intel import format_brief, read_latest
+        client  = _get_mongo_client()
+        db_name = os.environ.get("MONGODB_DATABASE", "neurobuilds")
+        snapshot = read_latest(client, db_name)
+        ctx = format_brief(snapshot)
+        logger.info("market_node: %s", "snapshot loaded" if ctx else "no snapshot available")
+    except Exception as exc:
+        logger.warning("market_node: market intel unavailable — %s", exc)
+        ctx = ""
+
+    return {"market_context": ctx}
+
+
 # ─── Node 3 — Intent Extractor (Layer A — LLM) ───────────────────────────────
 #
 # Sole job: semantic parsing. Reads natural language and outputs a structured
@@ -177,10 +201,15 @@ async def intent_node(state: BuildState) -> dict:
     """
     last = _last_user_message(state["messages"])
 
-    llm = ChatOpenAI(
-        model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+    api_key = (
+        await _gm.get_available_key()
+        if _gm is not None
+        else os.environ.get("GOOGLE_API_KEY", "")
+    )
+    llm = ChatGoogleGenerativeAI(
+        model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
         temperature=0,
-        api_key=os.environ["OPENAI_API_KEY"],
+        google_api_key=api_key,
     )
 
     search_snippet = (state.get("search_context") or "")[:600]
@@ -209,7 +238,21 @@ async def intent_node(state: BuildState) -> dict:
             SystemMessage(content=_INTENT_SYSTEM),
             HumanMessage(content=f"User Query: {last}\n\nContext:\n{search_snippet}"),
         ])
-        raw = result.content.strip()
+        if _gm is not None:
+            _gm.record_success(api_key)
+        # Gemini via LangChain may return `content` as a str OR a list of parts.
+        # Normalise to a single string before parsing so a list-shaped response
+        # doesn't raise AttributeError and silently collapse to default intent.
+        content = result.content
+        if isinstance(content, str):
+            raw = content.strip()
+        elif isinstance(content, list):
+            raw = "".join(
+                part if isinstance(part, str) else str(part.get("text", part))
+                for part in content
+            ).strip()
+        else:
+            raw = str(content).strip()
         raw = re.sub(r"^```(?:yaml)?\s*", "", raw, flags=re.MULTILINE)
         raw = re.sub(r"\s*```\s*$",        "", raw, flags=re.MULTILINE)
         parsed = yaml.safe_load(raw)
@@ -403,15 +446,19 @@ def _identify_failing_slot(issue: str) -> Optional[str]:
 
 async def response_node(state: BuildState) -> dict:
     """
-    Calls ChatOpenAI with streaming=True.  The system prompt explicitly
-    prohibits the LLM from performing hardware checks, price arithmetic, or
-    suggesting alternative component names — those are owned by Layers B–C.
+    Narration-only Layer D.  The system prompt explicitly prohibits the LLM
+    from performing hardware checks, price arithmetic, or suggesting alternative
+    component names — those are owned by Layers B–C.
     """
-    llm = ChatOpenAI(
-        model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
-        streaming=True,
+    api_key = (
+        await _gm.get_available_key()
+        if _gm is not None
+        else os.environ.get("GOOGLE_API_KEY", "")
+    )
+    llm = ChatGoogleGenerativeAI(
+        model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
         temperature=0.7,
-        api_key=os.environ["OPENAI_API_KEY"],
+        google_api_key=api_key,
     )
 
     lc_messages = [
@@ -427,6 +474,8 @@ async def response_node(state: BuildState) -> dict:
             lc_messages.append(AIMessage(content=content))
 
     result = await llm.ainvoke(lc_messages)
+    if _gm is not None:
+        _gm.record_success(api_key)
     return {"response": result.content}
 
 
@@ -455,6 +504,7 @@ def _build_graph():
 
     g.add_node("search",            search_node)
     g.add_node("rag",               rag_node)
+    g.add_node("market",            market_node)            # weekly market-intel reference context
     g.add_node("intent",            intent_node)            # Layer A — LLM semantic extraction
     g.add_node("budget_allocation", budget_allocation_node) # Layer B — deterministic DB selection
     g.add_node("compatibility",     compatibility_node)     # Layer C — 9-tier validation
@@ -462,7 +512,8 @@ def _build_graph():
 
     g.add_edge(START,               "search")
     g.add_edge("search",            "rag")
-    g.add_edge("rag",               "intent")
+    g.add_edge("rag",               "market")
+    g.add_edge("market",            "intent")
     g.add_edge("intent",            "budget_allocation")
     g.add_edge("budget_allocation", "compatibility")
 
@@ -495,6 +546,7 @@ async def run_pipeline(
         "active_build":         active_build,
         "search_context":       "",
         "rag_context":          "",
+        "market_context":       "",
         "build_intent": {
             "budget_usd":       None,
             "use_case":         "general",
@@ -614,4 +666,7 @@ Excluded on retry: {excluded_summary}
 
 ━━━ HARDWARE DATABASE (MongoDB RAG — reference only) ━━━
 {state.get("rag_context") or "No database results available."}
+
+━━━ MARKET INTELLIGENCE (weekly snapshot — reference only, do not do arithmetic) ━━━
+{state.get("market_context") or "No market intelligence snapshot available yet."}
 </deterministic_report>"""

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { uploadImageToImgBB } from '../../utils/imageUploader';
 import { COUNTRY_LIST } from '../../data/globalLocations';
 import { useCountry } from '../../context/CountryContext';
+import CyberSelect from '../CyberSelect';
 import type { Listing } from '../../hooks/useStorage';
 import SellerVerificationModal from './SellerVerificationModal';
 import LocationSelector from './LocationSelector';
@@ -13,6 +14,8 @@ interface Props {
   sellerId: string;
   sellerName: string;
   sellerContact: string;
+  /** Verified phone number — stored on the listing and shown to buyers instead of email. */
+  sellerPhone?: string;
   isVerified: boolean;
   initialListing?: Listing;
 }
@@ -33,6 +36,15 @@ const CATEGORIES = [
 ];
 
 const MAX_IMAGES = 6;
+
+// Curated hashtag suggestions surfaced under the Tags field. Filtered by what
+// the seller is typing and by the chosen category so relevant tags pop up.
+const SUGGESTED_TAGS: string[] = [
+  'GPU', 'CPU', 'Motherboard', 'RAM', 'PSU', 'SSD', 'HDD', 'Cooler', 'Case', 'Fan',
+  'NVIDIA', 'AMD', 'Intel', 'RTX', 'Radeon', 'Ryzen', 'Gaming', 'Workstation',
+  'Keyboard', 'Mouse', 'Monitor', 'Headset', 'Laptop', 'Console', 'PS5', 'Xbox',
+  'Mechanical', 'RGB', 'Wireless', '4K', '144Hz', 'Prebuilt', 'WaterCooling',
+];
 
 type Condition = 'new' | 'used' | 'refurbished';
 type ListingType = 'sell' | 'buy' | 'exchange';
@@ -59,9 +71,8 @@ interface FormState {
 }
 
 const INPUT_CLS = 'w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-primary/50 focus:outline-none';
-const SELECT_CLS = 'bg-black/40 border border-white/10 rounded-xl px-3 py-3 text-sm text-white focus:border-primary/50 focus:outline-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
 
-export default function CreateListingModal({ onClose, onSubmit, sellerId, sellerName, sellerContact, isVerified, initialListing }: Props) {
+export default function CreateListingModal({ onClose, onSubmit, sellerId, sellerName, sellerContact, sellerPhone, isVerified, initialListing }: Props) {
   const { selectedCountry } = useCountry();
   const isEditMode = !!initialListing;
 
@@ -188,6 +199,10 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
   };
 
   const handleSubmit = async () => {
+    // Defence-in-depth behind the firestore.rules isVerifiedSeller() gate:
+    // refuse to even attempt a create if the seller is unverified, so removing
+    // the visual overlay in devtools still can't push a listing through.
+    if (!isVerified && !isEditMode) return;
     if (!validate()) return;
     setUploading(true);
     setUploadError(null);
@@ -198,7 +213,7 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
         newImageUrls.push(await uploadImageToImgBB(file));
       }
 
-      const locationStr = [form.area, form.city, form.country].filter(Boolean).join(', ');
+      const locationStr = [form.area, form.city, form.province, form.country].filter(Boolean).join(', ');
 
       await Promise.resolve(onSubmit({
         title: form.title.trim(),
@@ -211,10 +226,13 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
         images: [...form.existingImageUrls, ...newImageUrls],
         country: form.country,
         province: form.province || undefined,
+        city: form.city || undefined,
+        area: form.area || undefined,
         location: locationStr,
         sellerId,
         sellerName,
         sellerContact,
+        sellerPhone: sellerPhone || initialListing?.sellerPhone || '',
         status: 'active',
         tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
         specs: form.specs,
@@ -233,6 +251,19 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
     form.imagePreviews.forEach(url => URL.revokeObjectURL(url));
     onClose();
   };
+
+  // Hashtag helpers — parse the comma field and suggest relevant tags.
+  const currentTags = form.tags.split(',').map(t => t.trim()).filter(Boolean);
+  const addTag = (tag: string) => {
+    if (currentTags.some(t => t.toLowerCase() === tag.toLowerCase())) return;
+    set('tags', [...currentTags, tag].join(', '));
+  };
+  const lastFragment = (form.tags.split(',').pop() ?? '').trim().toLowerCase();
+  const tagSuggestions = SUGGESTED_TAGS.filter(s => {
+    const lower = s.toLowerCase();
+    if (currentTags.some(t => t.toLowerCase() === lower)) return false;
+    return !lastFragment || lower.includes(lastFragment);
+  }).slice(0, 10);
 
   return (
     <>
@@ -317,25 +348,25 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm text-gray-400 mb-2 block">Category</label>
-              <select
+              <CyberSelect
                 value={form.category}
-                onChange={e => set('category', e.target.value)}
-                className={`w-full ${SELECT_CLS}`}
-              >
-                {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+                onChange={v => set('category', v)}
+                options={CATEGORIES.map(c => ({ value: c.id, label: c.name }))}
+                className="w-full"
+              />
             </div>
             <div>
               <label className="text-sm text-gray-400 mb-2 block">Condition</label>
-              <select
+              <CyberSelect
                 value={form.condition}
-                onChange={e => set('condition', e.target.value as Condition)}
-                className={`w-full ${SELECT_CLS}`}
-              >
-                <option value="new">New</option>
-                <option value="used">Used</option>
-                <option value="refurbished">Refurbished</option>
-              </select>
+                onChange={v => set('condition', v as Condition)}
+                options={[
+                  { value: 'new', label: 'New' },
+                  { value: 'used', label: 'Used' },
+                  { value: 'refurbished', label: 'Refurbished' },
+                ]}
+                className="w-full"
+              />
             </div>
           </div>
 
@@ -374,14 +405,12 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
             <label className="text-sm text-gray-400 mb-2 block">Location *</label>
 
             {/* Country */}
-            <select
+            <CyberSelect
               value={form.country}
-              onChange={e => handleCountryChange(e.target.value)}
-              className={`${SELECT_CLS} w-full mb-3`}
-            >
-              <option value="">Select Country</option>
-              {countries.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+              onChange={handleCountryChange}
+              options={[{ value: '', label: 'Select Country' }, ...countries.map(c => ({ value: c, label: c }))]}
+              className="w-full mb-3"
+            />
 
             {/* Province → City → Area (cascading, country-aware) */}
             {form.country && (
@@ -389,7 +418,6 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
                 country={form.country}
                 value={{ province: form.province, city: form.city, area: form.area }}
                 onChange={handleLocationChange}
-                selectClassName={SELECT_CLS}
               />
             )}
 
@@ -460,7 +488,7 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
 
           {/* Tags */}
           <div>
-            <label className="text-sm text-gray-400 mb-2 block">Tags <span className="text-gray-600">(comma-separated)</span></label>
+            <label className="text-sm text-gray-400 mb-2 block">Hashtags <span className="text-gray-600">(comma-separated — help buyers find this)</span></label>
             <input
               type="text"
               value={form.tags}
@@ -468,6 +496,33 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
               placeholder="e.g. GPU, NVIDIA, Gaming"
               className={INPUT_CLS}
             />
+            {currentTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {currentTags.map(t => (
+                  <span key={t} className="px-2.5 py-0.5 rounded-full text-xs bg-primary/10 text-primary border border-primary/20">
+                    #{t.replace(/^#/, '')}
+                  </span>
+                ))}
+              </div>
+            )}
+            {tagSuggestions.length > 0 && (
+              <div className="mt-2.5">
+                <p className="text-[11px] text-gray-600 mb-1.5">Suggested:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {tagSuggestions.map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => addTag(s)}
+                      className="px-2.5 py-0.5 rounded-full text-xs bg-white/5 text-gray-300 border border-white/10 hover:border-primary/50 hover:text-primary transition-colors flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[13px] leading-none">add</span>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Specs */}

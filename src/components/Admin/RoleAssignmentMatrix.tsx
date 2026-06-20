@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { collection, query, orderBy, getDocs, doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../Firebase';
+import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { db, auth } from '../../Firebase';
 import { Shield, Search, ChevronDown } from 'lucide-react';
 import type { UserRole } from '../../hooks/useUserRole';
+
+const AI_SERVICE =
+  (import.meta.env.VITE_AI_SERVICE_URL as string | undefined) ?? 'http://localhost:8000';
 
 const ROLES: UserRole[] = ['user', 'vendor', 'moderator', 'admin'];
 
@@ -51,12 +54,48 @@ export function RoleAssignmentMatrix() {
   const assignRole = async (uid: string, newRole: UserRole) => {
     setSaving(uid);
     setFeedback(null);
+
+    const current = auth.currentUser;
+    if (!current) {
+      setFeedback('Your session expired. Please sign in again.');
+      setSaving(null);
+      return;
+    }
+
     try {
-      await updateDoc(doc(db, 'users', uid), { role: newRole });
+      // Role assignment is a privileged server operation: the backend sets the
+      // Firestore role AND the Firebase JWT custom claim (and revokes the
+      // target's refresh tokens). The client cannot set the claim itself, and
+      // firestore.rules blocks a direct write to the `role` field anyway.
+      const idToken = await current.getIdToken();
+      const resp = await fetch(`${AI_SERVICE}/api/admin/users/${uid}/role`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ role: newRole }),
+        signal: AbortSignal.timeout(15_000),
+      });
+
+      if (!resp.ok) {
+        const data = (await resp.json().catch(() => ({}))) as { detail?: string };
+        throw new Error(data.detail ?? `Server error ${resp.status}`);
+      }
+
       setUsers(prev => prev.map(u => u.uid === uid ? { ...u, role: newRole } : u));
-      setFeedback(`Role updated successfully.`);
-    } catch {
-      setFeedback('Failed to update role. Check your permissions.');
+      setFeedback(
+        newRole === 'admin'
+          ? 'Role updated. The user must sign out and back in for admin access to activate.'
+          : 'Role updated. The user must refresh their session for the change to take effect.'
+      );
+    } catch (err: unknown) {
+      const name = err instanceof Error ? err.name : '';
+      if (name === 'TimeoutError' || name === 'AbortError') {
+        setFeedback('Request timed out. Is the AI backend running?');
+      } else {
+        setFeedback(err instanceof Error ? err.message : 'Failed to update role.');
+      }
     } finally {
       setSaving(null);
     }
@@ -128,7 +167,7 @@ export function RoleAssignmentMatrix() {
                           value={u.role}
                           disabled={saving === u.uid}
                           onChange={e => assignRole(u.uid, e.target.value as UserRole)}
-                          className={`appearance-none pr-7 pl-2.5 py-1 bg-bg-dark border rounded-md text-xs font-mono cursor-pointer focus:outline-none focus:border-primary disabled:opacity-50 ${ROLE_COLOURS[u.role]}`}
+                          className={`appearance-none pr-7 pl-2.5 py-1 bg-bg-dark border rounded-lg text-xs font-mono cursor-pointer focus:outline-none focus:border-primary hover:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-colors disabled:opacity-50 ${ROLE_COLOURS[u.role]}`}
                         >
                           {ROLES.map(r => (
                             <option key={r} value={r} className="text-white bg-bg-dark">

@@ -1,0 +1,7 @@
+component_type,brand,model,cores,threads,base_clock_ghz,boost_clock_ghz,socket,tdp_watts,l3_cache_mb,integrated_graphics,vram_gb,interface,power_connectors,boost_clock_mhz,memory_bus_bits,microarchitecture,summary
+CPU,AMD,Ryzen 9 7950X3D,16,32,4.2,5.7,AM5,120,128,true,,,,,,Zen 4,Flagship gaming and content-creation CPU with 3D V-Cache on one CCD.
+CPU,Intel,Core i7-14700K,20,28,3.4,5.6,LGA1700,125,33,true,,,,,,Raptor Lake Refresh,High-end hybrid CPU strong for gaming and heavy multitasking.
+CPU,AMD,Ryzen 5 5600,6,12,3.5,4.4,AM4,65,32,false,,,,,,Zen 3,Budget AM4 gaming CPU; excellent value on mature DDR4 platforms.
+GPU,NVIDIA,GeForce RTX 4080 Super,,,,,,320,,,16,PCIe 4.0 x16,1x 16-pin (12VHPWR),2550,256,Ada Lovelace,High-end 4K gaming GPU with DLSS 3; needs a quality 750W PSU.
+GPU,AMD,Radeon RX 7900 XTX,,,,,,355,,,24,PCIe 4.0 x16,2x 8-pin PCIe,2500,384,RDNA 3,Flagship rasterisation GPU for 4K high-refresh gaming.
+GPU,NVIDIA,GeForce RTX 4060,,,,,,115,,,8,PCIe 4.0 x8,1x 8-pin PCIe,2460,128,Ada Lovelace,Efficient 1080p gaming GPU with very low power draw.

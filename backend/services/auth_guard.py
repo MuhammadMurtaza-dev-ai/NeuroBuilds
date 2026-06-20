@@ -23,8 +23,9 @@ Usage
 import logging
 from typing import Annotated
 
+import firebase_admin
 import firebase_admin.auth as fb_auth
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def require_auth(
+    request: Request,
     credentials: Annotated[
         HTTPAuthorizationCredentials | None,
         Depends(_bearer_scheme),
@@ -98,10 +100,13 @@ async def require_auth(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Expose the verified UID to downstream middleware (per-UID rate limiting)
+    request.state.uid = decoded["uid"]
     return decoded["uid"]
 
 
 async def require_admin(
+    request: Request,
     credentials: Annotated[
         HTTPAuthorizationCredentials | None,
         Depends(_bearer_scheme),
@@ -190,4 +195,5 @@ async def require_admin(
             detail="Admin privileges required.",
         )
 
+    request.state.uid = decoded["uid"]
     return decoded["uid"]

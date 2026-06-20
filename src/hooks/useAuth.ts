@@ -47,8 +47,8 @@ export const useAuth = () => {
         error: null,
       });
       return result.user;
-    } catch (error: any) {
-      const errorMessage = error.message || 'Registration failed';
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Registration failed';
       setAuthState(prev => ({ ...prev, loading: false, error: errorMessage }));
       throw error;
     }
@@ -64,8 +64,8 @@ export const useAuth = () => {
         error: null,
       });
       return result.user;
-    } catch (error: any) {
-      const errorMessage = error.message || 'Login failed';
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Login failed';
       setAuthState(prev => ({ ...prev, loading: false, error: errorMessage }));
       throw error;
     }
@@ -81,8 +81,8 @@ export const useAuth = () => {
         error: null,
       });
       return result.user;
-    } catch (error: any) {
-      const errorMessage = error.message || 'Google sign-in failed';
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Google sign-in failed';
       setAuthState(prev => ({ ...prev, loading: false, error: errorMessage }));
       throw error;
     }
@@ -97,8 +97,8 @@ export const useAuth = () => {
         loading: false,
         error: null,
       });
-    } catch (error: any) {
-      const errorMessage = error.message || 'Logout failed';
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Logout failed';
       setAuthState(prev => ({ ...prev, loading: false, error: errorMessage }));
       throw error;
     }

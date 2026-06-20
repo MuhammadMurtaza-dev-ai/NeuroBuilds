@@ -5,8 +5,9 @@ import type { UseNotificationsResult } from '../../hooks/useNotifications';
 const TYPE_LABELS: Record<string, string> = {
   blog_comment: 'Blog',
   thread_reply: 'Community',
-  marketplace_message: 'Chat',
+  marketplace_message: 'Marketplace',
   ai_build_ready: 'AI',
+  listing_expired: 'Listing',
 };
 
 interface Props {
