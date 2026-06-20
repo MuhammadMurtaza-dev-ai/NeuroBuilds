@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   collection,
+  doc,
+  updateDoc,
+  deleteDoc,
   query,
   where,
   onSnapshot,
@@ -20,6 +23,7 @@ import {
   Warehouse,
 } from 'lucide-react';
 import InventoryManager from './InventoryManager';
+import AccountStatusBanner from './AccountStatusBanner';
 import { useAuth } from '../../hooks/useAuth';
 import { db } from '../../Firebase';
 import GradientBackground from '../GradientBackground/GradientBackground';
@@ -93,6 +97,26 @@ const Dashboard: React.FC = () => {
   const [myThreads, setMyThreads] = useState<Thread[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'inventory'>('overview');
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const setListingStatus = async (id: string, status: Listing['status']) => {
+    setBusyId(id);
+    try {
+      await updateDoc(doc(db, 'listings', id), { status });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const removeListing = async (id: string) => {
+    if (!window.confirm('Permanently delete this listing? This cannot be undone.')) return;
+    setBusyId(id);
+    try {
+      await deleteDoc(doc(db, 'listings', id));
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   // Tracks how many of the 3 onSnapshot listeners have fired at least once.
   // When all 3 fire, the skeleton loading state resolves.
@@ -106,7 +130,6 @@ const Dashboard: React.FC = () => {
     if (!user) return;
 
     pendingRef.current = 3;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading reset before parallel subscriptions
     setDataLoading(true);
 
     const uid = user.uid;
@@ -207,6 +230,8 @@ const Dashboard: React.FC = () => {
     <>
       <GradientBackground />
       <main className="relative z-10 flex-grow pt-32 pb-20 px-4 md:px-8 max-w-[1440px] mx-auto w-full">
+        <AccountStatusBanner uid={user.uid} displayName={user.displayName || user.email?.split('@')[0] || 'User'} />
+
         {/* Header */}
         <div className="mb-10">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
@@ -333,6 +358,39 @@ const Dashboard: React.FC = () => {
                     <span>·</span>
                     <Clock size={10} />
                     <span>{timeAgo(l.postedDate)}</span>
+                  </div>
+                  {/* Management actions — listings stay visible in every status */}
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    <Link
+                      to={`/marketplace?id=${l.id}`}
+                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-primary/40 transition-all"
+                    >
+                      View
+                    </Link>
+                    {l.status === 'active' ? (
+                      <button
+                        onClick={() => setListingStatus(l.id, 'sold')}
+                        disabled={busyId === l.id}
+                        className="px-2 py-1 rounded-lg text-[10px] font-bold bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50"
+                      >
+                        Mark Sold
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setListingStatus(l.id, 'active')}
+                        disabled={busyId === l.id}
+                        className="px-2 py-1 rounded-lg text-[10px] font-bold bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-all disabled:opacity-50"
+                      >
+                        Reactivate
+                      </button>
+                    )}
+                    <button
+                      onClick={() => removeListing(l.id)}
+                      disabled={busyId === l.id}
+                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 border border-white/10 text-gray-400 hover:text-red-400 hover:border-red-500/30 transition-all disabled:opacity-50"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               </div>

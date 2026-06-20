@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import CyberSelect from '../CyberSelect'
 import {
   collection,
   addDoc,
@@ -12,10 +13,11 @@ import { useAllAdvertisements } from '../../hooks/useAdvertisements'
 import type { Advertisement } from '../../hooks/useAdvertisements'
 
 const PLACEMENTS = [
-  { value: 'banner',        label: 'Homepage Banner' },
-  { value: 'homepage_feed', label: 'Homepage Feed Slot' },
-  { value: 'listing_card',  label: 'Listing Card (Micro)' },
-  { value: 'thread_card',   label: 'Thread Card (Micro)' },
+  { value: 'banner',           label: 'Homepage Banner' },
+  { value: 'homepage_feed',    label: 'Homepage Feed Slot' },
+  { value: 'marketplace_grid', label: 'Marketplace Grid' },
+  { value: 'listing_card',     label: 'Listing Card (Micro)' },
+  { value: 'thread_card',      label: 'Thread Card (Micro)' },
 ]
 
 const EMPTY_FORM = {
@@ -26,6 +28,7 @@ const EMPTY_FORM = {
   placement: 'banner',
   accent: 'cyan' as 'cyan' | 'purple',
   status: 'active' as 'active' | 'inactive',
+  featured: false,
 }
 
 type FormState = typeof EMPTY_FORM
@@ -54,6 +57,7 @@ export default function AdsManagerPanel() {
       placement: ad.placement,
       accent: ad.accent,
       status: ad.status,
+      featured: ad.featured ?? false,
     })
     setError('')
   }
@@ -81,6 +85,7 @@ export default function AdsManagerPanel() {
         placement: form.placement,
         accent: form.accent,
         status: form.status,
+        featured: form.featured,
       }
       if (editingId) {
         await updateDoc(doc(db, 'advertisements', editingId), payload)
@@ -101,6 +106,12 @@ export default function AdsManagerPanel() {
   async function toggleStatus(ad: Advertisement) {
     await updateDoc(doc(db, 'advertisements', ad.id), {
       status: ad.status === 'active' ? 'inactive' : 'active',
+    })
+  }
+
+  async function toggleFeatured(ad: Advertisement) {
+    await updateDoc(doc(db, 'advertisements', ad.id), {
+      featured: !ad.featured,
     })
   }
 
@@ -149,7 +160,7 @@ export default function AdsManagerPanel() {
                 value={form.sponsorName}
                 onChange={e => setForm(f => ({ ...f, sponsorName: e.target.value }))}
                 placeholder="e.g. ASUS ROG"
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors"
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors"
               />
             </Field>
 
@@ -158,7 +169,7 @@ export default function AdsManagerPanel() {
                 value={form.tagline}
                 onChange={e => setForm(f => ({ ...f, tagline: e.target.value }))}
                 placeholder="Short promotional copy"
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors"
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors"
               />
             </Field>
 
@@ -167,7 +178,7 @@ export default function AdsManagerPanel() {
                 value={form.targetUrl}
                 onChange={e => setForm(f => ({ ...f, targetUrl: e.target.value }))}
                 placeholder="https://..."
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors"
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors"
               />
             </Field>
 
@@ -176,45 +187,54 @@ export default function AdsManagerPanel() {
                 value={form.imageUrl}
                 onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))}
                 placeholder="Leave blank for icon fallback"
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors"
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors"
               />
             </Field>
 
             <Field label="Placement">
-              <select
+              <CyberSelect
                 value={form.placement}
-                onChange={e => setForm(f => ({ ...f, placement: e.target.value }))}
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors"
-              >
-                {PLACEMENTS.map(p => (
-                  <option key={p.value} value={p.value}>{p.label}</option>
-                ))}
-              </select>
+                onChange={v => setForm(f => ({ ...f, placement: v }))}
+                options={PLACEMENTS}
+                className="w-full"
+              />
             </Field>
 
             <div className="grid grid-cols-2 gap-4">
               <Field label="Accent">
-                <select
+                <CyberSelect
                   value={form.accent}
-                  onChange={e => setForm(f => ({ ...f, accent: e.target.value as 'cyan' | 'purple' }))}
-                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors"
-                >
-                  <option value="cyan">Cyan</option>
-                  <option value="purple">Purple</option>
-                </select>
+                  onChange={v => setForm(f => ({ ...f, accent: v as 'cyan' | 'purple' }))}
+                  options={[{ value: 'cyan', label: 'Cyan' }, { value: 'purple', label: 'Purple' }]}
+                  className="w-full"
+                />
               </Field>
               <Field label="Status">
-                <select
+                <CyberSelect
                   value={form.status}
-                  onChange={e => setForm(f => ({ ...f, status: e.target.value as 'active' | 'inactive' }))}
-                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary/50 transition-colors"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
+                  onChange={v => setForm(f => ({ ...f, status: v as 'active' | 'inactive' }))}
+                  options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]}
+                  className="w-full"
+                />
               </Field>
             </div>
           </div>
+
+          {/* Featured toggle — promotes the ad to the premium top block (Marketplace Grid) */}
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.featured}
+              onChange={e => setForm(f => ({ ...f, featured: e.target.checked }))}
+              className="accent-primary w-4 h-4"
+            />
+            <span className="text-sm text-gray-300">
+              Featured
+              <span className="text-gray-500 text-xs ml-2 font-mono">
+                top block of the Marketplace Grid
+              </span>
+            </span>
+          </label>
 
           {error && (
             <p className="text-red-400 text-xs font-mono">{error}</p>
@@ -281,6 +301,13 @@ export default function AdsManagerPanel() {
                       {ad.accent}
                     </span>
 
+                    {/* Featured chip */}
+                    {ad.featured && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border shrink-0 text-amber-300/80 border-amber-400/30 bg-amber-400/5">
+                        ★ featured
+                      </span>
+                    )}
+
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-semibold truncate">{ad.sponsorName}</p>
@@ -294,6 +321,23 @@ export default function AdsManagerPanel() {
 
                     {/* Actions */}
                     <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => toggleFeatured(ad)}
+                        title={ad.featured ? 'Unfeature' : 'Mark featured'}
+                        className={`p-1.5 rounded-lg border transition-colors ${
+                          ad.featured
+                            ? 'text-amber-300 border-amber-400/30 hover:bg-amber-400/10'
+                            : 'text-gray-500 border-white/10 hover:text-white'
+                        }`}
+                      >
+                        <span
+                          className="material-symbols-outlined text-[16px]"
+                          style={{ fontVariationSettings: ad.featured ? "'FILL' 1" : "'FILL' 0" }}
+                        >
+                          star
+                        </span>
+                      </button>
+
                       <button
                         onClick={() => toggleStatus(ad)}
                         title={ad.status === 'active' ? 'Deactivate' : 'Activate'}

@@ -29,8 +29,11 @@ from routers.verify import router as verify_router
 from routers.blog_automator import router as blog_automator_router
 from routers.admin_users import router as admin_users_router
 from routers.components import router as components_router, ensure_youtube_cache_index
+from routers.listings_maintenance import router as listings_maintenance_router, start_background_sweep
+from routers.market_intel import router as market_intel_router, start_market_intel_loop
 from services.auth_guard import require_admin, require_auth
 from services.cache_manager import setup_semantic_cache
+from services.market_intel import ensure_market_intel_index
 from services.gemini_manager import gemini_manager
 from services.vector_store import VectorStoreEngine
 from services.location_search import LocationSearchService, ensure_indexes
@@ -54,14 +57,15 @@ async def _publish_scheduled_posts() -> int:
     """
     def _run() -> int:
         from firebase_admin import firestore as fb_firestore  # noqa: PLC0415
+        from google.cloud.firestore_v1.base_query import FieldFilter  # noqa: PLC0415
 
         db  = fb_firestore.client()
         now = datetime.datetime.now(tz=datetime.timezone.utc)
 
         due_docs = list(
             db.collection("blogs")
-            .where("status", "==", "scheduled")
-            .where("publishAt", "<=", now)
+            .where(filter=FieldFilter("status", "==", "scheduled"))
+            .where(filter=FieldFilter("publishAt", "<=", now))
             .stream()
         )
 
@@ -133,6 +137,9 @@ async def lifespan(app: FastAPI):
             # Ensure 7-day TTL index for YouTube review cache
             ensure_youtube_cache_index(app.state.mongo, db_name)
 
+            # Ensure ~8-day TTL index for weekly market-intel snapshots
+            ensure_market_intel_index(app.state.mongo, db_name)
+
         except Exception as exc:
             app.state.mongo        = None
             app.state.motor        = None
@@ -187,23 +194,36 @@ async def lifespan(app: FastAPI):
     # Only start if Firebase Admin SDK initialised successfully; the worker
     # imports firebase_admin.firestore lazily so it is safe to guard on _apps.
     publisher_task: asyncio.Task | None = None
+    sweep_task: asyncio.Task | None = None
+    market_intel_task: asyncio.Task | None = None
     if firebase_admin._apps:
         publisher_task = asyncio.create_task(_scheduled_publisher_loop())
+        sweep_task = asyncio.create_task(start_background_sweep())
+        # Weekly market-intel needs both Firestore (Admin SDK) and MongoDB.
+        if app.state.mongo is not None:
+            market_intel_task = asyncio.create_task(
+                start_market_intel_loop(app.state.mongo, db_name)
+            )
+        else:
+            logger.warning("Market-intel loop not started — MongoDB unavailable.")
     else:
         logger.warning(
-            "Scheduled-post publisher not started — Firebase Admin SDK unavailable."
+            "Scheduled-post publisher, listing-sweep, and market-intel not started "
+            "— Firebase Admin SDK unavailable."
         )
 
     logger.info("NeuroBuilds AI service ready on http://localhost:8000")
     yield
 
-    if publisher_task is not None:
-        publisher_task.cancel()
-        try:
-            await publisher_task
-        except asyncio.CancelledError:
-            pass
-        logger.info("Scheduled-post publisher stopped.")
+    for task in (publisher_task, sweep_task, market_intel_task):
+        if task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+    logger.info("Background tasks stopped.")
 
     if app.state.mongo:
         app.state.mongo.close()
@@ -258,6 +278,8 @@ app.include_router(verify_router)
 app.include_router(blog_automator_router)
 app.include_router(admin_users_router)
 app.include_router(components_router)
+app.include_router(listings_maintenance_router)
+app.include_router(market_intel_router)
 
 
 # ─── Request models ───────────────────────────────────────────────────────────

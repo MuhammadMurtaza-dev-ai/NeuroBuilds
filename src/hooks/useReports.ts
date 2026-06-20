@@ -14,14 +14,18 @@ import type { DocumentData } from 'firebase/firestore';
 import { db, auth } from '../Firebase';
 import { writeAuditLog } from '../utils/auditLog';
 
+export type ReportTargetType = 'listing' | 'thread' | 'user';
+
 export interface Report {
   id: string;
   reporterId: string;
   reporterName: string;
   reason: string;
   targetId: string;
-  targetType: 'listing' | 'thread';
+  targetType: ReportTargetType;
   targetTitle: string;
+  /** Optional ImgBB URL of proof uploaded by the reporter. */
+  proofUrl?: string;
   status: 'open' | 'resolved';
   createdAt: Timestamp | null;
 }
@@ -35,6 +39,7 @@ function toReport(id: string, data: DocumentData): Report {
     targetId: data.targetId ?? '',
     targetType: data.targetType ?? 'listing',
     targetTitle: data.targetTitle ?? '',
+    proofUrl: typeof data.proofUrl === 'string' && data.proofUrl ? data.proofUrl : undefined,
     status: data.status ?? 'open',
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt : null,
   };
@@ -70,10 +75,18 @@ export const useReports = () => {
   const createReport = async (
     data: Omit<Report, 'id' | 'status' | 'createdAt'>
   ): Promise<void> => {
+    // Strip undefined (e.g. omitted proofUrl) — Firestore rejects undefined values.
+    const clean = Object.fromEntries(
+      Object.entries(data).filter(([, v]) => v !== undefined),
+    );
     await addDoc(collection(db, REPORTS), {
-      ...data,
+      ...clean,
       status: 'open',
       createdAt: serverTimestamp(),
+    });
+    writeAuditLog(auth.currentUser?.uid ?? '', 'report.create', {
+      targetId: data.targetId,
+      targetType: data.targetType,
     });
   };
 

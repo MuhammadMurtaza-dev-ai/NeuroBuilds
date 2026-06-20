@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useCommunity, COMMUNITY_COUNTRIES } from '../hooks/useCommunity';
 import { useAuth } from '../hooks/useAuth';
 import { useBlogFeed } from '../hooks/useBlogCMS';
+import CyberSelect from '../components/CyberSelect';
 import { useCountry } from '../context/CountryContext';
 import { useUserRole } from '../hooks/useUserRole';
 import GradientBackground from '../components/GradientBackground/GradientBackground';
@@ -213,16 +214,15 @@ export default function CommunityPage({ onOpenAuth }: Props) {
           </div>
 
           {/* Country filter */}
-          <select
+          <CyberSelect
             value={filters.country}
-            onChange={(e) => setFilters({ ...filters, country: e.target.value })}
-            className="shrink-0 bg-bg-panel border border-border-glass rounded-xl px-3 py-2 text-sm focus:border-primary/50 focus:outline-none cursor-pointer"
-          >
-            <option value="All">All Countries</option>
-            {COMMUNITY_COUNTRIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
+            onChange={v => setFilters({ ...filters, country: v })}
+            options={[
+              { value: 'All', label: 'All Countries' },
+              ...COMMUNITY_COUNTRIES.map(c => ({ value: c, label: c })),
+            ]}
+            className="shrink-0"
+          />
         </div>
 
         {/* Thread list */}

@@ -86,6 +86,7 @@ class BuildState(TypedDict):
     active_build:         dict                  # component map; filled by Layer B, read by Layer C/D
     search_context:       str                   # Tavily web search results
     rag_context:          str                   # MongoDB Atlas vector results
+    market_context:       str                   # latest weekly market-intel brief (reference only)
     build_intent:         BuildIntent           # structured intent from Layer A
     selection_report:     str                   # deterministic budget/price analysis (Layer B)
     compatibility_report: str                   # deterministic hardware validation (Layer C)
@@ -160,6 +161,30 @@ async def rag_node(state: BuildState) -> dict:
         ctx = "Hardware database unavailable — using model knowledge for specifications."
 
     return {"rag_context": ctx}
+
+
+# ─── Node 2.5 — Weekly Market Intelligence (reference context) ────────────────
+
+async def market_node(state: BuildState) -> dict:
+    """
+    Loads the latest weekly market-intel snapshot (hot products, price ranges,
+    week-over-week price movements, stale inventory) produced by
+    services/market_intel.py and stored in MongoDB. Read-only reference context
+    for Layer D — the response_node is forbidden from doing arithmetic on it.
+    Degrades to an empty string when no snapshot exists or Mongo is unreachable.
+    """
+    try:
+        from services.market_intel import format_brief, read_latest
+        client  = _get_mongo_client()
+        db_name = os.environ.get("MONGODB_DATABASE", "neurobuilds")
+        snapshot = read_latest(client, db_name)
+        ctx = format_brief(snapshot)
+        logger.info("market_node: %s", "snapshot loaded" if ctx else "no snapshot available")
+    except Exception as exc:
+        logger.warning("market_node: market intel unavailable — %s", exc)
+        ctx = ""
+
+    return {"market_context": ctx}
 
 
 # ─── Node 3 — Intent Extractor (Layer A — LLM) ───────────────────────────────
@@ -479,6 +504,7 @@ def _build_graph():
 
     g.add_node("search",            search_node)
     g.add_node("rag",               rag_node)
+    g.add_node("market",            market_node)            # weekly market-intel reference context
     g.add_node("intent",            intent_node)            # Layer A — LLM semantic extraction
     g.add_node("budget_allocation", budget_allocation_node) # Layer B — deterministic DB selection
     g.add_node("compatibility",     compatibility_node)     # Layer C — 9-tier validation
@@ -486,7 +512,8 @@ def _build_graph():
 
     g.add_edge(START,               "search")
     g.add_edge("search",            "rag")
-    g.add_edge("rag",               "intent")
+    g.add_edge("rag",               "market")
+    g.add_edge("market",            "intent")
     g.add_edge("intent",            "budget_allocation")
     g.add_edge("budget_allocation", "compatibility")
 
@@ -519,6 +546,7 @@ async def run_pipeline(
         "active_build":         active_build,
         "search_context":       "",
         "rag_context":          "",
+        "market_context":       "",
         "build_intent": {
             "budget_usd":       None,
             "use_case":         "general",
@@ -638,4 +666,7 @@ Excluded on retry: {excluded_summary}
 
 ━━━ HARDWARE DATABASE (MongoDB RAG — reference only) ━━━
 {state.get("rag_context") or "No database results available."}
+
+━━━ MARKET INTELLIGENCE (weekly snapshot — reference only, do not do arithmetic) ━━━
+{state.get("market_context") or "No market intelligence snapshot available yet."}
 </deterministic_report>"""

@@ -167,7 +167,7 @@ export function RoleAssignmentMatrix() {
                           value={u.role}
                           disabled={saving === u.uid}
                           onChange={e => assignRole(u.uid, e.target.value as UserRole)}
-                          className={`appearance-none pr-7 pl-2.5 py-1 bg-bg-dark border rounded-md text-xs font-mono cursor-pointer focus:outline-none focus:border-primary disabled:opacity-50 ${ROLE_COLOURS[u.role]}`}
+                          className={`appearance-none pr-7 pl-2.5 py-1 bg-bg-dark border rounded-lg text-xs font-mono cursor-pointer focus:outline-none focus:border-primary hover:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-colors disabled:opacity-50 ${ROLE_COLOURS[u.role]}`}
                         >
                           {ROLES.map(r => (
                             <option key={r} value={r} className="text-white bg-bg-dark">

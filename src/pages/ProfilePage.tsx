@@ -12,16 +12,20 @@ import {
   AtSign,
   XCircle,
   Loader,
+  Upload,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { firebaseAuth, db } from '../Firebase';
 import GradientBackground from '../components/GradientBackground/GradientBackground';
 import { useUserRole } from '../hooks/useUserRole';
+import { uploadImageToImgBB } from '../utils/imageUploader';
 import {
   isValidUsernameFormat,
   checkUsernameAvailable,
   claimUsername,
 } from '../utils/usernameValidator';
+
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // 2 MB
 
 const ROLE_BADGE: Record<string, { label: string; classes: string }> = {
   admin:     { label: 'Admin',     classes: 'bg-red-500/15 border-red-500/40 text-red-400' },
@@ -36,6 +40,7 @@ interface ProfileForm {
   displayName: string;
   photoURL: string;
   phoneNumber: string;
+  bio: string;
 }
 
 export default function ProfilePage() {
@@ -47,11 +52,13 @@ export default function ProfilePage() {
     displayName: '',
     photoURL: '',
     phoneNumber: '',
+    bio: '',
   });
   const [isVerified, setIsVerified] = useState(false);
   const [nameStatus, setNameStatus] = useState<SaveStatus>('idle');
   const [avatarStatus, setAvatarStatus] = useState<SaveStatus>('idle');
   const [phoneStatus, setPhoneStatus] = useState<SaveStatus>('idle');
+  const [bioStatus, setBioStatus] = useState<SaveStatus>('idle');
   const [globalError, setGlobalError] = useState<string | null>(null);
 
   // Username state
@@ -62,6 +69,13 @@ export default function ProfilePage() {
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [usernameSaveStatus, setUsernameSaveStatus] = useState<SaveStatus>('idle');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Avatar upload state
+  const [dragActive, setDragActive] = useState(false);
+
+  // Photo from a linked Google account, if any
+  const googlePhotoURL =
+    user?.providerData.find(p => p.providerId === 'google.com')?.photoURL ?? null;
 
   useEffect(() => {
     if (!loading && !user) {
@@ -81,7 +95,7 @@ export default function ProfilePage() {
       if (snap.exists()) {
         const data = snap.data();
         const un = (data.username as string) ?? '';
-        setForm(prev => ({ ...prev, phoneNumber: data.phoneNumber ?? '' }));
+        setForm(prev => ({ ...prev, phoneNumber: data.phoneNumber ?? '', bio: data.bio ?? '' }));
         setCurrentUsername(un || null);
         setUsernameInput(un);
         setIsVerified(data.isVerified === true);
@@ -128,16 +142,45 @@ export default function ProfilePage() {
       await firebaseAuth.updateUserProfile(user, form.displayName.trim(), user.photoURL ?? undefined);
     });
 
-  const saveAvatar = () =>
+  const applyAvatar = (url: string) =>
     withStatus(setAvatarStatus, async () => {
       if (!user) return;
-      await firebaseAuth.updateUserProfile(user, user.displayName ?? '', form.photoURL.trim() || undefined);
+      await firebaseAuth.updateUserProfile(user, user.displayName ?? '', url || undefined);
+      setForm(prev => ({ ...prev, photoURL: url }));
     });
+
+  const handleAvatarFile = (file: File | null | undefined) => {
+    if (!file || !user) return;
+    if (!file.type.startsWith('image/')) {
+      setGlobalError('Please choose an image file.');
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      setGlobalError('Image must be 2 MB or smaller.');
+      return;
+    }
+    withStatus(setAvatarStatus, async () => {
+      const url = await uploadImageToImgBB(file);
+      await firebaseAuth.updateUserProfile(user, user.displayName ?? '', url);
+      setForm(prev => ({ ...prev, photoURL: url }));
+    });
+  };
+
+  const syncGooglePhoto = () => {
+    if (!googlePhotoURL) return;
+    applyAvatar(googlePhotoURL);
+  };
 
   const savePhone = () =>
     withStatus(setPhoneStatus, async () => {
       if (!user) return;
       await setDoc(doc(db, 'users', user.uid), { phoneNumber: form.phoneNumber.trim() }, { merge: true });
+    });
+
+  const saveBio = () =>
+    withStatus(setBioStatus, async () => {
+      if (!user) return;
+      await setDoc(doc(db, 'users', user.uid), { bio: form.bio.trim() }, { merge: true });
     });
 
   const saveUsername = async () => {
@@ -236,21 +279,65 @@ export default function ProfilePage() {
           </div>
         </SettingsCard>
 
-        {/* Avatar URL */}
+        {/* Profile Picture */}
         <SettingsCard
           icon={<Camera size={18} className="text-accent-purple" />}
-          title="Avatar URL"
-          description="Paste a direct image URL to set your profile picture."
+          title="Profile Picture"
+          description="Upload your own image (max 2 MB) or sync the photo from your Google account."
         >
-          <div className="flex gap-3">
-            <input
-              type="url"
-              value={form.photoURL}
-              onChange={e => setForm(prev => ({ ...prev, photoURL: e.target.value }))}
-              placeholder="https://example.com/avatar.png"
-              className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-gray-600 focus:border-primary focus:bg-white/10 focus:outline-none transition-all text-sm font-mono"
-            />
-            <SaveButton status={avatarStatus} onClick={saveAvatar} />
+          <div className="space-y-3">
+            <label
+              onDragOver={e => { e.preventDefault(); setDragActive(true); }}
+              onDragLeave={e => { e.preventDefault(); setDragActive(false); }}
+              onDrop={e => {
+                e.preventDefault();
+                setDragActive(false);
+                handleAvatarFile(e.dataTransfer.files?.[0]);
+              }}
+              className={`flex flex-col items-center justify-center gap-2 px-4 py-8 rounded-lg border-2 border-dashed transition-all ${
+                avatarStatus === 'saving'
+                  ? 'pointer-events-none opacity-60 border-white/15'
+                  : 'cursor-pointer'
+              } ${
+                dragActive
+                  ? 'border-primary bg-primary/10'
+                  : 'border-white/15 bg-white/5 hover:border-primary/50 hover:bg-white/10'
+              }`}
+            >
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => { handleAvatarFile(e.target.files?.[0]); e.target.value = ''; }}
+              />
+              {avatarStatus === 'saving' ? (
+                <Loader size={22} className="animate-spin text-primary" />
+              ) : (
+                <Upload size={22} className="text-primary" />
+              )}
+              <p className="text-sm text-white font-medium">
+                {avatarStatus === 'saving' ? 'Uploading…' : 'Drop an image here or click to browse'}
+              </p>
+              <p className="text-[11px] text-gray-500 font-mono">PNG, JPG, GIF · up to 2 MB</p>
+            </label>
+
+            {googlePhotoURL && googlePhotoURL !== form.photoURL && (
+              <button
+                type="button"
+                onClick={syncGooglePhoto}
+                disabled={avatarStatus === 'saving'}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <img src={googlePhotoURL} alt="" className="size-5 rounded-full object-cover" />
+                Use my Google account photo
+              </button>
+            )}
+
+            {avatarStatus === 'saved' && (
+              <p className="text-xs text-green-400 flex items-center gap-1.5">
+                <CheckCircle size={13} /> Profile picture updated
+              </p>
+            )}
           </div>
         </SettingsCard>
 
@@ -281,6 +368,28 @@ export default function ProfilePage() {
               UNVERIFIED SELLER ACCOUNT
             </p>
           )}
+        </SettingsCard>
+
+        {/* Bio */}
+        <SettingsCard
+          icon={<span className="material-symbols-outlined text-primary text-lg leading-none">edit_note</span>}
+          title="Bio"
+          description="A short description shown on your public seller profile."
+        >
+          <div className="flex flex-col gap-3">
+            <textarea
+              value={form.bio}
+              onChange={e => setForm(prev => ({ ...prev, bio: e.target.value }))}
+              placeholder="Tell buyers a bit about yourself — specialities, location, shipping policy..."
+              rows={3}
+              maxLength={300}
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-gray-600 focus:border-primary focus:bg-white/10 focus:outline-none transition-all text-sm resize-none"
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-600 font-mono">{form.bio.length}/300</span>
+              <SaveButton status={bioStatus} onClick={saveBio} />
+            </div>
+          </div>
         </SettingsCard>
 
         {/* Username */}

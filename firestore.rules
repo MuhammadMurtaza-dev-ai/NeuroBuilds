@@ -46,7 +46,17 @@ service cloud.firestore {
     // writeBatch and is not a trust boundary.
     function isNotChangingTrustFields() {
       return !request.resource.data.diff(resource.data)
-        .affectedKeys().hasAny(['role', 'isVerified', 'phoneNumber']);
+        .affectedKeys().hasAny(
+          ['role', 'isVerified', 'phoneNumber', 'accountStatus', 'disabledReason']);
+    }
+
+    // True when the signed-in user has not been disabled by a moderator. A
+    // disabled seller cannot create new listings (their existing ones are
+    // hidden separately by the moderation flow). `accountStatus` is written ONLY
+    // server-side (admin_users.py via the Admin SDK), so it cannot be forged.
+    function isNotDisabled() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid))
+        .data.get('accountStatus', 'active') != 'disabled';
     }
 
     // True when the incoming update touches ONLY vote/count fields AND moves
@@ -156,9 +166,24 @@ service cloud.firestore {
     match /listings/{listingId} {
       allow read: if true;
       allow create: if isVerifiedSeller()
+        && isNotDisabled()
         && request.resource.data.sellerId == request.auth.uid;
       allow update, delete: if isSignedIn()
         && resource.data.sellerId == request.auth.uid;
+
+      // Contact-reveal log (UC: "seller can see who accessed their info").
+      // A buyer records, under their own uid, that they revealed the seller's
+      // contact details. Only the listing owner (or an admin) may read the log.
+      match /contactReveals/{viewerId} {
+        allow read: if isSignedIn()
+          && (get(/databases/$(database)/documents/listings/$(listingId)).data.sellerId
+                == request.auth.uid
+              || isAdmin());
+        allow create: if isSignedIn()
+          && request.auth.uid == viewerId
+          && request.resource.data.viewerId == request.auth.uid;
+        allow update, delete: if false;
+      }
     }
 
 
@@ -234,6 +259,20 @@ service cloud.firestore {
     }
 
 
+    // ── advertisements/{adId} ───────────────────────────────────────────────
+    //
+    // Sponsored ad slots (homepage banner/feed, marketplace grid, micro tickers).
+    // Public marketing content — readable by everyone (including anonymous
+    // visitors) so ads render on public pages. Only admins may create/update/
+    // delete; the AdsManagerPanel is the sole authoring surface, and the
+    // `featured` flag (premium marketplace-grid placement) is an admin decision.
+
+    match /advertisements/{adId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+
     // ── reports/{reportId} ──────────────────────────────────────────────────
     //
     // Any authenticated user may file a report (create), but reading, updating,
@@ -244,6 +283,22 @@ service cloud.firestore {
     match /reports/{reportId} {
       allow create: if isSignedIn();
       allow read, update, delete: if isAdmin();
+    }
+
+
+    // ── appeals/{appealId} ──────────────────────────────────────────────────
+    //
+    // A disabled user may contest a moderation action. The appellant may file
+    // an appeal attributed to themselves and read back their own; admins may
+    // read every appeal and resolve it (update). Nobody may delete.
+
+    match /appeals/{appealId} {
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow read: if isSignedIn()
+        && (resource.data.uid == request.auth.uid || isAdmin());
+      allow update: if isAdmin();
+      allow delete: if false;
     }
 
 

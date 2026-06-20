@@ -25,9 +25,10 @@ import logging
 import firebase_admin
 import firebase_admin.auth as fb_auth
 from firebase_admin import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from typing import Annotated
+from typing import Annotated, Optional
 
 from services.auth_guard import require_admin
 
@@ -36,6 +37,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin/users", tags=["admin-users"])
 
 _VALID_ROLES = {"user", "vendor", "moderator", "admin"}
+_VALID_ACCOUNT_STATUSES = {"active", "disabled"}
 
 
 class RoleUpdateRequest(BaseModel):
@@ -122,4 +124,105 @@ async def set_user_role(
         role=role,
         admin_claim=(role == "admin"),
         requires_relogin=True,
+    )
+
+
+# ── Account status (disable / re-enable a marketplace account) ──────────────────
+
+
+class AccountStatusRequest(BaseModel):
+    status: str
+    reason: Optional[str] = None
+
+
+class AccountStatusResponse(BaseModel):
+    uid: str
+    account_status: str
+    hidden_listings: int
+
+
+def _apply_account_status(uid: str, account_status: str, reason: Optional[str]) -> int:
+    """
+    Set users/{uid}.accountStatus server-side (the field is immutable to clients
+    via firestore.rules) and, when disabling, hide the seller's active listings.
+
+    Returns the number of listings hidden. We deliberately do NOT disable the
+    Firebase Auth login so the user can still sign in to read the moderation
+    notice and file an appeal.
+    """
+    db = firestore.client()
+    payload = {"accountStatus": account_status}
+    if account_status == "disabled":
+        payload["disabledReason"] = (reason or "").strip()
+    else:
+        payload["disabledReason"] = firestore.DELETE_FIELD
+    db.collection("users").document(uid).set(payload, merge=True)
+
+    hidden = 0
+    if account_status == "disabled":
+        batch = db.batch()
+        actives = (
+            db.collection("listings")
+            .where(filter=FieldFilter("sellerId", "==", uid))
+            .where(filter=FieldFilter("status", "==", "active"))
+            .stream()
+        )
+        for snap in actives:
+            batch.update(snap.reference, {"status": "hidden"})
+            hidden += 1
+        if hidden:
+            batch.commit()
+    return hidden
+
+
+@router.post("/{uid}/account-status", response_model=AccountStatusResponse)
+async def set_account_status(
+    uid: str,
+    req: AccountStatusRequest,
+    admin_uid: Annotated[str, Depends(require_admin)] = "",
+):
+    """
+    Disable or re-enable a marketplace account. Disabling sets accountStatus =
+    'disabled' (which firestore.rules' isNotDisabled() reads to block new
+    listings) and hides the seller's currently active listings.
+
+    Guarded by require_admin.
+    """
+    account_status = req.status.strip().lower()
+    if account_status not in _VALID_ACCOUNT_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid status '{req.status}'. Must be one of: "
+            f"{', '.join(sorted(_VALID_ACCOUNT_STATUSES))}.",
+        )
+
+    if uid == admin_uid and account_status == "disabled":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot disable your own account.",
+        )
+
+    if not firebase_admin._apps:  # type: ignore[attr-defined]
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service is not configured on this server.",
+        )
+
+    try:
+        hidden = await asyncio.to_thread(
+            _apply_account_status, uid, account_status, req.reason
+        )
+    except Exception as exc:
+        logger.exception("Failed to set account status for uid=%s", uid)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update account status: {exc}",
+        )
+
+    logger.info(
+        "Admin %s set uid=%s accountStatus=%s (hid %d listings)",
+        admin_uid, uid, account_status, hidden,
+    )
+    return AccountStatusResponse(
+        uid=uid, account_status=account_status, hidden_listings=hidden
     )

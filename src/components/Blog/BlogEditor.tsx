@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { BlogPost, BlogPostInput, BlogStatus, AuthorType } from '../../hooks/useBlogCMS';
 import { useBlogCMS } from '../../hooks/useBlogCMS';
 import { Timestamp } from 'firebase/firestore';
+import CyberSelect from '../CyberSelect';
 
 interface BlogEditorProps {
   isAdmin: boolean;
@@ -22,8 +23,6 @@ const ADMIN_STATUS_OPTIONS: { value: BlogStatus; label: string }[] = [
 
 const INPUT_CLS =
   'w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-primary/60 transition-colors';
-const SELECT_CLS =
-  'w-full bg-[#252526] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary/60 transition-colors';
 const LABEL_CLS =
   'block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2';
 
@@ -183,19 +182,25 @@ export default function BlogEditor({
           <div className={isAdmin ? 'grid grid-cols-2 gap-4' : ''}>
             <div>
               <label className={LABEL_CLS}>Category</label>
-              <select name="category" value={form.category} onChange={handleChange} className={SELECT_CLS}>
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+              <CyberSelect
+                value={form.category}
+                onChange={v => setForm(prev => ({ ...prev, category: v as BlogPost['category'] }))}
+                options={CATEGORIES.map(cat => ({ value: cat, label: cat }))}
+                className="w-full"
+              />
             </div>
             {isAdmin && (
               <div>
                 <label className={LABEL_CLS}>Author Type</label>
-                <select name="authorType" value={form.authorType} onChange={handleChange} className={SELECT_CLS}>
-                  <option value="user">Human Author</option>
-                  <option value="ai_agent">AI Agent</option>
-                </select>
+                <CyberSelect
+                  value={form.authorType}
+                  onChange={v => setForm(prev => ({ ...prev, authorType: v as AuthorType }))}
+                  options={[
+                    { value: 'user', label: 'Human Author' },
+                    { value: 'ai_agent', label: 'AI Agent' },
+                  ]}
+                  className="w-full"
+                />
               </div>
             )}
           </div>
@@ -213,11 +218,12 @@ export default function BlogEditor({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={LABEL_CLS}>Status</label>
-                <select name="status" value={form.status} onChange={handleChange} className={SELECT_CLS}>
-                  {ADMIN_STATUS_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+                <CyberSelect
+                  value={form.status}
+                  onChange={v => setForm(prev => ({ ...prev, status: v as BlogStatus }))}
+                  options={ADMIN_STATUS_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
+                  className="w-full"
+                />
               </div>
               {form.status === 'scheduled' && (
                 <div>

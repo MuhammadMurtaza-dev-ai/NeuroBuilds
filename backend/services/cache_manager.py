@@ -111,7 +111,12 @@ def setup_semantic_cache(client: "MongoClient", db_name: str) -> None:
         return
 
     try:
-        from langchain.globals import set_llm_cache
+        # set_llm_cache moved from `langchain.globals` to `langchain_core.globals`
+        # in LangChain 1.x. Prefer the new path; fall back for older installs.
+        try:
+            from langchain_core.globals import set_llm_cache
+        except ImportError:
+            from langchain.globals import set_llm_cache
         from services.embeddings import GeminiEmbeddings
 
         collection_name = os.getenv("MONGODB_CACHE_COLLECTION", _CACHE_COLLECTION)

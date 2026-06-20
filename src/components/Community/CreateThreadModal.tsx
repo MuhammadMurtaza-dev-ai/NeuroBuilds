@@ -3,6 +3,7 @@ import { X, ImagePlus, Loader } from 'lucide-react';
 import { COMMUNITY_CATEGORIES, COMMUNITY_COUNTRIES } from '../../hooks/useCommunity';
 import type { Thread } from '../../hooks/useCommunity';
 import { uploadImageToImgBB } from '../../utils/imageUploader';
+import CyberSelect from '../CyberSelect';
 
 const MAX_IMAGES = 4;
 
@@ -29,8 +30,6 @@ interface Props {
 
 const INPUT_CLS =
   'w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-primary/50 focus:outline-none transition-colors';
-const SELECT_CLS =
-  'w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-primary/50 focus:outline-none cursor-pointer transition-colors';
 
 export default function CreateThreadModal({ onClose, onSubmit, initialThread, availablePosts }: Props) {
   const isEditMode = !!initialThread;
@@ -48,10 +47,6 @@ export default function CreateThreadModal({ onClose, onSubmit, initialThread, av
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedPost = availablePosts?.find((p) => p.id === linkedBlogId);
-
-  const handleBlogSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setLinkedBlogId(e.target.value);
-  };
 
   const handleImageFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -139,21 +134,23 @@ export default function CreateThreadModal({ onClose, onSubmit, initialThread, av
               <label className="block text-xs font-mono text-gray-400 mb-1.5 uppercase tracking-wider">
                 Category
               </label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)} className={SELECT_CLS}>
-                {COMMUNITY_CATEGORIES.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              <CyberSelect
+                value={category}
+                onChange={setCategory}
+                options={COMMUNITY_CATEGORIES.map(c => ({ value: c.id, label: c.name }))}
+                className="w-full"
+              />
             </div>
             <div>
               <label className="block text-xs font-mono text-gray-400 mb-1.5 uppercase tracking-wider">
                 Country
               </label>
-              <select value={country} onChange={(e) => setCountry(e.target.value)} className={SELECT_CLS}>
-                {COMMUNITY_COUNTRIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+              <CyberSelect
+                value={country}
+                onChange={setCountry}
+                options={COMMUNITY_COUNTRIES.map(c => ({ value: c, label: c }))}
+                className="w-full"
+              />
             </div>
           </div>
 
@@ -234,14 +231,15 @@ export default function CreateThreadModal({ onClose, onSubmit, initialThread, av
                 Link a Blog Post
                 <span className="normal-case ml-1 text-gray-600 font-normal">(optional)</span>
               </label>
-              <select value={linkedBlogId} onChange={handleBlogSelect} className={SELECT_CLS}>
-                <option value="">— None —</option>
-                {availablePosts.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    [{p.category}] {p.title}
-                  </option>
-                ))}
-              </select>
+              <CyberSelect
+                value={linkedBlogId}
+                onChange={setLinkedBlogId}
+                options={[
+                  { value: '', label: '— None —' },
+                  ...availablePosts.map(p => ({ value: p.id, label: `[${p.category}] ${p.title}` })),
+                ]}
+                className="w-full"
+              />
               {selectedPost && (
                 <div className="mt-2 flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/30 bg-primary/5 text-xs font-mono text-primary">
                   <span className="material-symbols-outlined text-[14px]">link</span>

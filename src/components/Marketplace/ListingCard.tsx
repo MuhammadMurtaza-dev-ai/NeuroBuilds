@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { Listing } from '../../hooks/useStorage';
 
 interface Props {
@@ -67,7 +68,11 @@ export default function ListingCard({ listing, savedByCurrentUser, onClick, onSa
 
         {listing.status !== 'active' && (
           <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-            <span className={`px-4 py-2 rounded-full font-bold text-sm tracking-wider ${listing.status === 'sold' ? 'bg-red-500/80 text-white' : 'bg-yellow-500/80 text-black'}`}>
+            <span className={`px-4 py-2 rounded-full font-bold text-sm tracking-wider ${
+              listing.status === 'sold' ? 'bg-red-500/80 text-white' :
+              listing.status === 'expired' ? 'bg-orange-500/80 text-white' :
+              'bg-yellow-500/80 text-black'
+            }`}>
               {listing.status.toUpperCase()}
             </span>
           </div>
@@ -121,7 +126,13 @@ export default function ListingCard({ listing, savedByCurrentUser, onClick, onSa
 
         <div className="flex items-center gap-2 text-xs text-gray-500 border-t border-border-glass pt-2.5 mt-auto">
           <span className="material-symbols-outlined text-base leading-none">account_circle</span>
-          <span className="truncate">{listing.sellerName}</span>
+          <Link
+            to={`/seller/${listing.sellerId}`}
+            onClick={e => e.stopPropagation()}
+            className="truncate hover:text-primary transition-colors"
+          >
+            {listing.sellerName}
+          </Link>
           <span className="ml-auto shrink-0">{formatRelativeDate(listing.postedDate)}</span>
         </div>
       </div>

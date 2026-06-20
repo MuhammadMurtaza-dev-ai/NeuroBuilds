@@ -8,13 +8,15 @@ import { RoleAssignmentMatrix } from '../components/Admin/RoleAssignmentMatrix';
 import TelemetryPanel from '../components/Admin/TelemetryPanel';
 import BlogAutomatorPanel from '../components/Admin/BlogAutomatorPanel';
 import AdsManagerPanel from '../components/Admin/AdsManagerPanel';
+import MarketIntelPanel from '../components/Admin/MarketIntelPanel';
 
-type AdminTab = 'review' | 'moderation' | 'analytics' | 'roles' | 'telemetry' | 'automator' | 'ads';
+type AdminTab = 'review' | 'moderation' | 'analytics' | 'roles' | 'telemetry' | 'automator' | 'ads' | 'market';
 
 const TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: 'review',     label: 'Review Queue',        icon: 'rate_review' },
   { key: 'moderation', label: 'Platform Moderation', icon: 'shield' },
   { key: 'analytics',  label: 'Analytics',           icon: 'bar_chart' },
+  { key: 'market',     label: 'Market Intel',        icon: 'insights' },
   { key: 'roles',      label: 'Role Management',     icon: 'manage_accounts' },
   { key: 'automator',  label: 'Blog Automator',      icon: 'auto_awesome' },
   { key: 'ads',        label: 'Ads Manager',         icon: 'campaign' },
@@ -79,6 +81,7 @@ export default function AdminPage() {
           {activeTab === 'review'     && <ErrorBoundary inline><ReviewConsole /></ErrorBoundary>}
           {activeTab === 'moderation' && <ErrorBoundary inline><ModerationDesk /></ErrorBoundary>}
           {activeTab === 'analytics'  && <ErrorBoundary inline><AnalyticsDashboard /></ErrorBoundary>}
+          {activeTab === 'market'     && <ErrorBoundary inline><div className="glass-panel rounded-bento border border-white/10 p-6"><MarketIntelPanel /></div></ErrorBoundary>}
           {activeTab === 'telemetry'  && <ErrorBoundary inline><TelemetryPanel /></ErrorBoundary>}
           {activeTab === 'automator'  && <ErrorBoundary inline><BlogAutomatorPanel /></ErrorBoundary>}
           {activeTab === 'ads'        && <ErrorBoundary inline><div className="glass-panel rounded-bento border border-white/10 p-6"><AdsManagerPanel /></div></ErrorBoundary>}

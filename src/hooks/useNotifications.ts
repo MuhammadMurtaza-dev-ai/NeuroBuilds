@@ -17,7 +17,7 @@ import { db } from '../Firebase';
 
 export interface AppNotification {
   id: string;
-  type: 'blog_comment' | 'thread_reply' | 'marketplace_message' | 'ai_build_ready';
+  type: 'blog_comment' | 'thread_reply' | 'marketplace_message' | 'ai_build_ready' | 'listing_expired';
   title: string;
   body: string;
   isRead: boolean;

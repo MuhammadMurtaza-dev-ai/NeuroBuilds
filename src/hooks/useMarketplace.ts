@@ -22,12 +22,12 @@ import { writeAuditLog } from '../utils/auditLog';
 export interface MarketplaceFilters {
   category: string;
   search: string;
+  /** Province filter. */
+  province?: string;
   /** City-level filter — "All Locations" disables it. */
   location: string;
-  /** Area/neighbourhood — when set, drives the FastAPI geo-search. */
+  /** Area/neighbourhood — when set, drives Tier-1 exact area search. */
   area?: string;
-  /** Province filter — used for province-scoped browsing. */
-  province?: string;
   conditions: string[];
   listingType: string;
   priceMin: number | null;
@@ -39,9 +39,9 @@ export interface MarketplaceFilters {
 export const DEFAULT_FILTERS: MarketplaceFilters = {
   category: 'all',
   search: '',
+  province: '',
   location: 'All Locations',
   area: '',
-  province: '',
   conditions: [],
   listingType: 'all',
   priceMin: null,
@@ -50,8 +50,8 @@ export const DEFAULT_FILTERS: MarketplaceFilters = {
   newOnly: false,
 };
 
-const AI_URL = (import.meta.env.VITE_AI_SERVICE_URL as string | undefined) ?? 'http://localhost:8000';
 const LISTINGS_COLLECTION = 'listings';
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 const docToListing = (id: string, data: DocumentData): Listing => ({
   ...(data as Omit<Listing, 'id' | 'postedDate'>),
@@ -60,15 +60,14 @@ const docToListing = (id: string, data: DocumentData): Listing => ({
     data.postedDate instanceof Timestamp
       ? data.postedDate.toDate().toISOString()
       : String(data.postedDate ?? ''),
-});
-
-const apiToListing = (raw: Record<string, unknown>): Listing => ({
-  ...(raw as unknown as Listing),
-  id: ((raw.id ?? raw._id) as string | undefined) ?? '',
-  postedDate:
-    typeof raw.postedDate === 'string' ? raw.postedDate : new Date().toISOString(),
-  savedBy: Array.isArray(raw.savedBy) ? (raw.savedBy as string[]) : [],
-  views: typeof raw.views === 'number' ? raw.views : 0,
+  expiresAt:
+    data.expiresAt instanceof Timestamp
+      ? data.expiresAt.toDate().toISOString()
+      : typeof data.expiresAt === 'string' ? data.expiresAt : undefined,
+  lastActivatedAt:
+    data.lastActivatedAt instanceof Timestamp
+      ? data.lastActivatedAt.toDate().toISOString()
+      : typeof data.lastActivatedAt === 'string' ? data.lastActivatedAt : undefined,
 });
 
 export const useMarketplace = () => {
@@ -80,38 +79,123 @@ export const useMarketplace = () => {
   const [tierLabel, setTierLabel] = useState('');
 
   /**
-   * Geo-search via FastAPI — used when an area is selected.
-   * `area` must be a valid neighbourhood name from the backend's _AREA_CENTROIDS.
-   * `city` narrows the Tier-3 fallback to that city.
+   * Firestore-native cascading location search:
+   * Tier 1 — exact area match.
+   * Tier 2 — same city (falls back when area returns nothing).
+   * Tier 3 — country-wide (no city selected).
    */
-  const fetchByGeo = useCallback(async (area: string, city?: string) => {
+  const fetchByLocation = useCallback(async (opts: {
+    area?: string;
+    city?: string;
+    province?: string;
+  }) => {
     setLoading(true);
     setError(null);
     setListings([]);
+
+    const { area, city } = opts;
+
     try {
-      const qs = new URLSearchParams({ area, limit: '30' });
-      if (city) qs.set('city', city);
-      const res = await fetch(`${AI_URL}/api/marketplace/search?${qs}`);
-      if (!res.ok) throw new Error(`Geo-search failed (${res.status})`);
-      const json = await res.json() as {
-        tier: number;
-        tier_label: string;
-        listings: Record<string, unknown>[];
-      };
-      setListings((json.listings ?? []).map(apiToListing));
-      setTier(json.tier ?? 3);
-      setTierLabel(json.tier_label ?? '');
+      // Tier 1: exact area
+      if (area) {
+        const q1 = query(
+          collection(db, LISTINGS_COLLECTION),
+          where('country', '==', selectedCountry),
+          where('area', '==', area),
+          where('status', '==', 'active'),
+          orderBy('postedDate', 'desc'),
+          limit(50),
+        );
+        const snap1 = await getDocs(q1);
+        if (!snap1.empty) {
+          setListings(snap1.docs.map(d => docToListing(d.id, d.data())));
+          setTier(1);
+          setTierLabel(area);
+          return;
+        }
+
+        // Tier 1 miss — fall back to city or do legacy substring fallback
+        if (city) {
+          const q2 = query(
+            collection(db, LISTINGS_COLLECTION),
+            where('country', '==', selectedCountry),
+            where('city', '==', city),
+            where('status', '==', 'active'),
+            orderBy('postedDate', 'desc'),
+            limit(50),
+          );
+          const snap2 = await getDocs(q2);
+
+          // Also include legacy docs (no city field) via substring match
+          const fromCity = snap2.docs.map(d => docToListing(d.id, d.data()));
+          if (fromCity.length === 0) {
+            // Further legacy fallback: country-scoped + substring
+            const legacySnap = await getDocs(query(
+              collection(db, LISTINGS_COLLECTION),
+              where('country', '==', selectedCountry),
+              where('status', '==', 'active'),
+              orderBy('postedDate', 'desc'),
+              limit(100),
+            ));
+            const lc = city.toLowerCase();
+            const legacy = legacySnap.docs
+              .map(d => docToListing(d.id, d.data()))
+              .filter(l => !l.city && l.location.toLowerCase().includes(lc));
+            setListings(legacy);
+          } else {
+            setListings(fromCity);
+          }
+          setTier(2);
+          setTierLabel(`All of ${city}`);
+          return;
+        }
+      }
+
+      // Tier 2 entry: city selected, no area
+      if (city) {
+        const q2 = query(
+          collection(db, LISTINGS_COLLECTION),
+          where('country', '==', selectedCountry),
+          where('city', '==', city),
+          where('status', '==', 'active'),
+          orderBy('postedDate', 'desc'),
+          limit(50),
+        );
+        const snap2 = await getDocs(q2);
+        const fromCity = snap2.docs.map(d => docToListing(d.id, d.data()));
+
+        // Legacy docs: substring on the denormalized location string
+        const legacySnap = await getDocs(query(
+          collection(db, LISTINGS_COLLECTION),
+          where('country', '==', selectedCountry),
+          where('status', '==', 'active'),
+          orderBy('postedDate', 'desc'),
+          limit(100),
+        ));
+        const lc = city.toLowerCase();
+        const legacy = legacySnap.docs
+          .map(d => docToListing(d.id, d.data()))
+          .filter(l => !l.city && l.location.toLowerCase().includes(lc));
+
+        // Merge, deduplicate by id
+        const seen = new Set(fromCity.map(l => l.id));
+        const merged = [...fromCity, ...legacy.filter(l => !seen.has(l.id))];
+        setListings(merged);
+        setTier(2);
+        setTierLabel(merged.length > 0 ? city : `All of ${selectedCountry}`);
+        return;
+      }
+
+      // Tier 3: country-wide
+      await fetchByScope();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Search failed');
-    } finally {
+      setError(err instanceof Error ? err.message : 'Failed to load listings');
       setLoading(false);
     }
-  }, []);
+  }, [selectedCountry]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
-   * Scoped Firestore fetch — used when no area is selected.
-   * Returns the 30 most recent active listings for the selected country,
-   * optionally narrowed to a city (matched against the `location` string).
+   * Country-scoped Firestore fetch — used when no location filters are active.
    */
   const fetchByScope = useCallback(async (city?: string) => {
     setLoading(true);
@@ -123,13 +207,12 @@ export const useMarketplace = () => {
       const q = query(
         collection(db, LISTINGS_COLLECTION),
         where('country', '==', selectedCountry),
+        where('status', '==', 'active'),
         orderBy('postedDate', 'desc'),
-        limit(30),
+        limit(50),
       );
       const snap = await getDocs(q);
-      let mapped = snap.docs
-        .map(d => docToListing(d.id, d.data()))
-        .filter(l => l.status === 'active');
+      let mapped = snap.docs.map(d => docToListing(d.id, d.data()));
       if (city) {
         const lc = city.toLowerCase();
         mapped = mapped.filter(l => l.location.toLowerCase().includes(lc));
@@ -142,17 +225,65 @@ export const useMarketplace = () => {
     }
   }, [selectedCountry]);
 
+  /** Fetch all listings belonging to a specific seller (all statuses). */
+  const fetchMine = useCallback(async (uid: string) => {
+    setLoading(true);
+    setError(null);
+    setListings([]);
+    setTier(0);
+    setTierLabel('');
+    try {
+      const q = query(
+        collection(db, LISTINGS_COLLECTION),
+        where('sellerId', '==', uid),
+        orderBy('postedDate', 'desc'),
+      );
+      const snap = await getDocs(q);
+      setListings(snap.docs.map(d => docToListing(d.id, d.data())));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load your listings');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /** Fetch all listings saved by a specific user. */
+  const fetchSaved = useCallback(async (uid: string) => {
+    setLoading(true);
+    setError(null);
+    setListings([]);
+    setTier(0);
+    setTierLabel('');
+    try {
+      const q = query(
+        collection(db, LISTINGS_COLLECTION),
+        where('savedBy', 'array-contains', uid),
+        orderBy('postedDate', 'desc'),
+        limit(50),
+      );
+      const snap = await getDocs(q);
+      setListings(snap.docs.map(d => docToListing(d.id, d.data())));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load saved listings');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const createListing = async (
     listing: Omit<Listing, 'id' | 'views' | 'savedBy' | 'postedDate'>,
   ): Promise<Listing> => {
     try {
-      const postedDate = Timestamp.now();
+      const now = Timestamp.now();
+      const expiresAt = Timestamp.fromMillis(now.toMillis() + THIRTY_DAYS_MS);
       const docRef = await addDoc(collection(db, LISTINGS_COLLECTION), {
         ...listing,
         country: listing.country || selectedCountry,
         views: 0,
         savedBy: [],
-        postedDate,
+        postedDate: now,
+        expiresAt,
+        lastActivatedAt: now,
       });
       const newListing: Listing = {
         ...listing,
@@ -160,9 +291,10 @@ export const useMarketplace = () => {
         id: docRef.id,
         views: 0,
         savedBy: [],
-        postedDate: postedDate.toDate().toISOString(),
+        postedDate: now.toDate().toISOString(),
+        expiresAt: expiresAt.toDate().toISOString(),
+        lastActivatedAt: now.toDate().toISOString(),
       };
-      // Immutable audit trail (§2.2.4) — fire-and-forget, never blocks the create.
       writeAuditLog(listing.sellerId, 'listing.create', {
         targetId: docRef.id,
         targetType: 'listing',
@@ -181,6 +313,12 @@ export const useMarketplace = () => {
       const firestoreUpdates: DocumentData = { ...updates };
       if (updates.postedDate) {
         firestoreUpdates.postedDate = Timestamp.fromDate(new Date(updates.postedDate));
+      }
+      if (updates.expiresAt) {
+        firestoreUpdates.expiresAt = Timestamp.fromDate(new Date(updates.expiresAt));
+      }
+      if (updates.lastActivatedAt) {
+        firestoreUpdates.lastActivatedAt = Timestamp.fromDate(new Date(updates.lastActivatedAt));
       }
       await updateDoc(doc(db, LISTINGS_COLLECTION, id), firestoreUpdates);
       setListings(prev => prev.map(l => (l.id === id ? { ...l, ...updates } : l)));
@@ -238,7 +376,16 @@ export const useMarketplace = () => {
 
   const markAsSold = (id: string) => updateListing(id, { status: 'sold' });
   const markAsReserved = (id: string) => updateListing(id, { status: 'reserved' });
-  const reactivateListing = (id: string) => updateListing(id, { status: 'active' });
+
+  const reactivateListing = (id: string) => {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + THIRTY_DAYS_MS);
+    return updateListing(id, {
+      status: 'active',
+      lastActivatedAt: now.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+    });
+  };
 
   const getUserListings = (userId: string) =>
     listings.filter(l => l.sellerId === userId);
@@ -252,8 +399,10 @@ export const useMarketplace = () => {
     tier,
     tierLabel,
     selectedCountry,
-    fetchByGeo,
+    fetchByLocation,
     fetchByScope,
+    fetchMine,
+    fetchSaved,
     createListing,
     updateListing,
     deleteListing,

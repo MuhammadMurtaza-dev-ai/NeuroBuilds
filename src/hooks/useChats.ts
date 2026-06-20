@@ -31,11 +31,19 @@ export interface Conversation {
   groupName?: string;
 }
 
+export interface ListingRef {
+  id: string;
+  title: string;
+  image: string;
+}
+
 export interface Message {
   id: string;
   senderId: string;
   senderName: string;
   text: string;
+  /** Set when the message was sent from a listing's "Message Seller" composer. */
+  listingRef?: ListingRef;
   createdAt: Timestamp | null;
 }
 
@@ -59,6 +67,14 @@ const docToMessage = (id: string, data: DocumentData): Message => ({
   senderId: data.senderId ?? '',
   senderName: data.senderName ?? '',
   text: data.text ?? '',
+  listingRef:
+    data.listingRef && typeof data.listingRef === 'object'
+      ? {
+          id: data.listingRef.id ?? '',
+          title: data.listingRef.title ?? '',
+          image: data.listingRef.image ?? '',
+        }
+      : undefined,
   createdAt: data.createdAt ?? null,
 });
 

@@ -35,6 +35,7 @@ const Navbar: React.FC<NavbarProps> = ({
   const { theme, toggleTheme } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isCountryOpen, setIsCountryOpen] = useState(false);
   const location = useLocation();
 
   const toggleMobileMenu = () => {
@@ -81,18 +82,60 @@ const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Country Selector */}
-        <div className="hidden md:flex items-center gap-1.5 bg-black/8 dark:bg-black/20 border border-border-glass rounded-pill px-3 py-1.5">
-          <span className="material-symbols-outlined text-primary text-[16px]">public</span>
-          <select
-            value={selectedCountry}
-            onChange={e => setSelectedCountry(e.target.value)}
-            className="bg-transparent border-none text-white text-xs font-medium focus:ring-0 cursor-pointer appearance-none pr-1"
+        <div className="relative hidden md:block">
+          <button
+            type="button"
+            onClick={() => setIsCountryOpen(prev => !prev)}
+            aria-haspopup="listbox"
+            aria-expanded={isCountryOpen}
+            className="flex items-center gap-1.5 h-10 bg-black/8 dark:bg-black/20 border border-border-glass rounded-pill px-4 hover:border-primary/40 transition-colors"
           >
-            {COUNTRY_LIST.map(c => (
-              <option key={c} value={c} className="bg-bg-panel text-white">{c}</option>
-            ))}
-          </select>
-          <span className="material-symbols-outlined text-gray-500 text-[14px]">expand_more</span>
+            <span className="material-symbols-outlined text-primary text-[16px]">public</span>
+            <span className="text-white text-xs font-medium">{selectedCountry}</span>
+            <span
+              className={`material-symbols-outlined text-gray-500 text-[14px] transition-transform ${
+                isCountryOpen ? 'rotate-180' : ''
+              }`}
+            >
+              expand_more
+            </span>
+          </button>
+
+          {isCountryOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setIsCountryOpen(false)}
+              />
+              <div
+                role="listbox"
+                className="absolute right-0 top-11 w-48 max-h-72 overflow-y-auto glass-panel rounded-2xl border border-black/10 dark:border-white/10 shadow-2xl z-40 p-1.5"
+              >
+                {COUNTRY_LIST.map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    role="option"
+                    aria-selected={c === selectedCountry}
+                    onClick={() => {
+                      setSelectedCountry(c);
+                      setIsCountryOpen(false);
+                    }}
+                    className={`w-full px-3 py-2 text-left text-xs rounded-lg transition-colors flex items-center justify-between gap-2 ${
+                      c === selectedCountry
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-gray-300 hover:bg-black/5 dark:hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    {c}
+                    {c === selectedCountry && (
+                      <span className="material-symbols-outlined text-[16px]">check</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* AI Builder is now part of the main nav links (replaces Home) */}

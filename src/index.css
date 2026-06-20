@@ -175,6 +175,45 @@ html:not(.dark) .to-\[\#1e1e1e\]   { --tw-gradient-to: var(--bg-dark); }
   display: none;
 }
 
+/* ── Cyber-themed <select> ─────────────────────────────────── */
+.select-cyber {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-glass-strong);
+  border-radius: 0.75rem;
+  padding: 0.625rem 2.25rem 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--text-base);
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  /* Cyan chevron arrow */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230df2f2' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+}
+
+.select-cyber:hover {
+  border-color: rgba(13, 242, 242, 0.3);
+}
+
+.select-cyber:focus {
+  outline: none;
+  border-color: rgba(13, 242, 242, 0.55);
+  box-shadow: 0 0 0 3px rgba(13, 242, 242, 0.1), 0 0 8px rgba(13, 242, 242, 0.15);
+}
+
+.select-cyber:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.select-cyber option {
+  background-color: var(--bg-panel);
+  color: var(--text-base);
+}
+
 .mask-gradient {
   mask-image: linear-gradient(90deg, black 0%, black 85%, transparent 100%);
 }
@@ -215,5 +254,32 @@ a {
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+}
+
+/* ── Splash screen animations ─────────────────────────────── */
+@keyframes splashIconEnter {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+@keyframes splashIconPop {
+  0%   { transform: scale(1);   opacity: 1; }
+  35%  { transform: scale(1.4); opacity: 0.9; }
+  100% { transform: scale(3);   opacity: 0; }
+}
+
+@keyframes splashRingEnter {
+  from { transform: scale(0.4); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+@keyframes splashRingPop {
+  0%   { transform: scale(1);   opacity: 1; }
+  100% { transform: scale(4);   opacity: 0; }
+}
+
+@keyframes splashOverlayOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }
 

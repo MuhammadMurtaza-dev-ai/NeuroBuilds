@@ -1,6 +1,7 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { useState } from 'react'
 import './App.css'
+import SplashScreen from './components/SplashScreen'
 import { CountryProvider } from './context/CountryContext'
 import { ChatProvider } from './context/ChatContext'
 import { ThemeProvider } from './context/ThemeContext'
@@ -25,6 +26,7 @@ import PricingPage from './pages/PricingPage'
 import SharedBuildPage from './pages/SharedBuildPage'
 import AdminPage from './pages/AdminPage'
 import AdminProtectedRoute from './components/Admin/AdminProtectedRoute'
+import SellerProfilePage from './pages/SellerProfilePage'
 
 function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
@@ -42,6 +44,8 @@ function App() {
   }
 
   return (
+    <>
+    <SplashScreen />
     <ThemeProvider>
     <ErrorBoundary>
     <CountryProvider>
@@ -65,6 +69,7 @@ function App() {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/share" element={<SharedBuildPage />} />
+        <Route path="/seller/:uid" element={<SellerProfilePage onOpenAuth={openAuthModal} />} />
         <Route element={<AdminProtectedRoute />}>
           <Route path="/admin" element={<AdminPage />} />
         </Route>
@@ -75,6 +80,7 @@ function App() {
     </CountryProvider>
     </ErrorBoundary>
     </ThemeProvider>
+    </>
   )
 }
 

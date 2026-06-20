@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useReports } from '../../hooks/useReports';
 import type { Report } from '../../hooks/useReports';
+import { useAdminModeration } from '../../hooks/useAdminModeration';
+import { useAppeals } from '../../hooks/useAppeals';
 import type { Timestamp } from 'firebase/firestore';
 
 type FilterTab = 'open' | 'resolved' | 'all';
@@ -15,12 +17,40 @@ function formatDate(ts: Timestamp | null): string {
 const TARGET_BADGE: Record<Report['targetType'], string> = {
   listing: 'bg-primary/20 text-primary border-primary/30',
   thread:  'bg-accent-purple/20 text-accent-purple border-accent-purple/30',
+  user:    'bg-red-500/20 text-red-400 border-red-500/30',
 };
 
 export default function ModerationDesk() {
   const { reports, loading, error, resolveReport, hideTarget } = useReports();
+  const { setAccountStatus } = useAdminModeration();
+  const { appeals, resolveAppeal } = useAppeals();
   const [filter, setFilter] = useState<FilterTab>('open');
   const [busy, setBusy] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const openAppeals = appeals.filter(a => a.status === 'open');
+
+  const handleReinstate = async (appealId: string, uid: string) => {
+    setBusy(`appeal-${appealId}`);
+    setActionError(null);
+    try {
+      await setAccountStatus(uid, 'active');
+      await resolveAppeal(appealId);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to re-enable account.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleDismissAppeal = async (appealId: string) => {
+    setBusy(`appeal-${appealId}`);
+    try {
+      await resolveAppeal(appealId);
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const visible = reports.filter((r) => {
     if (filter === 'all') return true;
@@ -28,10 +58,27 @@ export default function ModerationDesk() {
   });
 
   const handleHide = async (report: Report) => {
+    if (report.targetType === 'user') return;
     setBusy(`hide-${report.id}`);
     try {
       await hideTarget(report.targetId, report.targetType);
       await resolveReport(report.id);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleDisable = async (report: Report) => {
+    if (!window.confirm(
+      `Disable ${report.targetTitle}'s marketplace account? Their active listings will be hidden. They can still sign in to appeal.`,
+    )) return;
+    setBusy(`disable-${report.id}`);
+    setActionError(null);
+    try {
+      await setAccountStatus(report.targetId, 'disabled', report.reason);
+      await resolveReport(report.id);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to disable account.');
     } finally {
       setBusy(null);
     }
@@ -54,6 +101,46 @@ export default function ModerationDesk() {
 
   return (
     <div>
+      {/* Open appeals from disabled users */}
+      {openAppeals.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-sm font-bold text-amber-400 mb-3 flex items-center gap-2">
+            <span className="material-symbols-outlined text-base leading-none">gavel</span>
+            Account Appeals ({openAppeals.length})
+          </h3>
+          <div className="flex flex-col gap-2">
+            {openAppeals.map(a => {
+              const appealBusy = busy === `appeal-${a.id}`;
+              return (
+                <div key={a.id} className="glass-panel rounded-xl border border-amber-500/20 p-4 flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-white">{a.displayName || a.uid.slice(0, 8)}</p>
+                    <p className="text-xs text-gray-400 mt-1 whitespace-pre-wrap break-words">{a.message}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => handleReinstate(a.id, a.uid)}
+                      disabled={appealBusy}
+                      className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-all disabled:opacity-50 flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">lock_open</span>
+                      {appealBusy ? 'Working…' : 'Re-enable'}
+                    </button>
+                    <button
+                      onClick={() => handleDismissAppeal(a.id)}
+                      disabled={appealBusy}
+                      className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all disabled:opacity-50"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Filter tabs */}
       <div className="flex items-center gap-2 mb-6">
         {TAB_LABELS.map(({ key, label }) => (
@@ -89,6 +176,12 @@ export default function ModerationDesk() {
       {error && (
         <p className="text-red-400 text-sm font-mono">{error}</p>
       )}
+      {actionError && (
+        <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-4">
+          <span className="material-symbols-outlined text-base leading-none">error</span>
+          {actionError}
+        </div>
+      )}
 
       {/* Empty */}
       {!loading && visible.length === 0 && (
@@ -118,6 +211,8 @@ export default function ModerationDesk() {
                 const isResolved = report.status === 'resolved';
                 const hideBusy = busy === `hide-${report.id}`;
                 const resolveBusy = busy === `resolve-${report.id}`;
+                const disableBusy = busy === `disable-${report.id}`;
+                const anyBusy = hideBusy || resolveBusy || disableBusy;
 
                 return (
                   <tr
@@ -149,17 +244,28 @@ export default function ModerationDesk() {
                         </span>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleHide(report)}
-                            disabled={hideBusy || resolveBusy}
-                            className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all disabled:opacity-50 flex items-center gap-1"
-                          >
-                            <span className="material-symbols-outlined text-[13px]">visibility_off</span>
-                            {hideBusy ? 'Hiding…' : `Hide ${report.targetType}`}
-                          </button>
+                          {report.targetType === 'user' ? (
+                            <button
+                              onClick={() => handleDisable(report)}
+                              disabled={anyBusy}
+                              className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50 flex items-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[13px]">block</span>
+                              {disableBusy ? 'Disabling…' : 'Disable account'}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleHide(report)}
+                              disabled={anyBusy}
+                              className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all disabled:opacity-50 flex items-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[13px]">visibility_off</span>
+                              {hideBusy ? 'Hiding…' : `Hide ${report.targetType}`}
+                            </button>
+                          )}
                           <button
                             onClick={() => handleResolve(report.id)}
-                            disabled={hideBusy || resolveBusy}
+                            disabled={anyBusy}
                             className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-all disabled:opacity-50 flex items-center gap-1"
                           >
                             <span className="material-symbols-outlined text-[13px]">check_circle</span>

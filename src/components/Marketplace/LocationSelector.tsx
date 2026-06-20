@@ -17,6 +17,7 @@ import {
   getAreasForCity,
 } from '../../data/pakistanGeoLocations';
 import { GLOBAL_LOCATIONS } from '../../data/globalLocations';
+import CyberSelect from '../CyberSelect';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,17 +31,7 @@ interface Props {
   country: string;
   value: LocationValue;
   onChange: (next: LocationValue) => void;
-  selectClassName?: string;
 }
-
-// ─── Shared styles ────────────────────────────────────────────────────────────
-
-const DEFAULT_SELECT_CLS =
-  'w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl ' +
-  'font-mono text-sm text-white ' +
-  'focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary/50 ' +
-  'disabled:opacity-40 disabled:cursor-not-allowed ' +
-  'transition-colors duration-150 cursor-pointer';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -74,8 +65,7 @@ function CityWideBanner({ city }: { city: string }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function LocationSelector({ country, value, onChange, selectClassName }: Props) {
-  const cls = selectClassName ?? DEFAULT_SELECT_CLS;
+export default function LocationSelector({ country, value, onChange }: Props) {
   const isPakistan = country === 'Pakistan';
 
   // ── Pakistan path — 3 dependent tiers ─────────────────────────────────────
@@ -103,34 +93,25 @@ export default function LocationSelector({ country, value, onChange, selectClass
 
           {/* Province */}
           <FieldWrapper label="Province / Territory">
-            <select
+            <CyberSelect
               value={value.province}
-              onChange={e => handleProvinceChange(e.target.value)}
-              className={cls}
-            >
-              <option value="" disabled hidden>Select Province...</option>
-              {provinces.map(p => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
+              onChange={handleProvinceChange}
+              options={provinces.map(p => ({ value: p, label: p }))}
+              placeholder="Select Province..."
+              className="w-full"
+            />
           </FieldWrapper>
 
           {/* City */}
           <FieldWrapper label="City">
-            <select
+            <CyberSelect
               value={value.city}
-              onChange={e => handleCityChange(e.target.value)}
+              onChange={handleCityChange}
+              options={cities.map(c => ({ value: c, label: c }))}
+              placeholder={value.province ? 'Select City...' : 'Waiting for Province...'}
               disabled={!value.province}
-              className={cls}
-            >
-              {!value.province
-                ? <option value="" disabled hidden>Waiting for Province...</option>
-                : <option value="" disabled hidden>Select City...</option>
-              }
-              {cities.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+              className="w-full"
+            />
           </FieldWrapper>
 
           {/* Area — always occupies the 3rd column to prevent layout shift */}
@@ -138,20 +119,14 @@ export default function LocationSelector({ country, value, onChange, selectClass
             ? <CityWideBanner city={value.city} />
             : (
               <FieldWrapper label="Area / Neighbourhood">
-                <select
+                <CyberSelect
                   value={value.area}
-                  onChange={e => handleAreaChange(e.target.value)}
+                  onChange={handleAreaChange}
+                  options={areas.map(a => ({ value: a, label: a }))}
+                  placeholder={value.city ? 'No Areas Available...' : 'Waiting for City...'}
                   disabled={!value.city || !hasAreas}
-                  className={cls}
-                >
-                  {!value.city
-                    ? <option value="" disabled hidden>Waiting for City...</option>
-                    : <option value="" disabled hidden>No Areas Available...</option>
-                  }
-                  {areas.map(a => (
-                    <option key={a} value={a}>{a}</option>
-                  ))}
-                </select>
+                  className="w-full"
+                />
               </FieldWrapper>
             )
           }
@@ -192,34 +167,25 @@ export default function LocationSelector({ country, value, onChange, selectClass
 
         {/* State / Province */}
         <FieldWrapper label="State / Province">
-          <select
+          <CyberSelect
             value={value.province}
-            onChange={e => handleStateChange(e.target.value)}
-            className={cls}
-          >
-            <option value="" disabled hidden>Select State...</option>
-            {states.map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+            onChange={handleStateChange}
+            options={states.map(s => ({ value: s, label: s }))}
+            placeholder="Select State..."
+            className="w-full"
+          />
         </FieldWrapper>
 
         {/* City */}
         <FieldWrapper label="City">
-          <select
+          <CyberSelect
             value={value.city}
-            onChange={e => handleGlobalCityChange(e.target.value)}
+            onChange={handleGlobalCityChange}
+            options={stateCities.map(c => ({ value: c, label: c }))}
+            placeholder={value.province ? 'Select City...' : 'Waiting for Province...'}
             disabled={!value.province}
-            className={cls}
-          >
-            {!value.province
-              ? <option value="" disabled hidden>Waiting for Province...</option>
-              : <option value="" disabled hidden>Select City...</option>
-            }
-            {stateCities.map(c => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
+            className="w-full"
+          />
         </FieldWrapper>
 
       </div>

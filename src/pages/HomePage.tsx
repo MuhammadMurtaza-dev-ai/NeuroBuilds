@@ -4,7 +4,6 @@ import {
   collection,
   query,
   where,
-  getCountFromServer,
   orderBy,
   limit,
   getDocs,
@@ -51,8 +50,6 @@ const FEED_CATEGORY_COLOR: Record<string, string> = {
 
 export default function HomePage() {
   const [inputValue, setInputValue] = useState('')
-  const [activeListingsCount, setActiveListingsCount] = useState<number | null>(null)
-  const [threadCount, setThreadCount] = useState<number | null>(null)
   const [featuredPost, setFeaturedPost] = useState<FeaturedPost | null>(null)
   const [featuredLoading, setFeaturedLoading] = useState(true)
   const [feedThreads, setFeedThreads] = useState<FeedThread[]>([])
@@ -60,22 +57,6 @@ export default function HomePage() {
   const [latestListings, setLatestListings] = useState<Listing[]>([])
   const [listingsLoading, setListingsLoading] = useState(true)
   const navigate = useNavigate()
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const [listingsSnap, threadsSnap] = await Promise.all([
-          getCountFromServer(query(collection(db, 'listings'), where('status', '==', 'active'))),
-          getCountFromServer(collection(db, 'threads')),
-        ])
-        setActiveListingsCount(listingsSnap.data().count)
-        setThreadCount(threadsSnap.data().count)
-      } catch {
-        // Silently degrade — counters remain null (show '--')
-      }
-    }
-    fetchStats()
-  }, [])
 
   useEffect(() => {
     const fetchFeatured = async () => {
@@ -200,9 +181,6 @@ export default function HomePage() {
     }
   }
 
-  const formatCount = (n: number | null) =>
-    n === null ? '--' : n.toLocaleString()
-
   return (
     <>
       <GradientBackground />
@@ -212,29 +190,20 @@ export default function HomePage() {
           {/* Build Intelligence — Sponsored Ad Carousel (replaces static hero card) */}
           <SponsoredAdBanner className="col-span-1 md:col-span-8 min-h-[300px]" placement="banner" />
 
-          {/* Live Stats Cards */}
-          <div className="col-span-1 md:col-span-4 flex flex-col gap-6">
-            <div className="glass-panel rounded-bento p-6 flex-1 flex flex-col justify-center border-l-4 border-l-primary hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-              <div className="flex justify-between items-start mb-2">
-                <p className="text-gray-400 text-sm font-medium uppercase tracking-wider">Active Listings</p>
-                <span className="material-symbols-outlined text-primary">developer_board</span>
-              </div>
-              <p className="text-4xl font-bold text-white tracking-tighter">
-                {formatCount(activeListingsCount)}
-              </p>
-              <p className="text-primary text-sm font-mono mt-1">&gt; Live from Firestore</p>
+          {/* Live Stats — merged panel: both counters share one container */}
+          <div className="col-span-1 md:col-span-4 flex flex-col">
+            <div className="glass-panel rounded-bento p-6 flex-1 flex flex-col justify-center">
+              <span className="inline-flex items-center gap-2 self-start text-[10px] font-mono text-primary px-3 py-1 rounded-full border border-primary/30 bg-primary/5 mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse inline-block"></span>
+                WELCOME TO NEUROBUILDS
+              </span>
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tighter text-white leading-tight">
+                Build smarter PCs with an{' '}
+                <span className="bg-gradient-to-r from-primary to-accent-purple bg-clip-text text-transparent">
+                  AI co-pilot
+                </span>.
+              </h1>
               <HomeFeedAdSlot accent="cyan" />
-            </div>
-            <div className="glass-panel rounded-bento p-6 flex-1 flex flex-col justify-center border-l-4 border-l-accent-purple hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-              <div className="flex justify-between items-start mb-2">
-                <p className="text-gray-400 text-sm font-medium uppercase tracking-wider">Forum Posts</p>
-                <span className="material-symbols-outlined text-accent-purple">forum</span>
-              </div>
-              <p className="text-4xl font-bold text-white tracking-tighter">
-                {formatCount(threadCount)}
-              </p>
-              <p className="text-accent-purple text-sm font-mono mt-1">&gt; Live from Firestore</p>
-              <HomeFeedAdSlot accent="purple" />
             </div>
           </div>
 
@@ -410,30 +379,6 @@ export default function HomePage() {
             )}
           </div>
         </section>
-
-        {/* CTA Section */}
-        <div className="flex justify-center">
-          <button
-            type="button"
-            onClick={() => navigate('/community')}
-            className="glass-panel rounded-full px-8 py-6 flex items-center justify-between group cursor-pointer hover:border-accent-purple/30 transition-all w-full max-w-lg text-left"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center group-hover:bg-accent-purple/20 transition-colors">
-                <span className="material-symbols-outlined text-gray-300 group-hover:text-accent-purple">
-                  people
-                </span>
-              </div>
-              <div>
-                <h4 className="font-bold text-white">Join Community</h4>
-                <p className="text-gray-400 text-sm">Connect with builders worldwide</p>
-              </div>
-            </div>
-            <span className="material-symbols-outlined text-gray-400 group-hover:text-accent-purple">
-              arrow_forward
-            </span>
-          </button>
-        </div>
       </main>
     </>
   )

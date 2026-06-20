@@ -12,6 +12,8 @@ export interface Advertisement {
   status: 'active' | 'inactive'
   accent: 'cyan' | 'purple'
   tagline?: string
+  /** Promotes the ad into the premium top block of the marketplace grid. */
+  featured?: boolean
 }
 
 export function useAdvertisements(placement: string) {

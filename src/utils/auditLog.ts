@@ -16,8 +16,13 @@ export type AuditAction =
   | 'listing.create'
   | 'listing.update'
   | 'listing.delete'
+  | 'listing.contact_reveal'
   | 'moderation.hide_target'
-  | 'moderation.resolve_report';
+  | 'moderation.resolve_report'
+  | 'moderation.disable_account'
+  | 'moderation.enable_account'
+  | 'report.create'
+  | 'appeal.create';
 
 export interface AuditMeta {
   targetId?: string;

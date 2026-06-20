@@ -51,17 +51,20 @@ On first run a QR code appears in the terminal — scan with WhatsApp → Settin
 React Router v7, flat route structure. An `<ErrorBoundary>` wraps the entire app tree. Provider tree inside:
 
 ```
-<ErrorBoundary>
-  <CountryProvider>
-    <ChatProvider>
-      <Navbar />           ← hidden on /share
-      <ChatSidebar />      ← global overlay, always mounted; hidden on /share
-      <AuthModal />        ← hidden on /share
-      <Routes />
-      <Footer />           ← hidden on /share
-    </ChatProvider>
-  </CountryProvider>
-</ErrorBoundary>
+<SplashScreen />           ← 860 ms fade-in/out overlay rendered before providers
+<ThemeProvider>
+  <ErrorBoundary>
+    <CountryProvider>
+      <ChatProvider>
+        <Navbar />           ← hidden on /share
+        <ChatSidebar />      ← global overlay, always mounted; hidden on /share
+        <AuthModal />        ← hidden on /share
+        <Routes />
+        <Footer />           ← hidden on /share
+      </ChatProvider>
+    </CountryProvider>
+  </ErrorBoundary>
+</ThemeProvider>
 ```
 
 The `/share` route uses a standalone layout — all chrome (Navbar, ChatSidebar, AuthModal, Footer) is suppressed via an `isSharePage` guard in `App.tsx`.
@@ -77,6 +80,7 @@ The `/share` route uses a standalone layout — all chrome (Navbar, ChatSidebar,
 | `/profile` | `ProfilePage` — display name, avatar URL, phone number, username (requires auth) |
 | `/admin` | `AdminPage` — admin workspace: review queue, moderation desk, analytics, role management (requires `role: 'admin'`) |
 | `/pricing` | `PricingPage` — renders `GradientBackground` + `Pricing` component |
+| `/seller/:uid` | `SellerProfilePage` — public seller profile: avatar, display name, verified badge, role badge, bio, member-since date, and a grid of the seller's active listings; requires sign-in (redirects to auth modal if unauthenticated); "Edit Profile" button visible only on own profile |
 | `/share` | `SharedBuildPage` — standalone read-only view of a shared AI build (no auth required) |
 | `/dev/seed` | `DevSeedPage` — dev-only (`import.meta.env.DEV` guard); seeds Firestore with Pakistan-focused threads and marketplace listings |
 
@@ -87,9 +91,10 @@ The `/share` route uses a standalone layout — all chrome (Navbar, ChatSidebar,
 - `threads` + `threads/{id}/replies` → `useCommunity`
 - `conversations` + `conversations/{id}/messages` → `useChats`
 - `blogs` + `blogs/{id}/comments` → `useBlogCMS` / `useBlogFeed` / `useBlogComments` / `useReviewQueue`
-- `reports` → `useReports`
-- `advertisements` → `useAdvertisements` — Firestore-backed dynamic ad slots; documents carry `title`, `sponsorName`, `targetUrl`, `imageUrl`, `placement`, `status: 'active' | 'inactive'`, `accent: 'cyan' | 'purple'`
-- `users/{uid}` → role (`role: 'user' | 'vendor' | 'moderator' | 'admin'`) + seller verification (`isVerified`, `phoneNumber`) + profile fields + `username`
+- `reports` → `useReports`; `appeals` → `useAppeals`; `audit_logs` → `src/utils/auditLog.ts`
+- `advertisements` → `useAdvertisements` — Firestore-backed dynamic ad slots; documents carry `title`, `sponsorName`, `targetUrl`, `imageUrl`, `placement`, `status: 'active' | 'inactive'`, `accent: 'cyan' | 'purple'`, `featured?: boolean` (admin-toggled; promotes the ad into the premium top block of the `marketplace_grid` placement)
+- `market_intel` (MongoDB, **not** Firestore) → weekly GenAI market-analysis snapshots (hot products, price ranges/movements, dead inventory); written by `services/market_intel.py`, surfaced in the Admin **Market Intel** tab, fed to the AI chat via `agent.py`'s `market_node`
+- `users/{uid}` → role (`role: 'user' | 'vendor' | 'moderator' | 'admin'`) + seller verification (`isVerified`, `phoneNumber`) + account moderation (`accountStatus: 'active' | 'disabled'`, `disabledReason`) + profile fields + `username`
 - `users/{uid}/aiSessions` → `useAISessions` — AI chat session history (newest-first, limit 20)
 - `users/{uid}/notifications` → `useNotifications` — in-app notifications (newest-first, limit 30)
 - `usernames/{username}` → username → UID reverse-lookup index (atomic claim/release via `writeBatch`)
@@ -131,8 +136,10 @@ Role changes in Firestore are immutable to non-admins via `firestore.rules`; the
 | `useBlogComments` | Firestore `blogs/{id}/comments` | Per-post comment thread; `addComment`, `deleteComment` (with Firestore transaction on `commentCount`) |
 | `useAdminRole` | Firestore `users/{uid}` | Checks `role === 'admin'` — gates blog editor and admin page |
 | `useUserRole` | Firestore `users/{uid}` | Full role fetch + `isAdmin`, `isModerator`, `isVendor` booleans |
-| `useReports` | Firestore `reports` | Platform moderation: `createReport`, `resolveReport`, `hideTarget` |
-| `useNotifications` | Firestore `users/{uid}/notifications` | Real-time in-app notifications (limit 30, newest-first); `markRead`, `markAllRead`; exports `writeNotification()` helper for writing to another user's subcollection |
+| `useReports` | Firestore `reports` | Platform moderation: `createReport` (supports `proofUrl` + `targetType: 'user'`), `resolveReport`, `hideTarget` |
+| `useAdminModeration` | FastAPI `/api/admin/users/{uid}/account-status` | Admin-only: `setAccountStatus(uid, 'active'\|'disabled', reason?)` — disable/re-enable a marketplace account server-side; writes an audit-log entry |
+| `useAppeals` | Firestore `appeals` | Admin-only live feed of moderation appeals (`orderBy createdAt desc`); `resolveAppeal(id)` |
+| `useNotifications` | Firestore `users/{uid}/notifications` | Real-time in-app notifications (limit 30, newest-first); `markRead`, `markAllRead`; exports `writeNotification()` helper for writing to another user's subcollection; notification type extended with `listing_expired` |
 | `useAIAssistant` | FastAPI / mock | AI chat with streaming, build extraction, voice input |
 | `useAISessions` | Firestore `users/{uid}/aiSessions` | Persist/load AI chat sessions; `saveSession(id, title, messages, activeBuild)`; real-time `onSnapshot`, ordered newest-first, limit 20 |
 | `useSellerVerification` | Firestore `users` + FastAPI `/api/verify` | Phone OTP flow via WhatsApp gateway; `sendVerificationCode` POSTs to `/api/verify/request`, `verifyOTP` POSTs to `/api/verify/confirm` |
@@ -140,16 +147,19 @@ Role changes in Firestore are immutable to non-admins via `firestore.rules`; the
 ### Notifications System (`src/components/Notifications/`)
 
 - **`NotificationBell.tsx`** — bell icon in Navbar showing unread count badge; click opens drawer; click-outside detection to dismiss
-- **`NotificationDrawer.tsx`** — dropdown listing last 30 notifications; mark-read on click; types: `blog_comment`, `thread_reply`, `marketplace_message`, `ai_build_ready`; navigation links per type
+- **`NotificationDrawer.tsx`** — dropdown listing last 30 notifications; mark-read on click; types: `blog_comment`, `thread_reply`, `marketplace_message`, `ai_build_ready`, `listing_expired`; navigation links per type
 - **`writeNotification(uid, data)`** — exported from `useNotifications`; any hook/service calls this to push a notification into another user's subcollection
 
 ### Ads System (`src/components/Ads/`)
 
-Three ad components, all following the cyberpunk design system. Two are backed by static data; one by Firestore.
+Ad components, all following the cyberpunk design system. Some are backed by static data; the dynamic slots (homepage feed, marketplace grid) are Firestore-backed.
 
 - **`SponsoredAdBanner.tsx`** — full-width rotating banner; crossfades every 5.5 s; progress bar at bottom tracks position; gradient icon fallback when `imageUrl` is empty; `accent` prop controls cyan/purple theming; defaults to `BANNER_ADS` from `sponsoredAds.ts`
 - **`SponsoredNodeMicro.tsx`** — one-line inline ticker ("SPON" tag + sponsor // tagline) that slides in from left every 4.2 s; used inside listing/thread cards; defaults to `MICRO_ADS`
 - **`HomeFeedAdSlot.tsx`** — same ticker format but Firestore-backed via `useAdvertisements('homepage_feed')`; shows a skeleton while loading; renders nothing if no active ads for that placement
+- **`Marketplace/MarketplaceAdCard.tsx`** — sponsored card shaped like a `ListingCard` (glass panel, 4:3 image with `campaign` icon fallback, SPONSORED badge, sponsor name + tagline, "Learn more" CTA → `targetUrl`); Firestore-backed via `useAdvertisements('marketplace_grid')`. `MarketplacePage` interleaves these into the classifieds grid (all-view only): **4 featured ads → 6 listings → 4 normal ads → remaining listings**. `featured` ads (admin-toggled) fill the premium top block; degrades gracefully with <4 featured ads, no ads, or <6 listings
+
+**Ad placements** (the `placement` string on each `advertisements` doc, managed in `AdsManagerPanel`): `banner`, `homepage_feed`, `marketplace_grid`, `listing_card`, `thread_card`.
 
 **Static data (`src/data/sponsoredAds.ts`):**
 - `SponsoredAd` interface: `id`, `imageUrl`, `targetUrl`, `altText`, `sponsorName`, `tagline`, `accent`
@@ -192,7 +202,12 @@ Features:
 
 ### Admin System (`src/pages/AdminPage.tsx` + `src/components/Admin/`)
 
-Admin-only workspace at `/admin`. Requires auth + `role: 'admin'` in `users/{uid}` (checked via `useAdminRole()`). Six tabbed sections (tab order: Review Queue → Platform Moderation → Analytics → Role Management → Blog Automator → Telemetry):
+Admin-only workspace at `/admin`. Requires auth + `role: 'admin'` in `users/{uid}` (checked via `useAdminRole()`). Tabbed sections (tab order: Review Queue → Platform Moderation → Analytics → **Market Intel** → Role Management → Blog Automator → Ads Manager → Telemetry):
+
+**MarketIntelPanel.tsx** — Weekly GenAI market-intelligence dashboard (`src/components/Admin/`)
+- "Run Analysis Now" button (+ mock toggle) → `POST /api/admin/market-intel/run` with a Firebase ID-token Bearer header; loads the latest snapshot via `GET /api/admin/market-intel/latest`
+- Renders the AI market brief, week-over-week price movements (▲/▼ Δ%), hot products (demand velocity), stale inventory, and per-category price ranges
+- Backed by the MongoDB `market_intel` collection (see Market Intelligence System)
 
 **ReviewConsole.tsx** — Blog post moderation queue
 - Uses `useReviewQueue` — server-side filtered snapshot; posts vanish from the queue the moment they are approved or rejected in Firestore
@@ -200,10 +215,12 @@ Admin-only workspace at `/admin`. Requires auth + `role: 'admin'` in `users/{uid
 - Approve → `approvePost(id, publishAt?)` — immediate publish or scheduled
 - Reject → `rejectPost(id, note)` — reverts to draft with `rejectionNote` shown to author
 
-**ModerationDesk.tsx** — User-reported content
+**ModerationDesk.tsx** — User-reported content + account appeals
 - Real-time list of `reports` collection, filterable by Open / Resolved / All
-- Actions: `hideTarget(targetId, targetType)` sets `status: 'hidden'` on the target listing/thread; `resolveReport(id)` closes the report
-- Report columns: Reporter, Reason, Target, Type, Date, Actions
+- Report columns: Reporter, Reason, Target, Type, Date, Actions; `targetType` badge styled per type (`listing` cyan, `thread` purple, `user` red)
+- Listing/thread reports: `hideTarget(targetId, targetType)` sets `status: 'hidden'` on the target; `resolveReport(id)` closes the report
+- **User reports** (`targetType: 'user'`): "Disable account" action calls `useAdminModeration.setAccountStatus(uid, 'disabled', reason)` (confirm dialog) — hides the seller's active listings server-side; cannot self-disable
+- **Account Appeals** banner at top — open `appeals` (via `useAppeals`); "Re-enable" calls `setAccountStatus(uid, 'active')` then `resolveAppeal`; "Dismiss" resolves the appeal without reinstating
 
 **AnalyticsDashboard.tsx** — Platform trends (horizontal bar charts)
 - Most Commented blogs — from `useBlogFeed(true)` sorted by `commentCount`
@@ -293,19 +310,25 @@ listingType: 'sell' | 'buy' | 'exchange'
 images: string[]          ← ImgBB URLs (uploaded via src/utils/imageUploader.ts)
 country, location
 sellerId, sellerName, sellerContact
-status: 'active' | 'sold' | 'reserved' | 'hidden'   ← 'hidden' set by moderation
+status: 'active' | 'sold' | 'reserved' | 'hidden' | 'expired'   ← 'hidden' by moderation; 'expired' by listings_maintenance sweep
+expiresAt?: Timestamp     ← set at create time to postedDate + 30 days; queried by the hourly sweep
 tags: string[], specs: Record<string, string>
 views, savedBy: string[]
 sku?: string, stockQty?: number   ← vendor inventory fields
 postedDate: Timestamp
 ```
 
+**Layout** (`MarketplacePage.tsx`, all-view): on large screens (`lg:`) all filter controls live in a sticky **left sidebar**; the classifieds grid fills the right column. On mobile the same controls collapse behind a "Filters & Sort" toggle. `mine`/`saved` views stay full-width with a simple search bar.
+
 **Components:**
+- **`MarketplaceControls.tsx`** — vertical control rail (search, province/city/area cascade, category list, sort, listing-type, price range, condition, quick filters). Single source of truth rendered both in the desktop sidebar and inside the mobile collapsible panel
+- **`MarketplaceAdCard.tsx`** — sponsored ad card interleaved into the grid (see Ads System)
 - **`CreateListingModal.tsx`** — full listing create/edit form; title, description, price, condition, listing type, location (country/city/area via `GLOBAL_LOCATIONS`), category, up to 6 ImgBB-uploaded images, SKU/stock quantity for vendors
 - **`ListingCard.tsx`** — grid preview card with thumbnail, price, condition badge, save toggle
-- **`ListingDetailModal.tsx`** — full detail view; image gallery, seller info with contact reveal, view tracking (excludes self-views), `VideoReviewCarousel`, save/contact/edit/delete actions
+- **`ListingDetailModal.tsx`** — full detail view; image gallery, seller info with contact reveal, view tracking (excludes self-views), `VideoReviewCarousel`, save/contact/edit/delete actions, "Report" button (opens `ReportModal`). Contact reveals are logged to the `listings/{id}/contactReveals/{viewerId}` subcollection (readable only by the listing owner/admin) so the seller can see who accessed their details
 - **`VideoReviewCarousel.tsx`** — YouTube review carousel; lazy-loads iframe on thumbnail click; backed by `youtubeService.ts`
-- **`SellerVerificationModal.tsx`** — two-step phone OTP verification modal for seller activation
+- **`SellerVerificationModal.tsx`** — seller activation flow: **step 0** is a required marketplace-rules agreement (renders `MARKETPLACE_RULES` from `src/data/marketplaceRules.ts`; checkbox gate; stamps `users/{uid}.rulesAcceptedAt`), then the two-step phone OTP verification (phone → 6-digit code)
+- **`ReportModal.tsx`** — report a listing or its seller; reason dropdown + free-text details + optional ImgBB proof screenshot; calls `useReports.createReport` with `targetType: 'listing' | 'user'` and `proofUrl`; opened from `ListingDetailModal` (non-owner, signed-in)
 - **`InventoryManager.tsx`** (in `Dashboard/`) — vendor-only table of active listings with real-time stock quantity increment/decrement controls and out-of-stock warnings
 
 Images upload to **ImgBB** via `src/utils/imageUploader.ts` (`uploadImageToImgBB`). Up to 6 images per listing. Requires `VITE_IMGBB_API_KEY`. Client-side filtering in `getFilteredListings()` — all active listings fetched once on mount.
@@ -342,7 +365,7 @@ Three real-time Firestore `onSnapshot` subscriptions fire in parallel on mount. 
 - **Saved Listings** — `listings` where `savedBy` array contains `uid`
 - **My Threads** — `threads` where `authorId == uid`, sorted by `createdAt` descending
 
-Redirects unauthenticated users to `/`.
+Renders `AccountStatusBanner` at the top (visible only when the user's `accountStatus == 'disabled'`). Redirects unauthenticated users to `/`.
 
 ### Moderation System
 
@@ -351,16 +374,24 @@ Redirects unauthenticated users to `/`.
 reporterId, reporterName
 reason: string
 targetId, targetTitle
-targetType: 'listing' | 'thread'
+targetType: 'listing' | 'thread' | 'user'
+proofUrl?: string          ← optional ImgBB proof screenshot
 status: 'open' | 'resolved'
 createdAt
 ```
 
 `useReports()`:
 - Real-time `onSnapshot` ordered by `createdAt` desc
-- `createReport(data)` — any authenticated user submits a report
+- `createReport(data)` — any authenticated user submits a report (strips `undefined` keys before write; logs `report.create` audit entry)
 - `resolveReport(reportId)` — admin marks resolved
 - `hideTarget(targetId, targetType)` — sets `status: 'hidden'` on the target document in `listings` or `threads`
+
+**Account moderation** (disable/appeal flow):
+- `appeals` collection: `{ uid, displayName, message, status: 'open' | 'resolved', createdAt }`. A disabled user files one appeal; `useAppeals` (admin-only read) feeds the appeals banner in `ModerationDesk`
+- `users/{uid}.accountStatus` (`'active' | 'disabled'`) + `disabledReason` — written **only** server-side by `POST /api/admin/users/{uid}/account-status` (`routers/admin_users.py`); disabling also batch-hides the seller's active listings. The Firebase Auth login is deliberately left enabled so the user can still sign in to read the notice and appeal
+- `AccountStatusBanner.tsx` (Dashboard) — shown when the signed-in user's `accountStatus == 'disabled'`; surfaces `disabledReason` and lets them file a single appeal
+
+**Audit trail** (`audit_logs` collection, `src/utils/auditLog.ts`): append-only, immutable (see `firestore.rules`). `writeAuditLog(actorId, action, meta)` is fire-and-forget. Actions: `listing.create/update/delete/contact_reveal`, `moderation.hide_target/resolve_report/disable_account/enable_account`, `report.create`, `appeal.create`.
 
 ### Services (`src/services/`)
 
@@ -417,6 +448,7 @@ Class component wrapping the entire app. On uncaught render error:
 |---------|------|---------|
 | `CountryContext` | `src/context/CountryContext.tsx` | Global country selection, persisted to `localStorage` (`nb_country`) |
 | `ChatContext` | `src/context/ChatContext.tsx` | P2P chat sidebar state, active conversation, `startOrGetConversation` |
+| `ThemeContext` | `src/context/ThemeContext.tsx` | Dark/light theme toggle; persisted to `localStorage` (`nb_theme`); exposes `{ theme, toggleTheme }` via `useTheme()`; `ThemeProvider` wraps the entire app in `App.tsx` (outermost provider after `SplashScreen`) |
 
 ### Design System
 
@@ -427,6 +459,10 @@ Cyberpunk/neon glassmorphism. Defined in `tailwind.config.js` + `src/index.css`:
 - **Z-index**: Navbar `z-50`, modals `z-50`, ChatSidebar backdrop `z-[60]`, ChatSidebar panel `z-[70]`
 
 New UI should follow: backdrop blur, neon shadows on hover, dark panel backgrounds, `font-mono` for terminal/data text.
+
+**Shared UI primitives:**
+- **`SplashScreen.tsx`** — brief loading overlay shown unconditionally on every cold load; rendered outside all providers at the top of `App.tsx`; 300 ms entrance → 200 ms idle → 360 ms exit; unmounts at 860 ms; uses keyframe animations defined in `index.css` (`splashIconEnter`, `splashIconPop`, `splashRingEnter`, `splashRingPop`, `splashOverlayOut`)
+- **`CyberSelect.tsx`** — cyberpunk-styled accessible dropdown (`role="listbox"`) that portals its option list via `createPortal(document.body)` to escape overflow-hidden containers; positions above or below the trigger depending on available viewport space; closes on outside click and any scroll; selected option shows a checkmark; exports `SelectOption` interface (`{ value, label }`)
 
 ### PWA Support
 
@@ -442,14 +478,17 @@ New UI should follow: backdrop blur, neon shadows on hover, dark panel backgroun
 - `isAdmin()` checks the JWT custom claim `request.auth.token.admin == true` (set by `promote_admin.py` via Firebase Admin SDK) — zero extra Firestore reads, cannot be forged by a client
 - `isModerator()` falls back to a Firestore doc read on `users/{uid}.role in ['moderator', 'admin']`
 - Authenticated users can read/write their own subcollections (`aiSessions`, `notifications`); any signed-in user may push a notification into another user's subcollection
-- `role`, `isVerified`, and `phoneNumber` fields in `users/{uid}` are immutable to non-admins (`isNotChangingTrustFields()` helper). `isVerified`/`phoneNumber` are written **only** server-side by `routers/verify.py` via the Admin SDK (which bypasses rules) — a client cannot self-grant the verified badge
-- `listings` create requires `isVerifiedSeller()` (a `get()` on the caller's `users/{uid}.isVerified == true`) — the seller-verification gate is enforced server-side, not just by the React modal overlay
+- `role`, `isVerified`, `phoneNumber`, `accountStatus`, and `disabledReason` fields in `users/{uid}` are immutable to non-admins (`isNotChangingTrustFields()` helper). `isVerified`/`phoneNumber` are written **only** server-side by `routers/verify.py`; `accountStatus`/`disabledReason` **only** by `routers/admin_users.py` — both via the Admin SDK (which bypasses rules), so a client cannot self-grant the verified badge or re-enable a disabled account
+- `listings` create requires `isVerifiedSeller()` (a `get()` on the caller's `users/{uid}.isVerified == true`) **and** `isNotDisabled()` (caller's `accountStatus != 'disabled'`) — the seller-verification gate is enforced server-side, not just by the React modal overlay
+- `listings/{id}/contactReveals/{viewerId}` — a buyer logs (under their own uid) that they revealed the seller's contact; readable only by the listing owner or an admin; immutable after create
+- `appeals` — a disabled user may create an appeal attributed to themselves and read their own; admins read all + `update` (resolve); delete forever denied
 - `isModerator()` falls back to a Firestore doc read on `users/{uid}.role in ['moderator', 'admin']`
 - Authenticated users can read/write their own subcollections (`aiSessions`, `notifications`); any signed-in user may push a notification into another user's subcollection
 - `threads` update rules are fine-grained: authors can edit content or mark `lifecycleStatus: 'solved'`; moderators can change `lifecycleStatus` only; anyone can make vote-only updates (`upvoteCount`, `upvotedBy`, etc.)
 - `reports` writable by any authenticated user; `read, update, delete` restricted to admins only (moderators cannot read reports)
 - `audit_logs` — append-only trail (§2.2.4): any signed-in user may create an entry attributed to themselves (`actorId == uid`, server `createdAt`); only admins may read; update/delete forever denied. Written by `src/utils/auditLog.ts` (`writeAuditLog`) on listing create + moderation actions (`hideTarget`, `resolveReport`)
 - `blogs` read: published posts are public; admins see all; authors see their own regardless of status
+- `advertisements` — public read (ads render on public pages, incl. anonymous visitors); create/update/delete restricted to admins (`isAdmin()`). The `featured` flag is set here by `AdsManagerPanel`, the sole authoring surface
 
 **`firestore.indexes.json`** — composite indexes:
 - `blogs`: `isPublished` ASC + `createdAt` DESC
@@ -457,7 +496,12 @@ New UI should follow: backdrop blur, neon shadows on hover, dark panel backgroun
 - `blogs`: `authorType` ASC + `createdAt` DESC (AI-agent post feed in `useBlogCMS`)
 - `listings`: `country` ASC + `postedDate` DESC
 - `listings`: `status` ASC + `postedDate` DESC (HomePage active-listings feed)
+- `listings`: `country` ASC + `area` ASC + `status` ASC + `postedDate` DESC (area-level marketplace filtering)
+- `listings`: `country` ASC + `city` ASC + `status` ASC + `postedDate` DESC (city-level marketplace filtering)
+- `listings`: `sellerId` ASC + `postedDate` DESC (`SellerProfilePage` active-listings query)
+- `listings`: `status` ASC + `expiresAt` ASC (listings_maintenance expiry sweep)
 - `conversations`: `participants` (array) + `updatedAt` DESC; `participants` (array) + `listingId` ASC
+- `appeals`: `uid` ASC + `createdAt` DESC (a user's own latest-appeal lookup in `AccountStatusBanner`)
 
 ### FastAPI Backend (`backend/`)
 
@@ -472,17 +516,23 @@ The backend is a standalone Python service — **must be run separately** from t
 - `GET /api/admin/gemini/status` — sanitised Gemini key-pool snapshot (keys redacted); requires `require_admin`
 - `POST /api/admin/blog-automator/trigger` — queues AI blog generation pipeline; requires `require_admin`
 - `GET /api/admin/blog-automator/jobs` — lists recent automator jobs newest-first; requires `require_admin`
-- `POST /api/admin/users/{uid}/role` — assigns a role; sets BOTH `users/{uid}.role` AND the JWT `admin` custom claim (and revokes the target's refresh tokens) so the Firestore role and the rules' `isAdmin()` claim stay in sync; requires `require_admin` (`routers/admin_users.py`)
+- `POST /api/admin/users/{uid}/role` — assigns a role; sets BOTH `users/{uid}.role` AND the JWT `admin` custom claim (and revokes the target's refresh tokens) so the Firestore role and the rules' `isAdmin()` claim stay in sync; rejects self-demotion of the last admin; requires `require_admin` (`routers/admin_users.py`)
+- `POST /api/admin/users/{uid}/account-status` — body `{ status: 'active' | 'disabled', reason? }`; sets `users/{uid}.accountStatus` (immutable to clients via rules) and, when disabling, batch-hides the seller's active listings; rejects self-disable; requires `require_admin` (`routers/admin_users.py`)
 - `GET /api/components/reviews` — YouTube review proxy with server-side MongoDB TTL cache (24 hours — matches SRS §2.2.1 / UC-04); query param: `component` (e.g. `RTX 4070`); returns up to 3 `VideoItem` objects; falls back to empty array if `YOUTUBE_API_KEY` absent or on quota/403, in which case the frontend `VideoReviewCarousel` renders a "Search on YouTube" deep link; cache stored in `youtube_cache` collection with TTL index on `cachedAt` (migrated via `collMod` if a stale TTL exists); no auth required (`routers/components.py`)
+- `POST /api/admin/market-intel/run` — body `{ mock?: bool }`; runs the market-intelligence analysis now (collect Firestore listings → deterministic aggregate → Gemini summary → persist) and returns the snapshot; requires `require_admin` (`routers/market_intel.py`)
+- `GET /api/admin/market-intel/latest` — returns the most recent `market_intel` snapshot (or null); requires `require_admin` (`routers/market_intel.py`)
+- `POST /api/admin/listings/sweep-expired` — manually triggers the listing expiry sweep (also runs hourly via background task); sets `status: 'expired'` on active listings past their `expiresAt` / older than 30 days; sends `listing_expired` notification to each seller; writes `listing.expired` audit log; requires `require_admin` (`routers/listings_maintenance.py`)
 
 **Firebase Admin SDK** is initialised in the FastAPI lifespan handler. Set `FIREBASE_SERVICE_ACCOUNT_PATH` to a service-account JSON file. On GCP the env var may be omitted — Application Default Credentials are used as a fallback. Required by all `require_admin`-guarded endpoints; non-fatal at startup (admin endpoints return 503 until resolved).
 
-**LangGraph pipeline** (`agent.py`) — 6 nodes executed sequentially:
+**LangGraph pipeline** (`agent.py`) — nodes executed sequentially:
 
 ```
-START → search_node → rag_node → intent_node → selection_node
+START → search_node → rag_node → market_node → intent_node → selection_node
       → compatibility_node → response_node → END
 ```
+
+`market_node` reads the latest weekly `market_intel` snapshot from MongoDB (via `services.market_intel.read_latest` / `format_brief`) into `state.market_context`, a read-only reference block surfaced in `_build_deterministic_context()` under "MARKET INTELLIGENCE". Like the RAG/search context, `response_node` may cite it but must not do arithmetic on it. Degrades to "" when no snapshot exists.
 
 #### Deterministic / Probabilistic Architecture Split
 
@@ -536,7 +586,7 @@ This is the core architectural guarantee of the system. Every node belongs to ex
 }
 ```
 
-**`BuildState`** TypedDict: `messages`, `active_build`, `search_context`, `rag_context`, `build_intent`, `selection_report`, `compatibility_report`.
+**`BuildState`** TypedDict: `messages`, `active_build`, `search_context`, `rag_context`, `market_context`, `build_intent`, `selection_report`, `compatibility_report`.
 
 **Streaming**: `run_pipeline()` uses `astream_events(version="v2")` and yields only `on_chat_model_stream` events from the `response` node. `main.py` wraps this in `StreamingResponse` with `media_type="text/plain"` and `X-Accel-Buffering: no`. The frontend consumes raw bytes directly — no SSE framing.
 
@@ -555,6 +605,7 @@ This is the core architectural guarantee of the system. Every node belongs to ex
 | `MONGODB_COLLECTION` | Defaults to `hardware_specs` |
 | `MONGODB_VECTOR_INDEX` | Defaults to `vector_index` |
 | `MONGODB_CATALOG_COLLECTION` | Defaults to `hardware_catalog` — used by `ingest_hardware.py` and `/api/hardware/lookup` |
+| `MONGODB_MARKET_INTEL_COLLECTION` | Defaults to `market_intel` — weekly market-intelligence snapshots (`services/market_intel.py`); ~8-day TTL on `createdAt` |
 | `MONGODB_LISTINGS_COLLECTION` | Defaults to `listings` — used by `GET /api/marketplace/search` |
 | `CORS_ORIGINS` | Comma-separated allowed origins; defaults to `http://localhost:5173,http://127.0.0.1:5173` |
 | `MONGODB_CACHE_COLLECTION` | Defaults to `semantic_cache` — used by `cache_manager.py`; requires a `semantic_cache_index` vector search index (768 dims, cosine) created manually in Atlas UI |
@@ -641,6 +692,20 @@ python scripts/ingest_rag_documents.py --dry-run       # parse + Mongo diff, no 
 - Tier 1: exact `area` field match; Tier 2: `$nearSphere` within 8 km of area centroid (requires `2dsphere` index on `geo` field); Tier 3: city-wide fallback
 - Embeds `_AREA_CENTROIDS` dict (7 cities — Islamabad, Lahore, Karachi, Peshawar, Quetta, Gilgit, Muzaffarabad) that mirrors `src/data/pakistanGeoLocations.ts`
 - `ensure_indexes(col)` — creates `2dsphere` + compound indexes; safe to call on every startup
+
+**`market_intel.py`** — weekly GenAI market-intelligence engine (deterministic-then-narrate, Layer B → Layer D):
+- `collect_listings(now)` — reads new (24 h) + active-corpus listings from Firestore via the Admin SDK
+- `aggregate(new, corpus, prev_snapshot, now)` — **pure Python, no LLM**: per-category price ranges (min/median/avg/max), hot products (view velocity over recent listings), dead inventory (≥14 d old + ≤3 views), and price movements (current vs previous snapshot median → Δ% + direction)
+- `summarize(aggregates, mock?)` — Gemini narration via `gemini_client.generate_text` (returns "" when no API key; `mock=True` uses a templated summary)
+- `read_latest` / `write_snapshot` — MongoDB `market_intel` collection (env `MONGODB_MARKET_INTEL_COLLECTION`, default `market_intel`); `ensure_market_intel_index` sets an **~8-day TTL** on `createdAt` (one day past the weekly cadence so the prior snapshot survives for price-diffing; `collMod` migration on conflict)
+- `run_market_analysis(client, db, *, mock, generated_by)` — full collect→aggregate→summarize→persist orchestrator; `format_brief(snapshot)` renders the compact brief consumed by `agent.py`'s `market_node`
+- Driven by `routers/market_intel.py` (admin trigger + GET latest) and a weekly background `asyncio` loop started in `main.py` lifespan (`start_market_intel_loop`, needs both the Admin SDK and MongoDB)
+
+**`listings_maintenance.py`** (`backend/routers/`) — 30-day listing auto-expiry:
+- `run_expired_sweep()` — async function that sweeps active listings and flips them to `status: 'expired'`; two-pass: Stream 1 queries `expiresAt <= now` (new docs); Stream 2 falls back to `postedDate <= now - 30 days` (legacy docs without `expiresAt`); for each expired doc: updates status, writes a `listing_expired` notification to the seller's subcollection (via Admin SDK), and appends a `listing.expired` audit log entry with `actorId: 'system'`
+- `start_background_sweep()` — long-running asyncio loop (hourly, sleeps first to avoid blocking lifespan); called once from FastAPI lifespan startup in `main.py`
+- `POST /api/admin/listings/sweep-expired` — manual trigger for testing; requires `require_admin`
+- `expiresAt` is stamped at listing create time by `useMarketplace.createListing` (`postedDate + 30 days` as a Firestore `Timestamp`); `MarketplacePage` renders a badge showing the expiry date on the seller's own listings view
 
 **`cache_manager.py`** — MongoDB Atlas LLM semantic cache:
 - `setup_semantic_cache(client, db_name)` — binds `MongoDBAtlasSemanticCache` globally so all LangChain LLM calls (`intent_node`, `response_node`) are auto-intercepted
@@ -739,7 +804,7 @@ Standalone TypeScript service — resilient Gemini API key rotation and load-bal
 - **`langchain-mongodb` package**: Listed as optional in `requirements.txt`; `rag_node` falls back to `langchain-community` if not installed.
 - **Blog scheduled publishing**: `status: 'scheduled'` posts with a future `publishAt` are not auto-published — no cron or Cloud Function triggers the transition; currently requires manual admin action.
 - **scoringEngine integration**: `src/utils/scoringEngine.ts` exists but is not yet wired into any UI component.
-- **Notification triggers**: `writeNotification()` is exported but not yet called from marketplace/community/blog hooks — notifications are not yet generated on user actions.
+- **Notification triggers**: `writeNotification()` is exported but not yet called from marketplace/community/blog hooks — user-action notifications (new reply, new message, blog comment) are not yet generated. Exception: `listing_expired` notifications **are** sent server-side by `listings_maintenance.py` via the Admin SDK when the hourly sweep expires a listing.
 - **LLM semantic cache**: `cache_manager.setup_semantic_cache()` is wired into `main.py` startup but requires a `semantic_cache_index` Atlas Vector Search index to be created manually before the first cached call.
 - **Blog Automator UI**: `src/components/Admin/BlogAutomatorPanel.tsx` is wired into `AdminPage.tsx` as tab 5. Backend pipeline at `backend/routers/blog_automator.py` is live.
 - **Location search API exposure**: `GET /api/marketplace/search?area=&city=&limit=` is live in `main.py`. The frontend still uses Firestore client-side filtering; wire it to this endpoint when ready.
