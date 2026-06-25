@@ -1,21 +1,10 @@
 import { useState } from 'react';
 import { useBlogComments } from '../../hooks/useBlogComments';
 import { useAuth } from '../../hooks/useAuth';
-import type { Timestamp } from 'firebase/firestore';
+import { timeAgo } from '../../utils/datetime';
 
 interface Props {
   postId: string;
-}
-
-function timeAgo(ts: Timestamp | null): string {
-  if (!ts) return '';
-  const diff = Date.now() - ts.toMillis();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
 }
 
 function initials(name: string): string {

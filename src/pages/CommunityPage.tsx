@@ -126,9 +126,6 @@ export default function CommunityPage({ onOpenAuth }: Props) {
     body: string,
     category: string,
     country: string,
-    _linkedBlogId?: string,
-    _linkedBlogTitle?: string,
-    _images?: string[]
   ) => {
     if (!editingThread) return;
     await updateThread(editingThread.id, { title, body, category, country });

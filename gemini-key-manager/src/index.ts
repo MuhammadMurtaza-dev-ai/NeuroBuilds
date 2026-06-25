@@ -85,10 +85,6 @@ function printStats(manager: KeyRotationManager): void {
   );
   console.log('  ' + '─'.repeat(52));
   for (const s of manager.getStats()) {
-    const status =
-      s.status === 'healthy'
-        ? `${C.green}healthy${C.reset}`
-        : `${C.red}throttled${C.reset}`;
     const eta =
       s.throttledUntil !== null
         ? ` (${Math.max(0, Math.ceil((s.throttledUntil - Date.now()) / 1000))}s left)`

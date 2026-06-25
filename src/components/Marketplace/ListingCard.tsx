@@ -1,11 +1,15 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import type { Listing } from '../../hooks/useStorage';
+import { formatRelativeDate } from '../../utils/datetime';
 
 interface Props {
   listing: Listing;
   savedByCurrentUser: boolean;
-  onClick: () => void;
-  onSave: (e: React.MouseEvent) => void;
+  // Receive the listing back so the parent can pass *stable* (useCallback'd)
+  // handlers — otherwise per-listing closures defeat React.memo on every render.
+  onClick: (listing: Listing) => void;
+  onSave: (e: React.MouseEvent, listing: Listing) => void;
 }
 
 const CONDITION_COLORS: Record<Listing['condition'], string> = {
@@ -20,27 +24,17 @@ const LISTING_TYPE_ICONS: Record<Listing['listingType'], string> = {
   exchange: 'swap_horiz',
 };
 
-function formatRelativeDate(dateStr: string): string {
-  const diffMs = Date.now() - new Date(dateStr).getTime();
-  const diffDays = Math.floor(diffMs / 86400000);
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays}d ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-export default function ListingCard({ listing, savedByCurrentUser, onClick, onSave }: Props) {
+function ListingCard({ listing, savedByCurrentUser, onClick, onSave }: Props) {
   const isOutOfStock = listing.status === 'active' && (listing.stockQuantity ?? -1) === 0;
 
   return (
     <div
-      onClick={onClick}
+      onClick={() => onClick(listing)}
       className="glass-panel rounded-[2rem] border border-border-glass hover:border-primary/50 transition-all group flex flex-col cursor-pointer relative overflow-hidden"
     >
       {/* Save button */}
       <button
-        onClick={onSave}
+        onClick={(e) => onSave(e, listing)}
         aria-label={savedByCurrentUser ? 'Remove from saved' : 'Save listing'}
         className="absolute top-4 right-4 z-10 p-2 glass-panel rounded-full border border-black/10 dark:border-white/10 hover:border-primary/50 transition-all backdrop-blur-sm"
       >
@@ -139,3 +133,7 @@ export default function ListingCard({ listing, savedByCurrentUser, onClick, onSa
     </div>
   );
 }
+
+// Memoized so a marketplace search keystroke only re-renders cards whose props
+// actually change (handlers are stabilized with useCallback at the call site).
+export default memo(ListingCard);

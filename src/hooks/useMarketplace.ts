@@ -18,6 +18,7 @@ import { db } from '../Firebase';
 import type { Listing } from './useStorage';
 import { useCountry } from '../context/CountryContext';
 import { writeAuditLog } from '../utils/auditLog';
+import { tsToISO } from '../utils/firestore';
 
 export interface MarketplaceFilters {
   category: string;
@@ -56,10 +57,7 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const docToListing = (id: string, data: DocumentData): Listing => ({
   ...(data as Omit<Listing, 'id' | 'postedDate'>),
   id,
-  postedDate:
-    data.postedDate instanceof Timestamp
-      ? data.postedDate.toDate().toISOString()
-      : String(data.postedDate ?? ''),
+  postedDate: tsToISO(data.postedDate),
   expiresAt:
     data.expiresAt instanceof Timestamp
       ? data.expiresAt.toDate().toISOString()

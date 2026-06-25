@@ -324,7 +324,7 @@ postedDate: Timestamp
 - **`MarketplaceControls.tsx`** — vertical control rail (search, province/city/area cascade, category list, sort, listing-type, price range, condition, quick filters). Single source of truth rendered both in the desktop sidebar and inside the mobile collapsible panel
 - **`MarketplaceAdCard.tsx`** — sponsored ad card interleaved into the grid (see Ads System)
 - **`CreateListingModal.tsx`** — full listing create/edit form; title, description, price, condition, listing type, location (country/city/area via `GLOBAL_LOCATIONS`), category, up to 6 ImgBB-uploaded images, SKU/stock quantity for vendors
-- **`ListingCard.tsx`** — grid preview card with thumbnail, price, condition badge, save toggle
+- **`ListingCard.tsx`** — grid preview card with thumbnail, price, condition badge, save toggle. Wrapped in `React.memo`; `onClick`/`onSave` receive the listing back so `MarketplacePage` can pass stable `useCallback` handlers (inline closures would change identity every render and defeat the memo). `MarketplacePage` also debounces `filters.search` by 250 ms into `debouncedSearch` before feeding the filter/sort `useMemo`, so a keystroke doesn't recompute the whole grid
 - **`ListingDetailModal.tsx`** — full detail view; image gallery, seller info with contact reveal, view tracking (excludes self-views), `VideoReviewCarousel`, save/contact/edit/delete actions, "Report" button (opens `ReportModal`). Contact reveals are logged to the `listings/{id}/contactReveals/{viewerId}` subcollection (readable only by the listing owner/admin) so the seller can see who accessed their details
 - **`VideoReviewCarousel.tsx`** — YouTube review carousel; lazy-loads iframe on thumbnail click; backed by `youtubeService.ts`
 - **`SellerVerificationModal.tsx`** — seller activation flow: **step 0** is a required marketplace-rules agreement (renders `MARKETPLACE_RULES` from `src/data/marketplaceRules.ts`; checkbox gate; stamps `users/{uid}.rulesAcceptedAt`), then the two-step phone OTP verification (phone → 6-digit code)
@@ -402,6 +402,13 @@ createdAt
 - Falls back to empty array if `VITE_YOUTUBE_API_KEY` is absent or request fails
 
 ### Utilities (`src/utils/`)
+
+**datetime.ts** — shared relative-time formatters (replaces the per-file `timeAgo`/`formatRelativeDate` copies that were duplicated across components/hooks):
+- `timeAgo(value)` — compact relative time ("just now", "5m ago", "3h ago", "2d ago"); accepts an ISO string **or** a Firestore `Timestamp` (or null/undefined → `''`)
+- `formatRelativeDate(dateStr)` — calendar-style ("Today", "Yesterday", "3d ago", "2w ago", then "Mon D"); used by `ListingCard`
+- `useCommunity.ts` re-exports `timeAgo` (`export { timeAgo } from '../utils/datetime'`) for back-compat with existing `import { timeAgo } from '../hooks/useCommunity'` call sites
+
+**firestore.ts** — `tsToISO(v)` — normalises a Firestore field (`Timestamp` | string | null/undefined) to an ISO date string; replaces the `x instanceof Timestamp ? x.toDate().toISOString() : String(x ?? '')` pattern duplicated across the doc converters in `useMarketplace`/`useCommunity`
 
 **imageUploader.ts** — `uploadImageToImgBB(file)` → ImgBB public URL. Requires `VITE_IMGBB_API_KEY`.
 
