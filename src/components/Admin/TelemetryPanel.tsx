@@ -249,15 +249,16 @@ export default function TelemetryPanel() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {(
             [
-              { label: 'YouTube Reviews', icon: 'smart_display', iconColor: 'text-red-400', data: cache.youtube },
-              { label: 'GNews Headlines', icon: 'newspaper',     iconColor: 'text-blue-400', data: cache.gnews  },
-            ] as const
-          ).map(({ label, icon, iconColor, data }) => (
+              { label: 'YouTube Reviews', icon: 'smart_display', iconColor: 'text-red-400', data: cache.youtube, note: 'Component review videos in listing/build pages' },
+              { label: 'GNews Headlines', icon: 'newspaper', iconColor: 'text-blue-400', data: cache.gnews, note: 'Homepage community feed + country news fallback' },
+            ] as { label: string; icon: string; iconColor: string; data: { hits: number; misses: number }; note: string }[]
+          ).map(({ label, icon, iconColor, data, note }) => (
             <div key={label} className="bg-white/5 rounded-xl p-4 border border-white/5">
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-1">
                 <span className={`material-symbols-outlined text-[18px] ${iconColor}`}>{icon}</span>
                 <p className="text-sm font-bold text-white">{label}</p>
               </div>
+              <p className="text-[10px] text-gray-600 font-mono mb-3">{note}</p>
               {data.hits + data.misses === 0 ? (
                 <p className="text-xs text-gray-500 font-mono">No requests recorded yet</p>
               ) : (

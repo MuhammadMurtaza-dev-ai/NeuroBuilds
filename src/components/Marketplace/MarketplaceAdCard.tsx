@@ -1,14 +1,10 @@
+import { useState } from 'react';
 import type { Advertisement } from '../../hooks/useAdvertisements';
 
 interface Props {
   ad: Advertisement;
 }
 
-/**
- * Sponsored ad card shaped like a ListingCard so it sits naturally inside the
- * classifieds grid. Backed by the `advertisements` collection (placement
- * `marketplace_grid`). Cyan/purple accent driven by `ad.accent`.
- */
 export default function MarketplaceAdCard({ ad }: Props) {
   const isPurple = ad.accent === 'purple';
   const accentText = isPurple ? 'text-accent-purple' : 'text-primary';
@@ -16,6 +12,17 @@ export default function MarketplaceAdCard({ ad }: Props) {
   const accentGlow = isPurple
     ? 'from-accent-purple/15 to-transparent'
     : 'from-primary/15 to-transparent';
+
+  const [copied, setCopied] = useState(false);
+
+  function copyId(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(ad.id).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  }
 
   return (
     <a
@@ -60,6 +67,20 @@ export default function MarketplaceAdCard({ ad }: Props) {
           Learn more
           <span className="material-symbols-outlined text-base leading-none group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
         </div>
+
+        {/* Ad ID — copyable for use in Ad Manager Search & Feature */}
+        <button
+          onClick={copyId}
+          title={`Ad ID: ${ad.id} — click to copy`}
+          className="flex items-center gap-1.5 mt-1 w-full text-left group/id"
+        >
+          <span className="material-symbols-outlined text-[11px] text-gray-700 group-hover/id:text-gray-500 transition-colors shrink-0">
+            {copied ? 'check' : 'content_copy'}
+          </span>
+          <span className="font-mono text-[9px] text-gray-700 group-hover/id:text-gray-500 transition-colors truncate">
+            {copied ? 'copied!' : ad.id}
+          </span>
+        </button>
       </div>
     </a>
   );

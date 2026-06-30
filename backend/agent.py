@@ -43,7 +43,6 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import END, START, StateGraph
 from pymongo import MongoClient
 
-from services.gemini_manager import gemini_manager as _gm
 from services.selection_engine import AllocationResult, run_allocation
 from services.validation_engine import ValidationResult, run_checks
 
@@ -201,11 +200,7 @@ async def intent_node(state: BuildState) -> dict:
     """
     last = _last_user_message(state["messages"])
 
-    api_key = (
-        await _gm.get_available_key()
-        if _gm is not None
-        else os.environ.get("GOOGLE_API_KEY", "")
-    )
+    api_key = os.environ.get("GOOGLE_API_KEY", "")
     llm = ChatGoogleGenerativeAI(
         model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
         temperature=0,
@@ -238,8 +233,6 @@ async def intent_node(state: BuildState) -> dict:
             SystemMessage(content=_INTENT_SYSTEM),
             HumanMessage(content=f"User Query: {last}\n\nContext:\n{search_snippet}"),
         ])
-        if _gm is not None:
-            _gm.record_success(api_key)
         # Gemini via LangChain may return `content` as a str OR a list of parts.
         # Normalise to a single string before parsing so a list-shaped response
         # doesn't raise AttributeError and silently collapse to default intent.
@@ -450,11 +443,7 @@ async def response_node(state: BuildState) -> dict:
     from performing hardware checks, price arithmetic, or suggesting alternative
     component names — those are owned by Layers B–C.
     """
-    api_key = (
-        await _gm.get_available_key()
-        if _gm is not None
-        else os.environ.get("GOOGLE_API_KEY", "")
-    )
+    api_key = os.environ.get("GOOGLE_API_KEY", "")
     llm = ChatGoogleGenerativeAI(
         model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
         temperature=0.7,
@@ -474,8 +463,6 @@ async def response_node(state: BuildState) -> dict:
             lc_messages.append(AIMessage(content=content))
 
     result = await llm.ainvoke(lc_messages)
-    if _gm is not None:
-        _gm.record_success(api_key)
     return {"response": result.content}
 
 

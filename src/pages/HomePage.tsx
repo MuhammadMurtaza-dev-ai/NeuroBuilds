@@ -14,7 +14,7 @@ import { db } from '../Firebase'
 import { timeAgo } from '../hooks/useCommunity'
 import type { Listing } from '../hooks/useStorage'
 import GradientBackground from '../components/GradientBackground/GradientBackground'
-import SponsoredAdBanner from '../components/Ads/SponsoredAdBanner'
+import BannerCarousel from '../components/Ads/BannerCarousel'
 import HomeFeedAdSlot from '../components/Ads/HomeFeedAdSlot'
 import ListingCard from '../components/Marketplace/ListingCard'
 
@@ -155,7 +155,6 @@ export default function HomePage() {
               data.postedDate instanceof Timestamp
                 ? data.postedDate.toDate().toISOString()
                 : String(data.postedDate ?? ''),
-            views: data.views ?? 0,
             savedBy: data.savedBy ?? [],
             status: (data.status ?? 'active') as Listing['status'],
             tags: data.tags ?? [],
@@ -188,7 +187,7 @@ export default function HomePage() {
         {/* Hero Grid Section */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-20">
           {/* Build Intelligence — Sponsored Ad Carousel (replaces static hero card) */}
-          <SponsoredAdBanner className="col-span-1 md:col-span-8 min-h-[300px]" placement="banner" />
+          <BannerCarousel className="col-span-1 md:col-span-8" />
 
           {/* Live Stats — merged panel: both counters share one container */}
           <div className="col-span-1 md:col-span-4 flex flex-col">

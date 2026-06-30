@@ -153,11 +153,6 @@ export default function CommunityPage({ onOpenAuth }: Props) {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-10">
           <div>
-            <div className="flex items-center gap-2 text-sm text-gray-500 font-mono mb-2 pl-1">
-              <a href="/" className="hover:text-primary transition-colors">HOME</a>
-              <span className="material-symbols-outlined text-[12px]">chevron_right</span>
-              <span className="text-white">COMMUNITY HUB</span>
-            </div>
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tight">
               Community Forum
             </h1>

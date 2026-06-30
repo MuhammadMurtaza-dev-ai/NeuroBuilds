@@ -33,7 +33,7 @@ export interface MarketplaceFilters {
   listingType: string;
   priceMin: number | null;
   priceMax: number | null;
-  sortBy: 'newest' | 'oldest' | 'price_asc' | 'price_desc' | 'most_viewed';
+  sortBy: 'newest' | 'oldest' | 'price_asc' | 'price_desc';
   newOnly: boolean;
 }
 
@@ -269,7 +269,7 @@ export const useMarketplace = () => {
   }, []);
 
   const createListing = async (
-    listing: Omit<Listing, 'id' | 'views' | 'savedBy' | 'postedDate'>,
+    listing: Omit<Listing, 'id' | 'savedBy' | 'postedDate'>,
   ): Promise<Listing> => {
     try {
       const now = Timestamp.now();
@@ -277,7 +277,6 @@ export const useMarketplace = () => {
       const docRef = await addDoc(collection(db, LISTINGS_COLLECTION), {
         ...listing,
         country: listing.country || selectedCountry,
-        views: 0,
         savedBy: [],
         postedDate: now,
         expiresAt,
@@ -287,7 +286,6 @@ export const useMarketplace = () => {
         ...listing,
         country: listing.country || selectedCountry,
         id: docRef.id,
-        views: 0,
         savedBy: [],
         postedDate: now.toDate().toISOString(),
         expiresAt: expiresAt.toDate().toISOString(),

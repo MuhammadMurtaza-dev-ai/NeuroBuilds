@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mail, Lock, Eye, EyeOff, X, AtSign, CheckCircle, XCircle, Loader } from 'lucide-react';
+import { doc, setDoc } from 'firebase/firestore';
 import { useAuth } from '../../hooks/useAuth';
-import { firebaseAuth, auth } from '../../Firebase';
+import { firebaseAuth, auth, db } from '../../Firebase';
 import { isValidUsernameFormat, checkUsernameAvailable, claimUsername } from '../../utils/usernameValidator';
 
 type AuthMode = 'login' | 'register';
@@ -101,6 +102,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
         const uid = auth.currentUser?.uid;
         if (uid) {
           claimUsername(formData.username.trim(), null, uid).catch(() => {});
+          setDoc(doc(db, 'users', uid), { displayName: formData.name }, { merge: true }).catch(() => {});
         }
       } else {
         if (!formData.email || !formData.password) {
@@ -122,6 +124,13 @@ const AuthModal: React.FC<AuthModalProps> = ({
     setLocalError(null);
     try {
       await googleSignIn();
+      const u = auth.currentUser;
+      if (u) {
+        setDoc(doc(db, 'users', u.uid), {
+          displayName: u.displayName ?? '',
+          ...(u.photoURL ? { photoURL: u.photoURL } : {}),
+        }, { merge: true }).catch(() => {});
+      }
       onClose();
       setFormData({ name: '', email: '', password: '', username: '' });
     } catch (err: unknown) {

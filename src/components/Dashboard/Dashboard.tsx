@@ -14,7 +14,6 @@ import {
   Package,
   Bookmark,
   MessageSquare,
-  Eye,
   Tag,
   TrendingUp,
   Clock,
@@ -172,7 +171,6 @@ const Dashboard: React.FC = () => {
 
   // ── Derived stats ───────────────────────────────────────────────────────────
   const activeCount = myListings.filter((l) => l.status === 'active').length;
-  const totalViews = myListings.reduce((sum, l) => sum + (l.views ?? 0), 0);
   const totalReplies = myThreads.reduce((sum, t) => sum + t.replyCount, 0);
 
   const stats = [
@@ -199,14 +197,6 @@ const Dashboard: React.FC = () => {
       borderColor: 'border-l-blue-400',
       textColor: 'text-blue-400',
       icon: <MessageSquare size={18} className="text-blue-400" />,
-    },
-    {
-      label: 'Total Views',
-      value: totalViews,
-      sub: 'on your listings',
-      borderColor: 'border-l-green-500',
-      textColor: 'text-green-400',
-      icon: <Eye size={18} className="text-green-400" />,
     },
   ];
 
@@ -336,9 +326,6 @@ const Dashboard: React.FC = () => {
                   <div className="flex items-center gap-2 mt-1 text-gray-500 text-xs">
                     <Tag size={10} />
                     <span>{l.category}</span>
-                    <span>·</span>
-                    <Eye size={10} />
-                    <span>{l.views}</span>
                     <span>·</span>
                     <Clock size={10} />
                     <span>{timeAgo(l.postedDate)}</span>

@@ -112,10 +112,6 @@ function ListingCard({ listing, savedByCurrentUser, onClick, onSave }: Props) {
             <span className="material-symbols-outlined text-base leading-none">location_on</span>
             {listing.location}
           </span>
-          <span className="flex items-center gap-1 ml-auto">
-            <span className="material-symbols-outlined text-base leading-none">visibility</span>
-            {listing.views}
-          </span>
         </div>
 
         <div className="flex items-center gap-2 text-xs text-gray-500 border-t border-border-glass pt-2.5 mt-auto">

@@ -6,8 +6,7 @@ subject to langchain-google-genai's internal API-version routing decisions.
 
 Model: gemini-embedding-001 with output_dimensionality=768 (Matryoshka truncation)
 — matches the MongoDB Atlas vector_index (768-dim cosine).
-Key resolution: GEMINI_KEY_1..10 pool first, then GOOGLE_API_KEY fallback, so
-pool keys (which may have broader embedding access) are preferred.
+Key resolution: explicit arg → GOOGLE_API_KEY.
 """
 
 import logging
@@ -23,17 +22,13 @@ _EMBEDDING_DIMENSIONS = 768
 
 
 def _resolve_api_key(explicit: str | None = None) -> str:
-    """Return an API key — explicit arg → GEMINI_KEY_N pool → GOOGLE_API_KEY fallback."""
+    """Return an API key — explicit arg or GOOGLE_API_KEY."""
     if explicit:
         return explicit
-    for i in range(1, 11):
-        if k := os.environ.get(f"GEMINI_KEY_{i}", "").strip():
-            return k
     if k := os.environ.get("GOOGLE_API_KEY", "").strip():
         return k
     raise RuntimeError(
-        "GeminiEmbeddings: no API key configured. "
-        "Set GEMINI_KEY_1 or GOOGLE_API_KEY."
+        "GeminiEmbeddings: no API key configured. Set GOOGLE_API_KEY."
     )
 
 

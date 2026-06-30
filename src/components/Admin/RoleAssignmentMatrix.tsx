@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, getDocs } from 'firebase/firestore';
 import { db, auth } from '../../Firebase';
 import { Shield, Search, ChevronDown } from 'lucide-react';
 import type { UserRole } from '../../hooks/useUserRole';
@@ -19,6 +19,7 @@ const ROLE_COLOURS: Record<UserRole, string> = {
 interface UserRow {
   uid: string;
   displayName: string;
+  username: string;
   email: string;
   role: UserRole;
 }
@@ -35,13 +36,19 @@ export function RoleAssignmentMatrix() {
     setLoading(true);
     setFeedback(null);
     try {
-      const snap = await getDocs(query(collection(db, 'users'), orderBy('displayName', 'asc')));
+      const snap = await getDocs(query(collection(db, 'users')));
       const rows: UserRow[] = snap.docs.map(d => ({
         uid: d.id,
-        displayName: (d.data().displayName as string) ?? d.id,
+        displayName: (d.data().displayName as string) ?? '',
+        username: (d.data().username as string) ?? '',
         email: (d.data().email as string) ?? '',
         role: ((d.data().role as UserRole) ?? 'user'),
       }));
+      rows.sort((a, b) => {
+        const nameA = (a.displayName || a.username || a.uid).toLowerCase();
+        const nameB = (b.displayName || b.username || b.uid).toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
       setUsers(rows);
       setSearched(true);
     } catch {
@@ -102,10 +109,14 @@ export function RoleAssignmentMatrix() {
   };
 
   const filtered = search.trim()
-    ? users.filter(u =>
-        u.displayName.toLowerCase().includes(search.toLowerCase()) ||
-        u.email.toLowerCase().includes(search.toLowerCase())
-      )
+    ? users.filter(u => {
+        const q = search.toLowerCase().replace(/^@/, '');
+        return (
+          u.displayName.toLowerCase().includes(q) ||
+          u.email.toLowerCase().includes(q) ||
+          u.username.toLowerCase().includes(q)
+        );
+      })
     : users;
 
   return (
@@ -122,7 +133,7 @@ export function RoleAssignmentMatrix() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Filter by name or email…"
+            placeholder="Filter by name, @username or email…"
             className="w-full pl-9 pr-4 py-2 bg-bg-panel border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary"
           />
         </div>
@@ -145,6 +156,7 @@ export function RoleAssignmentMatrix() {
             <thead>
               <tr className="border-b border-white/10 text-left">
                 <th className="pb-2 text-gray-400 font-normal">User</th>
+                <th className="pb-2 text-gray-400 font-normal">Username</th>
                 <th className="pb-2 text-gray-400 font-normal">Email</th>
                 <th className="pb-2 text-gray-400 font-normal">Role</th>
               </tr>
@@ -152,14 +164,19 @@ export function RoleAssignmentMatrix() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="py-6 text-center text-gray-600 text-xs">
+                  <td colSpan={4} className="py-6 text-center text-gray-600 text-xs">
                     No users found
                   </td>
                 </tr>
               ) : (
                 filtered.map(u => (
                   <tr key={u.uid} className="border-b border-white/5 hover:bg-white/2">
-                    <td className="py-2.5 pr-4 text-white font-mono text-xs">{u.displayName}</td>
+                    <td className="py-2.5 pr-4 text-white font-mono text-xs">{u.displayName || <span className="text-gray-600">{u.uid.slice(0, 12)}…</span>}</td>
+                    <td className="py-2.5 pr-4 font-mono text-xs">
+                      {u.username
+                        ? <span className="text-primary/70">@{u.username}</span>
+                        : <span className="text-gray-600">—</span>}
+                    </td>
                     <td className="py-2.5 pr-4 text-gray-400 text-xs">{u.email}</td>
                     <td className="py-2.5">
                       <div className="relative inline-block">

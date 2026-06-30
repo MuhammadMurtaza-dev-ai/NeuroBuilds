@@ -139,7 +139,9 @@ export default function ProfilePage() {
   const saveDisplayName = () =>
     withStatus(setNameStatus, async () => {
       if (!user) return;
-      await firebaseAuth.updateUserProfile(user, form.displayName.trim(), user.photoURL ?? undefined);
+      const name = form.displayName.trim();
+      await firebaseAuth.updateUserProfile(user, name, user.photoURL ?? undefined);
+      await setDoc(doc(db, 'users', user.uid), { displayName: name }, { merge: true });
     });
 
   const applyAvatar = (url: string) =>

@@ -70,6 +70,7 @@ _BLOGS_COL   = "blogs"
 class TriggerRequest(BaseModel):
     topic: str
     mock: bool = False
+    force: bool = False
 
     @field_validator("topic")
     @classmethod
@@ -240,7 +241,7 @@ async def _draft_stage(
 ) -> str:
     if gemini_client is None:
         raise RuntimeError(
-            "Gemini client is not initialised — check GEMINI_KEY_1 or GOOGLE_API_KEY."
+            "Gemini client is not initialised — check GOOGLE_API_KEY."
         )
 
     is_revision = bool(prior_draft and feedback)
@@ -553,7 +554,8 @@ async def trigger_pipeline(
         )
 
     db = fb_firestore.client()
-    _check_anti_spam(db)
+    if not req.force:
+        _check_anti_spam(db)
 
     job_id = str(uuid.uuid4())
     now    = datetime.now(timezone.utc)

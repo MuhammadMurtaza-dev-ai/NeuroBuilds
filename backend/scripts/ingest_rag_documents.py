@@ -32,7 +32,7 @@ Usage:
     python scripts/ingest_rag_documents.py --batch-size 100 --concurrency 4
     python scripts/ingest_rag_documents.py --verify              # validate config + source only
 
-Requires backend/.env with a Gemini key (GOOGLE_API_KEY or GEMINI_KEY_1) and
+Requires backend/.env with GOOGLE_API_KEY and
 MONGODB_ATLAS_URI.
 """
 
@@ -456,9 +456,6 @@ def upsert_documents(
 def resolve_gemini_key() -> str | None:
     if key := os.environ.get("GOOGLE_API_KEY", "").strip():
         return key
-    for i in range(1, 11):
-        if key := os.environ.get(f"GEMINI_KEY_{i}", "").strip():
-            return key
     return None
 
 
@@ -483,7 +480,7 @@ def verify_config(source: Path, require_network: bool) -> tuple[str | None, str 
     if not source.exists():
         problems.append(f"source file not found: {source}")
     if require_network and not gemini_key:
-        problems.append("no Gemini key (set GOOGLE_API_KEY or GEMINI_KEY_1)")
+        problems.append("no Gemini key (set GOOGLE_API_KEY)")
     if require_network and not mongo_uri:
         problems.append("MONGODB_ATLAS_URI not set")
 

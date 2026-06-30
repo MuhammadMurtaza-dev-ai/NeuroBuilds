@@ -252,8 +252,6 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
             return a.price - b.price;
           case 'price_desc':
             return b.price - a.price;
-          case 'most_viewed':
-            return b.views - a.views;
           default:
             return new Date(b.postedDate).getTime() - new Date(a.postedDate).getTime();
         }
@@ -592,8 +590,6 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
                       <p className="font-semibold text-sm line-clamp-2 leading-snug">{listing.title}</p>
                       <p className="text-primary font-mono font-bold text-sm">Rs. {listing.price.toLocaleString()}</p>
                       <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span className="material-symbols-outlined text-xs leading-none">visibility</span>
-                        {listing.views} views
                         {listing.expiresAt && listing.status === 'active' && (
                           <>
                             <span>·</span>
