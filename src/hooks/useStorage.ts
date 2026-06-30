@@ -53,7 +53,6 @@ export interface Listing {
   expiresAt?: string;
   /** ISO string — when the listing was last set to 'active'. */
   lastActivatedAt?: string;
-  views: number;
   savedBy: string[];
   status: 'active' | 'sold' | 'reserved' | 'hidden' | 'expired';
   tags: string[];

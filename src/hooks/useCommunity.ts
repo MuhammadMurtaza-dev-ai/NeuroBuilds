@@ -20,6 +20,11 @@ import { db } from '../Firebase';
 import { useAuth } from './useAuth';
 import { useCountry } from '../context/CountryContext';
 import { writeNotification } from './useNotifications';
+import { tsToISO } from '../utils/firestore';
+
+// Re-exported from the shared util so existing `import { timeAgo } from '../hooks/useCommunity'`
+// call sites keep working.
+export { timeAgo } from '../utils/datetime';
 
 export interface Thread {
   id: string;
@@ -69,17 +74,6 @@ export const COMMUNITY_COUNTRIES = [
   'Germany', 'Canada', 'Australia', 'UAE', 'Other',
 ];
 
-export function timeAgo(iso: string): string {
-  if (!iso) return '';
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
 const THREADS = 'threads';
 
 function toThread(id: string, data: DocumentData): Thread {
@@ -95,10 +89,7 @@ function toThread(id: string, data: DocumentData): Thread {
     upvotedBy: data.upvotedBy ?? [],
     downvotedBy: data.downvotedBy ?? [],
     replyCount: data.replyCount ?? 0,
-    createdAt:
-      data.createdAt instanceof Timestamp
-        ? data.createdAt.toDate().toISOString()
-        : String(data.createdAt ?? ''),
+    createdAt: tsToISO(data.createdAt),
     linkedBlogId: data.linkedBlogId ?? undefined,
     linkedBlogTitle: data.linkedBlogTitle ?? undefined,
     status: data.status ?? 'active',
@@ -114,10 +105,7 @@ function toReply(id: string, data: DocumentData): Reply {
     authorId: data.authorId ?? '',
     authorName: data.authorName ?? '',
     parentId: data.parentId ?? null,
-    createdAt:
-      data.createdAt instanceof Timestamp
-        ? data.createdAt.toDate().toISOString()
-        : String(data.createdAt ?? ''),
+    createdAt: tsToISO(data.createdAt),
     images: Array.isArray(data.images) ? data.images : undefined,
   };
 }

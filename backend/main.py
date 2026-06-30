@@ -34,7 +34,6 @@ from routers.market_intel import router as market_intel_router, start_market_int
 from services.auth_guard import require_admin, require_auth
 from services.cache_manager import setup_semantic_cache
 from services.market_intel import ensure_market_intel_index
-from services.gemini_manager import gemini_manager
 from services.vector_store import VectorStoreEngine
 from services.location_search import LocationSearchService, ensure_indexes
 
@@ -357,24 +356,16 @@ async def gemini_status(
     _admin_uid: Annotated[str, Depends(require_admin)] = "",
 ):
     """
-    Returns a sanitised snapshot of the Gemini key pool (keys redacted).
-
-    Fields per key: id, status, requests_in_window, tokens_in_window,
-    throttled_until_epoch, total_successful_calls.
-    Returns 503 when the key manager is not initialised (no API keys set).
+    Returns whether GOOGLE_API_KEY is configured.
+    Returns 503 when no key is set.
     """
-    if gemini_manager is None:
+    key_set = bool(os.getenv("GOOGLE_API_KEY", "").strip())
+    if not key_set:
         raise HTTPException(
             status_code=503,
-            detail=(
-                "Gemini key manager is not initialised. "
-                "Set GEMINI_KEY_1..10 or GOOGLE_API_KEY in the environment."
-            ),
+            detail="GOOGLE_API_KEY is not set in the environment.",
         )
-    return {
-        "pool_size": gemini_manager.pool_size,
-        "keys":      gemini_manager.get_stats(),
-    }
+    return {"status": "ok", "key_configured": True}
 
 
 @app.get("/api/hardware/lookup", response_model=HardwareLookupResponse)

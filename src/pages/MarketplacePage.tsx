@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { doc, getDoc, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '../Firebase';
@@ -71,6 +71,9 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
   const [sellerPhone, setSellerPhone] = useState('');
   const [filters, setFilters] = useState<MarketplaceFilters>(DEFAULT_FILTERS);
   const [filterNowMs] = useState(() => Date.now());
+  // Debounced mirror of filters.search so the filter/sort pipeline (and the
+  // memoized ListingCard grid) doesn't recompute on every keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
@@ -189,6 +192,12 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
     return unsub;
   }, [user?.uid]);
 
+  // Debounce the search text (250ms) feeding the filter pipeline.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(filters.search), 250);
+    return () => clearTimeout(t);
+  }, [filters.search]);
+
   const setFilter = <K extends keyof MarketplaceFilters>(
     key: K,
     value: MarketplaceFilters[K],
@@ -222,8 +231,8 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
         !tagQuery ||
         l.tags.some(t => t.replace(/^#/, '').toLowerCase() === tagQuery))
       .filter(l => {
-        if (!filters.search) return true;
-        const q = filters.search.replace(/^#/, '').toLowerCase();
+        if (!debouncedSearch) return true;
+        const q = debouncedSearch.replace(/^#/, '').toLowerCase();
         return (
           l.title.toLowerCase().includes(q) ||
           l.description.toLowerCase().includes(q) ||
@@ -243,13 +252,11 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
             return a.price - b.price;
           case 'price_desc':
             return b.price - a.price;
-          case 'most_viewed':
-            return b.views - a.views;
           default:
             return new Date(b.postedDate).getTime() - new Date(a.postedDate).getTime();
         }
       });
-  }, [listings, filters, filterNowMs, tagParam, viewMode]);
+  }, [listings, filters, debouncedSearch, filterNowMs, tagParam, viewMode]);
 
   const clearTag = () =>
     setSearchParams(prev => {
@@ -263,10 +270,18 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
     setShowCreate(true);
   };
 
-  const handleSave = (listingId: string) => {
+  const handleSave = useCallback((listingId: string) => {
     if (!user) { onOpenAuth('login'); return; }
     toggleSave(user.uid, listingId);
-  };
+  }, [user, onOpenAuth, toggleSave]);
+
+  // Stable per-card handlers (receive the listing back) so React.memo(ListingCard)
+  // actually short-circuits — inline closures would change identity every render.
+  const handleCardClick = useCallback((listing: Listing) => setSelectedListing(listing), []);
+  const handleCardSave = useCallback((e: React.MouseEvent, listing: Listing) => {
+    e.stopPropagation();
+    handleSave(listing.id);
+  }, [handleSave]);
 
   const handleCreate = async (
     listing: Omit<Listing, 'id' | 'views' | 'savedBy' | 'postedDate'>,
@@ -360,8 +375,8 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
       key={listing.id}
       listing={listing}
       savedByCurrentUser={user ? isSaved(user.uid, listing.id) : false}
-      onClick={() => setSelectedListing(listing)}
-      onSave={e => { e.stopPropagation(); handleSave(listing.id); }}
+      onClick={handleCardClick}
+      onSave={handleCardSave}
     />
   );
 
@@ -575,8 +590,6 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
                       <p className="font-semibold text-sm line-clamp-2 leading-snug">{listing.title}</p>
                       <p className="text-primary font-mono font-bold text-sm">Rs. {listing.price.toLocaleString()}</p>
                       <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span className="material-symbols-outlined text-xs leading-none">visibility</span>
-                        {listing.views} views
                         {listing.expiresAt && listing.status === 'active' && (
                           <>
                             <span>·</span>

@@ -76,7 +76,7 @@ export default function SellerProfilePage({ onOpenAuth }: Props) {
       const d = snap.data();
       setProfile({
         uid,
-        displayName: d.displayName ?? d.email?.split('@')[0] ?? 'Unknown Seller',
+        displayName: d.displayName || d.email?.split('@')[0] || '',
         username: d.username,
         photoURL: d.photoURL,
         bio: d.bio,
@@ -96,11 +96,21 @@ export default function SellerProfilePage({ onOpenAuth }: Props) {
       query(
         collection(db, 'listings'),
         where('sellerId', '==', uid),
-        where('status', '==', 'active'),
         orderBy('postedDate', 'desc'),
       )
     ).then(snap => {
-      setListings(snap.docs.map(d => docToListing(d.id, d.data())));
+      const items = snap.docs
+        .map(d => docToListing(d.id, d.data()))
+        .filter(l => l.status === 'active');
+      setListings(items);
+      // Back-fill displayName from sellerName on listings if the Firestore
+      // users doc didn't have it (legacy accounts pre-dating the Firestore sync).
+      if (items.length > 0) {
+        setProfile(prev => prev
+          ? { ...prev, displayName: prev.displayName || items[0].sellerName }
+          : prev
+        );
+      }
     }).catch(() => setListings([]))
       .finally(() => setLoadingListings(false));
   }, [uid]);
@@ -126,9 +136,8 @@ export default function SellerProfilePage({ onOpenAuth }: Props) {
 
   const isOwnProfile = user?.uid === uid;
 
-  const initials = profile?.displayName
-    ? profile.displayName.slice(0, 2).toUpperCase()
-    : '??';
+  const initials = (profile?.displayName || profile?.username || 'SE')
+    .slice(0, 2).toUpperCase();
 
   return (
     <>
@@ -166,7 +175,7 @@ export default function SellerProfilePage({ onOpenAuth }: Props) {
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-3 mb-1">
-                  <h1 className="text-2xl font-bold">{profile.displayName}</h1>
+                  <h1 className="text-2xl font-bold">{profile.displayName || profile.username || 'Seller'}</h1>
                   {profile.isVerified && (
                     <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                       <span className="material-symbols-outlined text-sm leading-none">verified</span>
@@ -223,7 +232,7 @@ export default function SellerProfilePage({ onOpenAuth }: Props) {
         {/* Listings Section */}
         <div>
           <h2 className="text-xl font-bold mb-4">
-            {isOwnProfile ? 'Your Active Listings' : `${profile?.displayName ?? 'Seller'}'s Listings`}
+            {isOwnProfile ? 'Your Active Listings' : `${profile?.displayName || 'Seller'}'s Listings`}
           </h2>
 
           {loadingListings ? (

@@ -18,6 +18,7 @@ import { db } from '../Firebase';
 import type { Listing } from './useStorage';
 import { useCountry } from '../context/CountryContext';
 import { writeAuditLog } from '../utils/auditLog';
+import { tsToISO } from '../utils/firestore';
 
 export interface MarketplaceFilters {
   category: string;
@@ -32,7 +33,7 @@ export interface MarketplaceFilters {
   listingType: string;
   priceMin: number | null;
   priceMax: number | null;
-  sortBy: 'newest' | 'oldest' | 'price_asc' | 'price_desc' | 'most_viewed';
+  sortBy: 'newest' | 'oldest' | 'price_asc' | 'price_desc';
   newOnly: boolean;
 }
 
@@ -56,10 +57,7 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const docToListing = (id: string, data: DocumentData): Listing => ({
   ...(data as Omit<Listing, 'id' | 'postedDate'>),
   id,
-  postedDate:
-    data.postedDate instanceof Timestamp
-      ? data.postedDate.toDate().toISOString()
-      : String(data.postedDate ?? ''),
+  postedDate: tsToISO(data.postedDate),
   expiresAt:
     data.expiresAt instanceof Timestamp
       ? data.expiresAt.toDate().toISOString()
@@ -271,7 +269,7 @@ export const useMarketplace = () => {
   }, []);
 
   const createListing = async (
-    listing: Omit<Listing, 'id' | 'views' | 'savedBy' | 'postedDate'>,
+    listing: Omit<Listing, 'id' | 'savedBy' | 'postedDate'>,
   ): Promise<Listing> => {
     try {
       const now = Timestamp.now();
@@ -279,7 +277,6 @@ export const useMarketplace = () => {
       const docRef = await addDoc(collection(db, LISTINGS_COLLECTION), {
         ...listing,
         country: listing.country || selectedCountry,
-        views: 0,
         savedBy: [],
         postedDate: now,
         expiresAt,
@@ -289,7 +286,6 @@ export const useMarketplace = () => {
         ...listing,
         country: listing.country || selectedCountry,
         id: docRef.id,
-        views: 0,
         savedBy: [],
         postedDate: now.toDate().toISOString(),
         expiresAt: expiresAt.toDate().toISOString(),

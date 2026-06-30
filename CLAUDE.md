@@ -22,14 +22,6 @@ python tests/evaluation_suite.py        # Offline accuracy eval — no network/D
 
 Copy `backend/.env.example` to `backend/.env` and fill in API keys before starting the backend.
 
-### Gemini Key Manager (TypeScript / Node)
-```bash
-cd gemini-key-manager
-npm install
-npm run dev                             # Dry-run harness with mock keys
-GEMINI_KEY_1=AIza... npm run dev        # Live run with real key(s)
-```
-
 ### WhatsApp OTP Gateway (Node / Express)
 ```bash
 cd backend/whatsapp-gateway
@@ -154,12 +146,15 @@ Role changes in Firestore are immutable to non-admins via `firestore.rules`; the
 
 Ad components, all following the cyberpunk design system. Some are backed by static data; the dynamic slots (homepage feed, marketplace grid) are Firestore-backed.
 
-- **`SponsoredAdBanner.tsx`** — full-width rotating banner; crossfades every 5.5 s; progress bar at bottom tracks position; gradient icon fallback when `imageUrl` is empty; `accent` prop controls cyan/purple theming; defaults to `BANNER_ADS` from `sponsoredAds.ts`
+- **`BannerCarousel.tsx`** — full-image hero carousel (replaces `SponsoredAdBanner` on the homepage grid); Firestore-backed via `useAdvertisements('banner')` with static `BANNER_ADS` fallback; crossfades every 5.5 s with a 300 ms fade transition; resets index when slide count changes (Firestore load); shows a skeleton while loading, renders nothing if no slides
+- **`SponsoredAdBanner.tsx`** — full-width rotating banner (legacy/non-homepage use); crossfades every 5.5 s; progress bar at bottom tracks position; gradient icon fallback when `imageUrl` is empty; `accent` prop controls cyan/purple theming; defaults to `BANNER_ADS` from `sponsoredAds.ts`
 - **`SponsoredNodeMicro.tsx`** — one-line inline ticker ("SPON" tag + sponsor // tagline) that slides in from left every 4.2 s; used inside listing/thread cards; defaults to `MICRO_ADS`
-- **`HomeFeedAdSlot.tsx`** — same ticker format but Firestore-backed via `useAdvertisements('homepage_feed')`; shows a skeleton while loading; renders nothing if no active ads for that placement
+- **`HomeFeedAdSlot.tsx`** — multi-kind feed ticker that rotates between three content types: `spon` (Firestore `homepage_feed` ads via `useAdvertisements`), `community` (top-5 threads by `upvoteCount` fetched from Firestore on mount, hidden threads filtered client-side), and `gnews` (tech headlines from GNews API with 24 h `localStorage` cache + 60 min backoff on 429). Rotates on a 4.2 s interval; shows a skeleton while loading; degrades gracefully when any source is unavailable; clicking a community item navigates to `/community` with `state.openThreadId`
 - **`Marketplace/MarketplaceAdCard.tsx`** — sponsored card shaped like a `ListingCard` (glass panel, 4:3 image with `campaign` icon fallback, SPONSORED badge, sponsor name + tagline, "Learn more" CTA → `targetUrl`); Firestore-backed via `useAdvertisements('marketplace_grid')`. `MarketplacePage` interleaves these into the classifieds grid (all-view only): **4 featured ads → 6 listings → 4 normal ads → remaining listings**. `featured` ads (admin-toggled) fill the premium top block; degrades gracefully with <4 featured ads, no ads, or <6 listings
 
 **Ad placements** (the `placement` string on each `advertisements` doc, managed in `AdsManagerPanel`): `banner`, `homepage_feed`, `marketplace_grid`, `listing_card`, `thread_card`.
+
+**`AdsManagerPanel.tsx`** — admin CRUD interface for `advertisements` documents; now includes ImgBB image upload directly in the create/edit form (file picker → blob preview → upload on save, `VITE_IMGBB_API_KEY` required); URL revoked on cancel/change to avoid memory leaks; existing `imageUrl` shown as preview when editing without re-uploading; search/filter panel to find ads by title or sponsor name.
 
 **Static data (`src/data/sponsoredAds.ts`):**
 - `SponsoredAd` interface: `id`, `imageUrl`, `targetUrl`, `altText`, `sponsorName`, `tagline`, `accent`
@@ -218,8 +213,9 @@ Admin-only workspace at `/admin`. Requires auth + `role: 'admin'` in `users/{uid
 **ModerationDesk.tsx** — User-reported content + account appeals
 - Real-time list of `reports` collection, filterable by Open / Resolved / All
 - Report columns: Reporter, Reason, Target, Type, Date, Actions; `targetType` badge styled per type (`listing` cyan, `thread` purple, `user` red)
-- Listing/thread reports: `hideTarget(targetId, targetType)` sets `status: 'hidden'` on the target; `resolveReport(id)` closes the report
+- Listing/thread reports: `hideTarget(targetId, targetType)` sets `status: 'hidden'` on the target; `resolveReport(id)` closes the report; "View Target" navigates to the listing/thread/seller profile page
 - **User reports** (`targetType: 'user'`): "Disable account" action calls `useAdminModeration.setAccountStatus(uid, 'disabled', reason)` (confirm dialog) — hides the seller's active listings server-side; cannot self-disable
+- **Repeat Offenders banner** — `useMemo` aggregates open-report counts per `targetId`; targets with ≥ 3 open reports surface at the top as a red "Repeat Offenders" panel with quick-action buttons; threshold is `SPAM_THRESHOLD = 3`
 - **Account Appeals** banner at top — open `appeals` (via `useAppeals`); "Re-enable" calls `setAccountStatus(uid, 'active')` then `resolveAppeal`; "Dismiss" resolves the appeal without reinstating
 
 **AnalyticsDashboard.tsx** — Platform trends (horizontal bar charts)
@@ -228,8 +224,9 @@ Admin-only workspace at `/admin`. Requires auth + `role: 'admin'` in `users/{uid
 - Most Saved listings — from `useMarketplace()` sorted by `savedBy.length`
 
 **RoleAssignmentMatrix.tsx** — User role management
-- Search users by display name; reassign role (`user` → `vendor` → `moderator` → `admin`)
-- Real-time Firestore updates to `users/{uid}.role`
+- Fetches all users from Firestore `users` collection on mount (one-time `getDocs`), sorted alphabetically by `displayName || username || uid`
+- Filter by display name, `@username`, or email via a single search input (strips leading `@`)
+- Shows `username` column (`@handle` or `—`); reassign role (`user` → `vendor` → `moderator` → `admin`) via `POST /api/admin/users/{uid}/role`
 
 **BlogAutomatorPanel.tsx** — AI blog generation control panel (tab 5)
 - Trigger the Actor-Critic blog pipeline (research → draft → critique loop → HITL publish)
@@ -324,7 +321,7 @@ postedDate: Timestamp
 - **`MarketplaceControls.tsx`** — vertical control rail (search, province/city/area cascade, category list, sort, listing-type, price range, condition, quick filters). Single source of truth rendered both in the desktop sidebar and inside the mobile collapsible panel
 - **`MarketplaceAdCard.tsx`** — sponsored ad card interleaved into the grid (see Ads System)
 - **`CreateListingModal.tsx`** — full listing create/edit form; title, description, price, condition, listing type, location (country/city/area via `GLOBAL_LOCATIONS`), category, up to 6 ImgBB-uploaded images, SKU/stock quantity for vendors
-- **`ListingCard.tsx`** — grid preview card with thumbnail, price, condition badge, save toggle
+- **`ListingCard.tsx`** — grid preview card with thumbnail, price, condition badge, save toggle. Wrapped in `React.memo`; `onClick`/`onSave` receive the listing back so `MarketplacePage` can pass stable `useCallback` handlers (inline closures would change identity every render and defeat the memo). `MarketplacePage` also debounces `filters.search` by 250 ms into `debouncedSearch` before feeding the filter/sort `useMemo`, so a keystroke doesn't recompute the whole grid
 - **`ListingDetailModal.tsx`** — full detail view; image gallery, seller info with contact reveal, view tracking (excludes self-views), `VideoReviewCarousel`, save/contact/edit/delete actions, "Report" button (opens `ReportModal`). Contact reveals are logged to the `listings/{id}/contactReveals/{viewerId}` subcollection (readable only by the listing owner/admin) so the seller can see who accessed their details
 - **`VideoReviewCarousel.tsx`** — YouTube review carousel; lazy-loads iframe on thumbnail click; backed by `youtubeService.ts`
 - **`SellerVerificationModal.tsx`** — seller activation flow: **step 0** is a required marketplace-rules agreement (renders `MARKETPLACE_RULES` from `src/data/marketplaceRules.ts`; checkbox gate; stamps `users/{uid}.rulesAcceptedAt`), then the two-step phone OTP verification (phone → 6-digit code)
@@ -402,6 +399,13 @@ createdAt
 - Falls back to empty array if `VITE_YOUTUBE_API_KEY` is absent or request fails
 
 ### Utilities (`src/utils/`)
+
+**datetime.ts** — shared relative-time formatters (replaces the per-file `timeAgo`/`formatRelativeDate` copies that were duplicated across components/hooks):
+- `timeAgo(value)` — compact relative time ("just now", "5m ago", "3h ago", "2d ago"); accepts an ISO string **or** a Firestore `Timestamp` (or null/undefined → `''`)
+- `formatRelativeDate(dateStr)` — calendar-style ("Today", "Yesterday", "3d ago", "2w ago", then "Mon D"); used by `ListingCard`
+- `useCommunity.ts` re-exports `timeAgo` (`export { timeAgo } from '../utils/datetime'`) for back-compat with existing `import { timeAgo } from '../hooks/useCommunity'` call sites
+
+**firestore.ts** — `tsToISO(v)` — normalises a Firestore field (`Timestamp` | string | null/undefined) to an ISO date string; replaces the `x instanceof Timestamp ? x.toDate().toISOString() : String(x ?? '')` pattern duplicated across the doc converters in `useMarketplace`/`useCommunity`
 
 **imageUploader.ts** — `uploadImageToImgBB(file)` → ImgBB public URL. Requires `VITE_IMGBB_API_KEY`.
 
@@ -482,12 +486,11 @@ New UI should follow: backdrop blur, neon shadows on hover, dark panel backgroun
 - `listings` create requires `isVerifiedSeller()` (a `get()` on the caller's `users/{uid}.isVerified == true`) **and** `isNotDisabled()` (caller's `accountStatus != 'disabled'`) — the seller-verification gate is enforced server-side, not just by the React modal overlay
 - `listings/{id}/contactReveals/{viewerId}` — a buyer logs (under their own uid) that they revealed the seller's contact; readable only by the listing owner or an admin; immutable after create
 - `appeals` — a disabled user may create an appeal attributed to themselves and read their own; admins read all + `update` (resolve); delete forever denied
-- `isModerator()` falls back to a Firestore doc read on `users/{uid}.role in ['moderator', 'admin']`
-- Authenticated users can read/write their own subcollections (`aiSessions`, `notifications`); any signed-in user may push a notification into another user's subcollection
 - `threads` update rules are fine-grained: authors can edit content or mark `lifecycleStatus: 'solved'`; moderators can change `lifecycleStatus` only; anyone can make vote-only updates (`upvoteCount`, `upvotedBy`, etc.)
 - `reports` writable by any authenticated user; `read, update, delete` restricted to admins only (moderators cannot read reports)
 - `audit_logs` — append-only trail (§2.2.4): any signed-in user may create an entry attributed to themselves (`actorId == uid`, server `createdAt`); only admins may read; update/delete forever denied. Written by `src/utils/auditLog.ts` (`writeAuditLog`) on listing create + moderation actions (`hideTarget`, `resolveReport`)
 - `blogs` read: published posts are public; admins see all; authors see their own regardless of status
+- `blogs` update — `isCommentCountOnlyUpdate()` helper allows any signed-in user to increment/decrement `commentCount` (used by `addComment`/`deleteComment` Firestore transactions) without needing admin; clamps to non-negative integer
 - `advertisements` — public read (ads render on public pages, incl. anonymous visitors); create/update/delete restricted to admins (`isAdmin()`). The `featured` flag is set here by `AdsManagerPanel`, the sole authoring surface
 
 **`firestore.indexes.json`** — composite indexes:
@@ -499,6 +502,8 @@ New UI should follow: backdrop blur, neon shadows on hover, dark panel backgroun
 - `listings`: `country` ASC + `area` ASC + `status` ASC + `postedDate` DESC (area-level marketplace filtering)
 - `listings`: `country` ASC + `city` ASC + `status` ASC + `postedDate` DESC (city-level marketplace filtering)
 - `listings`: `sellerId` ASC + `postedDate` DESC (`SellerProfilePage` active-listings query)
+- `listings`: `sellerId` ASC + `status` ASC + `postedDate` DESC (Dashboard "My Listings" filtered by active status)
+- `listings`: `savedBy` (array-contains) + `postedDate` DESC (Dashboard "Saved Listings" query)
 - `listings`: `status` ASC + `expiresAt` ASC (listings_maintenance expiry sweep)
 - `conversations`: `participants` (array) + `updatedAt` DESC; `participants` (array) + `listingId` ASC
 - `appeals`: `uid` ASC + `createdAt` DESC (a user's own latest-appeal lookup in `AccountStatusBanner`)
@@ -513,7 +518,7 @@ The backend is a standalone Python service — **must be run separately** from t
 - `POST /api/chat` — accepts `{messages, activeBuild}`, returns a raw token stream (`text/plain`)
 - `GET /api/marketplace/search` — public 3-tier cascading geo-fallback search (query params: `area`, `city?`, `limit?`)
 - `POST /api/marketplace/search` — same search with richer filter body; requires `require_admin`
-- `GET /api/admin/gemini/status` — sanitised Gemini key-pool snapshot (keys redacted); requires `require_admin`
+- `GET /api/admin/gemini/status` — returns whether `GOOGLE_API_KEY` is configured; requires `require_admin`
 - `POST /api/admin/blog-automator/trigger` — queues AI blog generation pipeline; requires `require_admin`
 - `GET /api/admin/blog-automator/jobs` — lists recent automator jobs newest-first; requires `require_admin`
 - `POST /api/admin/users/{uid}/role` — assigns a role; sets BOTH `users/{uid}.role` AND the JWT `admin` custom claim (and revokes the target's refresh tokens) so the Firestore role and the rules' `isAdmin()` claim stay in sync; rejects self-demotion of the last admin; requires `require_admin` (`routers/admin_users.py`)
@@ -596,8 +601,7 @@ This is the core architectural guarantee of the system. Every node belongs to ex
 
 | Var | Purpose |
 |-----|---------|
-| `GEMINI_KEY_1` … `GEMINI_KEY_10` | Pool-mode key rotation via `GeminiKeyManager`; set at least `GEMINI_KEY_1` for pool mode |
-| `GOOGLE_API_KEY` | Single-key fallback when no `GEMINI_KEY_N` vars are set; also used for embeddings |
+| `GOOGLE_API_KEY` | Gemini API key — used for LLM calls (`intent_node`, `response_node`, blog automator, market intel) and embeddings |
 | `GEMINI_MODEL` | Defaults to `gemini-2.0-flash`; used in `intent_node`, `response_node`, and blog automator |
 | `TAVILY_API_KEY` | Node 1 web search + blog automator research stage |
 | `MONGODB_ATLAS_URI` | Node 2 vector store connection |
@@ -660,7 +664,7 @@ python scripts/ingest_rag_documents.py --source data/hardware_source.csv
 python scripts/ingest_rag_documents.py --verify        # validate config + parse only (no network)
 python scripts/ingest_rag_documents.py --dry-run       # parse + Mongo diff, no embeddings/writes
 ```
-- Source: `backend/data/hardware_source.json` (default) or a structured CSV via `--source`; CPU/GPU rows only. Sample `hardware_source.json` + `hardware_source.csv` ship in `backend/data/`
+- Source: `backend/data/hardware_source.json` (default) or a structured CSV via `--source`; CPU/GPU rows only. Sample `hardware_source.json` + `hardware_source.csv` ship in `backend/data/`; exhaustive JSON datasets `hardware_source_cpu_exhaustive.json` and `hardware_source_gpu_exhaustive.json` also available in `backend/data/` for full-coverage ingestion
 - Serialises each component into a LangChain `Document` (`langchain_core.documents`): pipe-delimited `page_content` spec string + flattened spec `metadata` (CPU: `socket/cores/threads/tdp_watts/integrated_graphics`; GPU: `vram_gb/interface/tdp_watts/power_connectors`)
 - **Idempotency**: Mongo `_id` = SHA-256(`brand|model`); a `content_hash` skips unchanged docs (zero re-embedding) and upserts only new/changed ones
 - **Async batch embedding**: `--batch-size` (default 64, 50–100 recommended) chunks, `--concurrency` (default 4) in flight via `GeminiEmbeddings` (768-dim); per-row + per-chunk try/except with structured logging — corrupt rows are skipped, not fatal
@@ -669,7 +673,7 @@ python scripts/ingest_rag_documents.py --dry-run       # parse + Mongo diff, no 
 **`misc/csv-data/scrapper.py`** — TechPowerUP GPU database scraper:
 - Two-phase scraping: chip discovery (horizontal) → custom board traversal (vertical)
 - Extracts clocks, VRAM, AIB partner info; anti-bot throttling (5–10s delays)
-- Output: `GPU_Exhaustive_Database.csv` at repo root
+- Output: `GPU_Exhaustive_Database.csv` at repo root; versioned snapshots in `misc/gpu_specs_v6.csv` and `misc/gpu_specs_v7.csv`
 
 ### Backend Service Modules (`backend/services/`)
 
@@ -719,11 +723,10 @@ python scripts/ingest_rag_documents.py --dry-run       # parse + Mongo diff, no 
 - `require_auth` — same verification but accepts any valid non-revoked Firebase ID token (no admin claim check); raises HTTP 401/503
 - Both dependencies are used with `Annotated[str, Depends(...)]` and return the verified UID
 
-**`gemini_manager.py`** — Python port of `gemini-key-manager/` (TypeScript):
-- `GeminiKeyManager` — asyncio-safe pool manager; loads `GEMINI_KEY_1..GEMINI_KEY_10` from env, falls back to `GOOGLE_API_KEY`; 60-req/min rolling window per key; Fisher-Yates load balancing; `mark_throttled(key, cooldown_s)` + `evict_expired_throttles()`
-- `GeminiClient` — async wrapper with transparent 429-rotation retry; `generate_text(prompt, *, model, system_prompt, max_tokens, temperature)` and `embed_content(text)` both run `google-genai` SDK calls via `asyncio.to_thread()`
-- Module-level singletons: `gemini_manager: GeminiKeyManager | None` and `gemini_client: GeminiClient | None` (None when no API keys are set)
-- Used by `blog_automator.py` and exposed via `GET /api/admin/gemini/status`
+**`gemini_manager.py`** — Single-key Gemini client:
+- `GeminiClient` — async wrapper; `generate_text(prompt, *, model, system_prompt, max_tokens, temperature)` and `embed_content(text)` both run `google-genai` SDK calls via `asyncio.to_thread()`
+- Module-level singleton `gemini_client: GeminiClient | None` — initialised from `GOOGLE_API_KEY`; None when not set
+- Used by `blog_automator.py`, `market_intel.py`, and exposed via `GET /api/admin/gemini/status`
 
 **`embeddings.py`** — `GeminiEmbeddings` — LangChain `Embeddings` subclass backed directly by the `google-genai` SDK:
 - Lazy model resolution: tries `embedding-001` → `text-embedding-004` → `gemini-embedding-exp-03-07` on first call, caches the winner
@@ -770,20 +773,6 @@ python tests/evaluation_suite.py
 - **Experiment 1 — Compatibility Engine Accuracy**: runs `run_checks()` against a fixture of labelled builds (Known Good / Intentionally Broken); reports confusion matrix, Precision, Recall, F1
 - **Experiment 2 — Budget Allocation Adherence**: runs `run_allocation()` across gaming/workstation/budget persona builds; reports MAE, variance, per-persona breakdown versus `ALLOCATION_WEIGHTS` targets
 - Imports directly from `services.validation_engine` and `services.selection_engine`
-
-### Gemini Key Manager (`gemini-key-manager/`)
-
-Standalone TypeScript service — resilient Gemini API key rotation and load-balancing. The Python equivalent (`backend/services/gemini_manager.py`) is the live backend implementation; this TypeScript service is the reference implementation / standalone utility.
-
-**Architecture:**
-- **`KeyRotationManager`** (singleton) — manages a pool of up to 10 Gemini API keys; tracks per-key `requestsInCurrentWindow` and `tokensInCurrentWindow` (60-second rolling windows, 60 req/window cap); picks the least-utilised key from the lower half of the pool (Fisher-Yates shuffle to prevent hot-spotting)
-- **`GeminiProxyService`** — wraps `@google/genai` SDK; `generateText(prompt, model?)` and `getEmbeddings(text)` auto-retry with next available key on 429; parses `Retry-After` header for cooldown duration; retries bounded by pool size
-- `markThrottled(key, cooldownMs)` / `evictExpiredThrottles()` — auto-recovery when cooldown expires
-- `getStats()` — sanitized snapshot (keys redacted) for logging
-
-**Test harness (`src/index.ts`):** 5-phase demonstration — sequential warm-up (4 requests), concurrent burst (12 parallel text), embedding burst (8 parallel embed), throttle recovery check, final pool stats table.
-
-**Environment:** `GEMINI_KEY_1` … `GEMINI_KEY_10` — falls back to mock keys for dry-run/CI if none set.
 
 ## Frontend Environment Variables
 
@@ -838,7 +827,7 @@ Affects: `Dashboard.tsx:109`, `NewsFallback.tsx:34`, `useBlogCMS.ts:146,251`, `u
 
 ### Unused Variables
 
-`gemini-key-manager/src/index.ts:88` — `status` · `gemini-key-manager/src/services/KeyRotationManager.ts:136` — `_redacted` · `CreateListingModal.tsx:171` — `_removed` · `CommunityPage.tsx:127-129` — `_linkedBlogId`, `_linkedBlogTitle`, `_images`.
+`CreateListingModal.tsx:171` — `_removed` · `CommunityPage.tsx:127-129` — `_linkedBlogId`, `_linkedBlogTitle`, `_images`.
 
 ### Missing Hook Dependency
 

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useReports } from '../../hooks/useReports';
 import type { Report } from '../../hooks/useReports';
 import { useAdminModeration } from '../../hooks/useAdminModeration';
@@ -6,6 +7,8 @@ import { useAppeals } from '../../hooks/useAppeals';
 import type { Timestamp } from 'firebase/firestore';
 
 type FilterTab = 'open' | 'resolved' | 'all';
+
+const SPAM_THRESHOLD = 3;
 
 function formatDate(ts: Timestamp | null): string {
   if (!ts) return '—';
@@ -21,6 +24,7 @@ const TARGET_BADGE: Record<Report['targetType'], string> = {
 };
 
 export default function ModerationDesk() {
+  const navigate = useNavigate();
   const { reports, loading, error, resolveReport, hideTarget } = useReports();
   const { setAccountStatus } = useAdminModeration();
   const { appeals, resolveAppeal } = useAppeals();
@@ -29,6 +33,28 @@ export default function ModerationDesk() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const openAppeals = appeals.filter(a => a.status === 'open');
+
+  // Spam detection: count open reports per targetId
+  const spamMap = useMemo(() => {
+    const counts = new Map<string, number>();
+    reports.forEach(r => {
+      if (r.status === 'open') counts.set(r.targetId, (counts.get(r.targetId) ?? 0) + 1);
+    });
+    return counts;
+  }, [reports]);
+
+  // Repeat offenders: targets with >= SPAM_THRESHOLD open reports (deduped)
+  const repeatOffenders = useMemo(() => {
+    const seen = new Set<string>();
+    const offenders: Report[] = [];
+    reports.forEach(r => {
+      if (r.status === 'open' && (spamMap.get(r.targetId) ?? 0) >= SPAM_THRESHOLD && !seen.has(r.targetId)) {
+        seen.add(r.targetId);
+        offenders.push(r);
+      }
+    });
+    return offenders;
+  }, [reports, spamMap]);
 
   const handleReinstate = async (appealId: string, uid: string) => {
     setBusy(`appeal-${appealId}`);
@@ -93,6 +119,16 @@ export default function ModerationDesk() {
     }
   };
 
+  const handleViewTarget = (report: Report) => {
+    if (report.targetType === 'listing') {
+      navigate(`/marketplace?id=${report.targetId}`);
+    } else if (report.targetType === 'thread') {
+      navigate('/community', { state: { openThreadId: report.targetId } });
+    } else if (report.targetType === 'user') {
+      navigate(`/seller/${report.targetId}`);
+    }
+  };
+
   const TAB_LABELS: { key: FilterTab; label: string }[] = [
     { key: 'open',     label: 'Open' },
     { key: 'resolved', label: 'Resolved' },
@@ -133,6 +169,61 @@ export default function ModerationDesk() {
                     >
                       Dismiss
                     </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Repeat offenders banner */}
+      {repeatOffenders.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-sm font-bold text-red-400 mb-3 flex items-center gap-2">
+            <span className="material-symbols-outlined text-base leading-none">report</span>
+            Repeat Offenders — {repeatOffenders.length} target{repeatOffenders.length !== 1 ? 's' : ''} with {SPAM_THRESHOLD}+ open reports
+          </h3>
+          <div className="flex flex-col gap-2">
+            {repeatOffenders.map(r => {
+              const count = spamMap.get(r.targetId) ?? 0;
+              const anyBusy = busy === `hide-${r.id}` || busy === `disable-${r.id}` || busy === `resolve-${r.id}`;
+              return (
+                <div key={r.targetId} className="glass-panel rounded-xl border border-red-500/25 p-3 flex items-center gap-3">
+                  <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border font-mono bg-red-500/10 text-red-400 border-red-500/30">
+                    🚩 ×{count}
+                  </span>
+                  <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${TARGET_BADGE[r.targetType]}`}>
+                    {r.targetType}
+                  </span>
+                  <span className="flex-1 text-sm text-white truncate">{r.targetTitle}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => handleViewTarget(r)}
+                      className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-white/5 border border-white/15 text-gray-300 hover:text-white transition-all flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                      View
+                    </button>
+                    {r.targetType === 'user' ? (
+                      <button
+                        onClick={() => handleDisable(r)}
+                        disabled={anyBusy}
+                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50 flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-[13px]">block</span>
+                        Disable
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleHide(r)}
+                        disabled={anyBusy}
+                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all disabled:opacity-50 flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-[13px]">visibility_off</span>
+                        Hide
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -213,6 +304,8 @@ export default function ModerationDesk() {
                 const resolveBusy = busy === `resolve-${report.id}`;
                 const disableBusy = busy === `disable-${report.id}`;
                 const anyBusy = hideBusy || resolveBusy || disableBusy;
+                const reportCount = spamMap.get(report.targetId) ?? 0;
+                const isSpam = reportCount >= SPAM_THRESHOLD;
 
                 return (
                   <tr
@@ -225,8 +318,26 @@ export default function ModerationDesk() {
                     <td className={`py-3.5 pr-4 text-gray-400 text-xs max-w-[180px] truncate ${isResolved ? 'line-through' : ''}`}>
                       {report.reason}
                     </td>
-                    <td className="py-3.5 pr-4 text-gray-300 text-xs max-w-[160px] truncate">
-                      {report.targetTitle}
+                    <td className="py-3.5 pr-4 text-xs max-w-[180px]">
+                      <div className="flex items-center gap-1.5">
+                        {isSpam && !isResolved && (
+                          <span className="shrink-0 text-[10px] font-bold text-red-400" title={`${reportCount} open reports on this target`}>
+                            🚩×{reportCount}
+                          </span>
+                        )}
+                        <span className="text-gray-300 truncate">{report.targetTitle}</span>
+                      </div>
+                      {report.proofUrl && (
+                        <a
+                          href={report.proofUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-0.5 flex items-center gap-1 text-[10px] font-mono text-accent-purple/70 hover:text-accent-purple transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[11px]">image</span>
+                          proof
+                        </a>
+                      )}
                     </td>
                     <td className="py-3.5 pr-4">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${TARGET_BADGE[report.targetType]}`}>
@@ -243,7 +354,16 @@ export default function ModerationDesk() {
                           Resolved
                         </span>
                       ) : (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {/* View target */}
+                          <button
+                            onClick={() => handleViewTarget(report)}
+                            className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-white/5 border border-white/15 text-gray-300 hover:text-white transition-all flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                            View
+                          </button>
+
                           {report.targetType === 'user' ? (
                             <button
                               onClick={() => handleDisable(report)}

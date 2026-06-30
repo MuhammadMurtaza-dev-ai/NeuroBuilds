@@ -21,15 +21,25 @@ const formatDate = (ts: BlogPost['createdAt']): string => {
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
+// Escape HTML before applying markdown transforms so raw post content
+// (incl. AI/user-authored) cannot inject <script>/<img onerror>/<iframe>.
+const escapeHtml = (text: string): string =>
+  text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 const renderMarkdown = (text: string): string => {
-  return text
+  return escapeHtml(text)
     .replace(/^### (.+)$/gm, '<h3 class="text-xl font-bold text-white mt-8 mb-3">$1</h3>')
     .replace(/^## (.+)$/gm, '<h2 class="text-2xl font-bold text-white mt-10 mb-4">$1</h2>')
     .replace(/^# (.+)$/gm, '<h1 class="text-3xl font-bold text-white mt-12 mb-5">$1</h1>')
     .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-bold">$1</strong>')
     .replace(/\*(.+?)\*/g, '<em class="text-gray-300 italic">$1</em>')
     .replace(/`(.+?)`/g, '<code class="bg-white/10 text-primary px-1.5 py-0.5 rounded text-sm font-mono">$1</code>')
-    .replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-primary/50 pl-4 my-4 text-gray-400 italic">$1</blockquote>')
+    .replace(/^&gt; (.+)$/gm, '<blockquote class="border-l-4 border-primary/50 pl-4 my-4 text-gray-400 italic">$1</blockquote>')
     .replace(/^- (.+)$/gm, '<li class="text-gray-300 ml-4 list-disc mb-1">$1</li>')
     .replace(/\n\n/g, '</p><p class="text-gray-300 leading-relaxed mb-4">')
     .replace(/^(?!<[h|l|b])(.+)$/gm, (match) =>

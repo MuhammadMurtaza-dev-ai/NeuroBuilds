@@ -8,14 +8,12 @@ import {
   query,
   where,
   onSnapshot,
-  Timestamp,
 } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 import {
   Package,
   Bookmark,
   MessageSquare,
-  Eye,
   Tag,
   TrendingUp,
   Clock,
@@ -29,6 +27,8 @@ import { db } from '../../Firebase';
 import GradientBackground from '../GradientBackground/GradientBackground';
 import type { Listing } from '../../hooks/useStorage';
 import type { Thread } from '../../hooks/useCommunity';
+import { tsToISO } from '../../utils/firestore';
+import { timeAgo } from '../../utils/datetime';
 
 // ── Firestore doc converters (mirrors useMarketplace / useCommunity) ──────────
 
@@ -36,10 +36,7 @@ function docToListing(id: string, data: DocumentData): Listing {
   return {
     ...(data as Omit<Listing, 'id' | 'postedDate'>),
     id,
-    postedDate:
-      data.postedDate instanceof Timestamp
-        ? data.postedDate.toDate().toISOString()
-        : String(data.postedDate ?? ''),
+    postedDate: tsToISO(data.postedDate),
   };
 }
 
@@ -56,10 +53,7 @@ function docToThread(id: string, data: DocumentData): Thread {
     upvotedBy: data.upvotedBy ?? [],
     downvotedBy: data.downvotedBy ?? [],
     replyCount: data.replyCount ?? 0,
-    createdAt:
-      data.createdAt instanceof Timestamp
-        ? data.createdAt.toDate().toISOString()
-        : String(data.createdAt ?? ''),
+    createdAt: tsToISO(data.createdAt),
     linkedBlogId: data.linkedBlogId ?? undefined,
     linkedBlogTitle: data.linkedBlogTitle ?? undefined,
     status: data.status ?? 'active',
@@ -68,17 +62,6 @@ function docToThread(id: string, data: DocumentData): Thread {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function timeAgo(iso: string): string {
-  if (!iso) return '';
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
 
 const STATUS_COLORS: Record<string, string> = {
   active: 'bg-green-500/20 text-green-400 border-green-500/30',
@@ -188,7 +171,6 @@ const Dashboard: React.FC = () => {
 
   // ── Derived stats ───────────────────────────────────────────────────────────
   const activeCount = myListings.filter((l) => l.status === 'active').length;
-  const totalViews = myListings.reduce((sum, l) => sum + (l.views ?? 0), 0);
   const totalReplies = myThreads.reduce((sum, t) => sum + t.replyCount, 0);
 
   const stats = [
@@ -215,14 +197,6 @@ const Dashboard: React.FC = () => {
       borderColor: 'border-l-blue-400',
       textColor: 'text-blue-400',
       icon: <MessageSquare size={18} className="text-blue-400" />,
-    },
-    {
-      label: 'Total Views',
-      value: totalViews,
-      sub: 'on your listings',
-      borderColor: 'border-l-green-500',
-      textColor: 'text-green-400',
-      icon: <Eye size={18} className="text-green-400" />,
     },
   ];
 
@@ -352,9 +326,6 @@ const Dashboard: React.FC = () => {
                   <div className="flex items-center gap-2 mt-1 text-gray-500 text-xs">
                     <Tag size={10} />
                     <span>{l.category}</span>
-                    <span>·</span>
-                    <Eye size={10} />
-                    <span>{l.views}</span>
                     <span>·</span>
                     <Clock size={10} />
                     <span>{timeAgo(l.postedDate)}</span>

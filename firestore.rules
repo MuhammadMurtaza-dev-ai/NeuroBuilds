@@ -105,6 +105,18 @@ service cloud.firestore {
         .hasOnly(['lifecycleStatus']);
     }
 
+    // True when the update touches ONLY commentCount and the value is a
+    // non-negative integer.  Mirrors isVoteOnlyUpdate() for thread upvotes.
+    // Needed so any signed-in commenter can increment/decrement the counter
+    // on a published post (the addComment/deleteComment transactions do this).
+    function isCommentCountOnlyUpdate() {
+      return request.resource.data.diff(resource.data)
+        .affectedKeys()
+        .hasOnly(['commentCount'])
+        && request.resource.data.commentCount is int
+        && request.resource.data.commentCount >= 0;
+    }
+
 
     // ── users/{userId} ───────────────────────────────────────────────────────
     //
@@ -238,6 +250,7 @@ service cloud.firestore {
             && request.resource.data.authorType == 'user');
 
       allow update: if isAdmin()
+        || (isSignedIn() && isCommentCountOnlyUpdate())
         || (isSignedIn()
             && resource.data.authorId == request.auth.uid
             && request.resource.data.authorId == request.auth.uid

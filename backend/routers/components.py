@@ -19,7 +19,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 _YT_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
-_REVIEW_CHANNELS = "Gamers Nexus OR Hardware Unboxed OR Linus Tech Tips"
+_REVIEW_CHANNELS = "Gamers Nexus OR Hardware Unboxed OR Linus Tech Tips OR Bitwit OR TechSource"
 _TTL_SECONDS = 24 * 3600  # 24 hours — SRS §2.2.1 / UC-04 review-cache constraint
 
 

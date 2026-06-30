@@ -61,12 +61,14 @@ export default function BlogAutomatorPanel() {
   // ── Trigger ──────────────────────────────────────────────────────────────
   const [topic, setTopic] = useState('');
   const [mock, setMock] = useState(false);
+  const [force, setForce] = useState(false);
   const [triggering, setTriggering] = useState(false);
   const [triggerMsg, setTriggerMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   // ── Jobs ─────────────────────────────────────────────────────────────────
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobsLoading, setJobsLoading] = useState(false);
+  const [jobsError, setJobsError] = useState<string | null>(null);
 
   // ── Prompts ──────────────────────────────────────────────────────────────
   const [prompts, setPrompts] = useState<Prompts | null>(null);
@@ -81,6 +83,7 @@ export default function BlogAutomatorPanel() {
 
   const loadJobs = useCallback(async () => {
     setJobsLoading(true);
+    setJobsError(null);
     try {
       const token = await getIdToken();
       const resp = await fetch(`${AI_SERVICE}/api/admin/blog-automator/jobs?limit=10`, {
@@ -89,8 +92,13 @@ export default function BlogAutomatorPanel() {
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       setJobs(await resp.json() as Job[]);
-    } catch {
-      // non-critical — jobs list just stays empty
+    } catch (err) {
+      const name = err instanceof Error ? err.name : '';
+      if (name === 'TimeoutError' || name === 'AbortError') {
+        setJobsError('Could not reach the AI backend — is it running on ' + AI_SERVICE + '?');
+      } else {
+        setJobsError(err instanceof Error ? err.message : 'Failed to load jobs.');
+      }
     } finally {
       setJobsLoading(false);
     }
@@ -137,7 +145,7 @@ export default function BlogAutomatorPanel() {
       const resp = await fetch(`${AI_SERVICE}/api/admin/blog-automator/trigger`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ topic: topic.trim(), mock }),
+        body: JSON.stringify({ topic: topic.trim(), mock, force }),
         signal: AbortSignal.timeout(20_000),
       });
       const data = await resp.json().catch(() => ({})) as { job_id?: string; detail?: string };
@@ -233,6 +241,27 @@ export default function BlogAutomatorPanel() {
               </span>
             </button>
 
+            {/* Force override toggle */}
+            <button
+              type="button"
+              onClick={() => setForce(f => !f)}
+              className="flex items-center gap-3 group"
+            >
+              <div className={`w-9 h-5 rounded-full relative transition-colors border ${
+                force
+                  ? 'bg-red-500/30 border-red-500/50'
+                  : 'bg-white/10 border-white/20'
+              }`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
+                  force ? 'bg-red-400 translate-x-4' : 'bg-gray-500 translate-x-0.5'
+                }`} />
+              </div>
+              <span className="text-sm text-gray-400 group-hover:text-gray-200 transition-colors">
+                Force run
+                <span className="ml-1.5 text-[10px] text-gray-600 font-mono">(bypass 12h anti-spam limit)</span>
+              </span>
+            </button>
+
             <button
               onClick={handleTrigger}
               disabled={triggering || !topic.trim()}
@@ -270,6 +299,11 @@ export default function BlogAutomatorPanel() {
               {[...Array(3)].map((_, i) => (
                 <div key={i} className="h-14 rounded-xl bg-white/5 animate-pulse" />
               ))}
+            </div>
+          ) : jobsError ? (
+            <div className="flex items-start gap-2 rounded-xl border border-red-400/20 bg-red-400/5 px-3 py-2.5">
+              <span className="material-symbols-outlined text-red-400 text-[16px] mt-0.5 shrink-0">warning</span>
+              <p className="text-xs font-mono text-red-400">{jobsError}</p>
             </div>
           ) : jobs.length === 0 ? (
             <p className="text-sm text-gray-600 font-mono">No jobs yet.</p>

@@ -5,7 +5,6 @@ import {
   getDoc,
   updateDoc,
   setDoc,
-  increment,
   serverTimestamp,
   collection,
   onSnapshot,
@@ -72,15 +71,6 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
 
   const isOwner = !!currentUserId && currentUserId === listing.sellerId;
   const isOutOfStock = typeof listing.stockQuantity === 'number' && listing.stockQuantity === 0;
-
-  // View tracking — once per session, owner excluded.
-  useEffect(() => {
-    const isOwnerView = !!currentUserId && currentUserId === listing.sellerId;
-    const sessionKey = `nb_viewed_${listing.id}`;
-    if (isOwnerView || sessionStorage.getItem(sessionKey)) return;
-    sessionStorage.setItem(sessionKey, '1');
-    updateDoc(doc(db, 'listings', listing.id), { views: increment(1) }).catch(() => {});
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Component review videos.
   useEffect(() => {
@@ -308,10 +298,6 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-lg text-primary leading-none">location_on</span>
                 {listing.location}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-lg text-primary leading-none">visibility</span>
-                {listing.views} views
               </div>
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-lg text-primary leading-none">schedule</span>

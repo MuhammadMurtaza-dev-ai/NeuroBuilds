@@ -12,10 +12,9 @@ interface CategoryStat {
   priceMax: number;
   priceMedian: number;
   priceAvg: number;
-  avgViews: number;
 }
-interface HotItem { title: string; category: string; price: number; views: number; velocity: number }
-interface DeadItem { title: string; category: string; price: number; views: number; ageDays: number }
+interface HotItem { title: string; category: string; price: number; velocity: number }
+interface DeadItem { title: string; category: string; price: number; ageDays: number }
 interface PriceMovement {
   category: string;
   previousMedian: number;
@@ -217,7 +216,6 @@ export default function MarketIntelPanel() {
                       <span className="text-amber-400 font-mono text-xs w-5 shrink-0">#{i + 1}</span>
                       <span className="flex-1 min-w-0 truncate text-gray-200">{h.title}</span>
                       <span className="text-xs text-gray-500 font-mono shrink-0">{rs(h.price)}</span>
-                      <span className="text-xs text-primary font-mono shrink-0">{h.views}👁</span>
                     </li>
                   ))}
                 </ul>
@@ -233,7 +231,7 @@ export default function MarketIntelPanel() {
                     <li key={i} className="flex items-center gap-3 text-sm">
                       <span className="flex-1 min-w-0 truncate text-gray-200">{d.title}</span>
                       <span className="text-xs text-gray-500 font-mono shrink-0">{rs(d.price)}</span>
-                      <span className="text-xs text-gray-600 font-mono shrink-0">{d.ageDays}d · {d.views}👁</span>
+                      <span className="text-xs text-gray-600 font-mono shrink-0">{d.ageDays}d old</span>
                     </li>
                   ))}
                 </ul>

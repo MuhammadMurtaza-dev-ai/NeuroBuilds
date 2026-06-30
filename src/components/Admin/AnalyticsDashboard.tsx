@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useBlogFeed } from '../../hooks/useBlogCMS';
 import { useCommunity, COMMUNITY_CATEGORIES } from '../../hooks/useCommunity';
 import { useMarketplace } from '../../hooks/useMarketplace';
@@ -85,33 +85,39 @@ export default function AnalyticsDashboard() {
   useEffect(() => { fetchByScope(); }, [fetchByScope]);
 
   // Most commented blogs — top 5
-  const blogItems: BarItem[] = [...posts]
-    .sort((a, b) => (b.commentCount ?? 0) - (a.commentCount ?? 0))
-    .slice(0, 5)
-    .map((p) => ({ label: p.title, value: p.commentCount ?? 0 }));
+  const blogItems: BarItem[] = useMemo(() =>
+    [...posts]
+      .sort((a, b) => (b.commentCount ?? 0) - (a.commentCount ?? 0))
+      .slice(0, 5)
+      .map((p) => ({ label: p.title, value: p.commentCount ?? 0 })),
+    [posts]);
 
   // Most upvoted community categories
-  const categoryMap: Record<string, number> = {};
-  allThreads.forEach((t) => {
-    categoryMap[t.category] = (categoryMap[t.category] ?? 0) + t.upvoteCount;
-  });
-  const communityItems: BarItem[] = Object.entries(categoryMap)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([cat, votes]) => ({
-      label: COMMUNITY_CATEGORIES.find((c) => c.id === cat)?.name ?? cat,
-      value: votes,
-    }));
+  const communityItems: BarItem[] = useMemo(() => {
+    const categoryMap: Record<string, number> = {};
+    allThreads.forEach((t) => {
+      categoryMap[t.category] = (categoryMap[t.category] ?? 0) + t.upvoteCount;
+    });
+    return Object.entries(categoryMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([cat, votes]) => ({
+        label: COMMUNITY_CATEGORIES.find((c) => c.id === cat)?.name ?? cat,
+        value: votes,
+      }));
+  }, [allThreads]);
 
   // Most saved listing categories
-  const savedMap: Record<string, number> = {};
-  listings.forEach((l) => {
-    savedMap[l.category] = (savedMap[l.category] ?? 0) + (l.savedBy?.length ?? 0);
-  });
-  const marketItems: BarItem[] = Object.entries(savedMap)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([cat, saves]) => ({ label: cat, value: saves }));
+  const marketItems: BarItem[] = useMemo(() => {
+    const savedMap: Record<string, number> = {};
+    listings.forEach((l) => {
+      savedMap[l.category] = (savedMap[l.category] ?? 0) + (l.savedBy?.length ?? 0);
+    });
+    return Object.entries(savedMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([cat, saves]) => ({ label: cat, value: saves }));
+  }, [listings]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
