@@ -33,7 +33,7 @@ const Footer: React.FC<FooterProps> = ({
   return (
     <footer
       id={sectionId}
-      className="fixed bottom-0 left-0 w-full bg-[#111] border-t border-white/5 py-1 px-4 z-50 text-[10px] md:text-xs font-mono text-gray-500 flex justify-between items-center select-none"
+      className="hidden md:flex fixed bottom-0 left-0 w-full bg-[#111] border-t border-white/5 py-1 px-4 z-50 text-xs font-mono text-gray-500 justify-between items-center select-none"
     >
       <div className="flex items-center gap-4">
         <span

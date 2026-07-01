@@ -51,7 +51,7 @@ export default function BlogPage() {
     return (
       <>
         <GradientBackground />
-        <main className="relative z-10 flex-grow flex items-center justify-center pt-32 pb-20">
+        <main className="relative z-10 flex-grow flex items-center justify-center pt-32 pb-20 px-4">
           <div className="flex flex-col items-center gap-4 text-gray-400">
             <span className="material-symbols-outlined text-5xl text-primary animate-pulse">
               article
@@ -67,7 +67,7 @@ export default function BlogPage() {
     return (
       <>
         <GradientBackground />
-        <main className="relative z-10 flex-grow flex items-center justify-center pt-32 pb-20">
+        <main className="relative z-10 flex-grow flex items-center justify-center pt-32 pb-20 px-4">
           <div className="text-center text-red-400">
             <span className="material-symbols-outlined text-4xl block mb-3">error</span>
             <p className="text-sm font-mono">{error}</p>
@@ -108,14 +108,14 @@ export default function BlogPage() {
 
       <main className="relative z-10 flex-grow pt-32 pb-20 px-4 md:px-8 max-w-[1440px] mx-auto w-full">
         {/* Page title row with admin New Post button */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <h1 className="text-4xl font-bold text-white tracking-tight">
             Blog
           </h1>
           {user && (
             <button
               onClick={() => openEditor()}
-              className="flex items-center gap-2 px-5 py-2.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full transition-all text-sm font-bold shadow-neon"
+              className="min-h-11 flex items-center justify-center gap-2 px-5 py-2.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full transition-all text-sm font-bold shadow-neon"
             >
               <span className="material-symbols-outlined text-[18px]">{isAdmin ? 'add' : 'edit'}</span>
               {isAdmin ? 'New Post' : 'Write a Post'}
@@ -141,10 +141,10 @@ export default function BlogPage() {
         ) : (
           <>
             {/* Featured Article + Trending Sidebar */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 mb-12">
               {featuredPost && (
                 <div
-                  className="lg:col-span-8 h-[500px] relative rounded-bento overflow-hidden group border border-black/10 dark:border-white/10 shadow-2xl cursor-pointer"
+                  className="md:col-span-2 lg:col-span-8 h-80 sm:h-96 lg:h-[500px] relative rounded-bento overflow-hidden group border border-black/10 dark:border-white/10 shadow-2xl cursor-pointer"
                   onClick={() => setSelectedPost(featuredPost)}
                 >
                   {featuredPost.thumbnailUrl ? (
@@ -158,7 +158,7 @@ export default function BlogPage() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-black/5 to-transparent dark:from-black/85 dark:via-black/60 dark:to-transparent" />
                   <div className="absolute inset-0 bg-gradient-to-r from-black/15 to-transparent dark:from-black/70 dark:to-transparent" />
 
-                  <div className="absolute bottom-0 left-0 p-8 md:p-12 w-full z-20">
+                  <div className="absolute bottom-0 left-0 p-5 sm:p-8 md:p-12 w-full z-20">
                     <div className="flex items-center gap-3 mb-4">
                       <span className="px-3 py-1 rounded-full bg-primary/20 backdrop-blur-md text-xs font-bold text-primary border border-primary/20">
                         FEATURED STORY
@@ -170,13 +170,13 @@ export default function BlogPage() {
                         </span>
                       )}
                     </div>
-                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 leading-tight max-w-3xl">
+                    <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold text-white mb-4 leading-tight max-w-3xl">
                       {featuredPost.title}
                     </h2>
-                    <p className="text-gray-300 text-lg line-clamp-2 max-w-2xl mb-6">
+                    <p className="text-gray-300 text-sm sm:text-lg line-clamp-2 max-w-2xl mb-6">
                       {featuredPost.excerpt}
                     </p>
-                    <div className="flex items-center gap-6 text-sm text-gray-400 font-mono">
+                    <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs sm:text-sm text-gray-400 font-mono">
                       {featuredPost.createdAt && (
                         <span className="flex items-center gap-2">
                           <span className="material-symbols-outlined text-[18px] text-primary">
@@ -197,8 +197,8 @@ export default function BlogPage() {
               )}
 
               {/* Trending Sidebar */}
-              <div className="lg:col-span-4 flex flex-col gap-4">
-                <div className="glass-panel rounded-bento p-8 h-full flex flex-col border-t-4 border-t-accent-purple">
+              <div className="md:col-span-2 lg:col-span-4 flex flex-col gap-4">
+                <div className="glass-panel rounded-bento p-5 sm:p-8 h-full flex flex-col border-t-4 border-t-accent-purple">
                   <h3 className="font-bold text-xl mb-6 flex items-center gap-2 pb-4 border-b border-black/8 dark:border-white/5">
                     <span className="material-symbols-outlined text-accent-purple">flash_on</span>
                     Trending Now
@@ -229,7 +229,7 @@ export default function BlogPage() {
               <div>
                 <h2 className="text-3xl font-bold text-white mb-8 tracking-tight">
                   Recent Articles{' '}
-                  <span className="text-gray-600 text-lg font-normal ml-2">// Latest Posts</span>
+                  <span className="block sm:inline text-gray-600 text-lg font-normal sm:ml-2">// Latest Posts</span>
                 </h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

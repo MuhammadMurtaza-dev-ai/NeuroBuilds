@@ -59,7 +59,7 @@ export default function SellerVerificationModal({ onClose, onSuccess }: Props) {
       className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="glass-panel rounded-[2rem] border border-white/10 w-full max-w-md p-8 flex flex-col gap-6 relative overflow-hidden">
+      <div className="glass-panel rounded-[2rem] border border-white/10 w-full max-w-[calc(100vw-1.5rem)] sm:max-w-md max-h-[90vh] overflow-y-auto p-5 sm:p-8 flex flex-col gap-6 relative">
         <div id="recaptcha-container" className="hidden" />
 
         {/* Ambient glow */}
@@ -83,7 +83,7 @@ export default function SellerVerificationModal({ onClose, onSuccess }: Props) {
                   : `Code sent to +92 ${phone}. Enter it below.`}
             </p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 transition-colors shrink-0">
+          <button onClick={onClose} className="size-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors shrink-0" aria-label="Close seller verification">
             <span className="material-symbols-outlined text-base leading-none">close</span>
           </button>
         </div>
@@ -207,7 +207,7 @@ export default function SellerVerificationModal({ onClose, onSuccess }: Props) {
           <div className="flex flex-col gap-5 relative">
             <div>
               <label className="text-sm text-gray-400 mb-3 block text-center">Enter 6-digit code</label>
-              <div className="flex gap-2 justify-center">
+              <div className="flex flex-wrap gap-1.5 sm:gap-2 justify-center">
                 {otp.map((digit, i) => (
                   <input
                     key={i}
@@ -218,7 +218,7 @@ export default function SellerVerificationModal({ onClose, onSuccess }: Props) {
                     value={digit}
                     onChange={e => handleOtpChange(i, e.target.value)}
                     onKeyDown={e => handleOtpKeyDown(i, e)}
-                    className="w-11 h-14 text-center text-xl font-bold bg-black/40 border border-white/10 rounded-xl text-white caret-primary focus:border-primary focus:shadow-[0_0_12px_rgba(13,242,242,0.2)] focus:outline-none transition-all"
+                    className="w-10 h-12 sm:w-11 sm:h-14 text-center text-lg sm:text-xl font-bold bg-black/40 border border-white/10 rounded-xl text-white caret-primary focus:border-primary focus:shadow-[0_0_12px_rgba(13,242,242,0.2)] focus:outline-none transition-all"
                   />
                 ))}
               </div>

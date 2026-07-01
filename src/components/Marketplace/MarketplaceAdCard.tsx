@@ -32,7 +32,7 @@ export default function MarketplaceAdCard({ ad }: Props) {
       className={`glass-panel rounded-[2rem] border border-border-glass ${accentBorder} transition-all group flex flex-col cursor-pointer relative overflow-hidden`}
     >
       {/* Sponsored badge */}
-      <div className={`absolute top-4 right-4 z-10 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest font-mono backdrop-blur-sm border ${
+      <div className={`absolute top-4 right-4 z-10 px-2.5 py-1 rounded-full text-xs font-bold tracking-widest font-mono backdrop-blur-sm border ${
         isPurple
           ? 'text-accent-purple border-accent-purple/40 bg-accent-purple/10'
           : 'text-primary border-primary/40 bg-primary/10'
@@ -74,7 +74,7 @@ export default function MarketplaceAdCard({ ad }: Props) {
           title={`Ad ID: ${ad.id} — click to copy`}
           className="flex items-center gap-1.5 mt-1 w-full text-left group/id"
         >
-          <span className="material-symbols-outlined text-[11px] text-gray-700 group-hover/id:text-gray-500 transition-colors shrink-0">
+          <span className="material-symbols-outlined text-xs text-gray-700 group-hover/id:text-gray-500 transition-colors shrink-0">
             {copied ? 'check' : 'content_copy'}
           </span>
           <span className="font-mono text-[9px] text-gray-700 group-hover/id:text-gray-500 transition-colors truncate">

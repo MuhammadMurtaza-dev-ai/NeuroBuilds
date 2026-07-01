@@ -30,7 +30,7 @@ export default function AdminPage() {
   return (
     <>
       <GradientBackground />
-      <main className="relative z-10 flex-grow pt-32 pb-20 px-4 md:px-8 max-w-[1440px] mx-auto w-full">
+      <main className="relative z-10 flex-grow pt-24 md:pt-32 pb-20 px-4 md:px-8 max-w-[1440px] mx-auto w-full">
         {/* Header */}
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-4">
@@ -43,7 +43,7 @@ export default function AdminPage() {
               <p className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-0.5">
                 Restricted Area
               </p>
-              <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
                 Admin{' '}
                 <span className="text-accent-purple" style={{ textShadow: '0 0 20px rgba(191,0,255,0.5)' }}>
                   Workspace
@@ -51,18 +51,18 @@ export default function AdminPage() {
               </h1>
             </div>
           </div>
-          <p className="text-gray-400 text-sm ml-[60px]">
+          <p className="text-gray-400 text-sm sm:ml-[60px]">
             Platform moderation, content review, and analytics hub.
           </p>
         </div>
 
         {/* Tab navigation */}
-        <div className="flex items-center gap-2 mb-8 border-b border-white/10 pb-4 overflow-x-auto">
+        <div className="flex items-center gap-2 mb-8 border-b border-white/10 pb-4 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
           {TABS.map(({ key, label, icon }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all whitespace-nowrap border ${
+              className={`min-h-11 flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-full text-sm font-bold transition-all whitespace-nowrap border shrink-0 ${
                 activeTab === key
                   ? 'bg-accent-purple/10 text-accent-purple border-accent-purple/30 shadow-glow-purple'
                   : 'text-gray-400 hover:text-white border-transparent hover:border-white/10'
@@ -78,13 +78,13 @@ export default function AdminPage() {
         <div>
           {activeTab === 'review'     && <ErrorBoundary inline><ReviewConsole /></ErrorBoundary>}
           {activeTab === 'moderation' && <ErrorBoundary inline><ModerationDesk /></ErrorBoundary>}
-          {activeTab === 'market'     && <ErrorBoundary inline><div className="glass-panel rounded-bento border border-white/10 p-6"><MarketIntelPanel /></div></ErrorBoundary>}
+          {activeTab === 'market'     && <ErrorBoundary inline><div className="glass-panel rounded-bento border border-white/10 p-4 sm:p-6"><MarketIntelPanel /></div></ErrorBoundary>}
           {activeTab === 'telemetry'  && <ErrorBoundary inline><TelemetryPanel /></ErrorBoundary>}
           {activeTab === 'automator'  && <ErrorBoundary inline><BlogAutomatorPanel /></ErrorBoundary>}
-          {activeTab === 'ads'        && <ErrorBoundary inline><div className="glass-panel rounded-bento border border-white/10 p-6"><AdsManagerPanel /></div></ErrorBoundary>}
+          {activeTab === 'ads'        && <ErrorBoundary inline><div className="glass-panel rounded-bento border border-white/10 p-4 sm:p-6"><AdsManagerPanel /></div></ErrorBoundary>}
           {activeTab === 'roles'      && (
             <ErrorBoundary inline>
-              <div className="glass-panel rounded-bento border border-white/10 p-6">
+              <div className="glass-panel rounded-bento border border-white/10 p-4 sm:p-6">
                 <RoleAssignmentMatrix />
               </div>
             </ErrorBoundary>

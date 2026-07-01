@@ -40,11 +40,6 @@ export default function BannerCarousel({ className = 'col-span-1 md:col-span-8',
     return () => clearInterval(id)
   }, [advance, slides.length, intervalMs])
 
-  // Reset index when slide count changes (e.g. Firestore loads)
-  useEffect(() => {
-    setCurrent(0)
-  }, [slides.length])
-
   if (loading) {
     return (
       <div className={`${className} rounded-bento bg-white/5 animate-pulse min-h-[260px] md:min-h-[380px]`} />
@@ -53,7 +48,8 @@ export default function BannerCarousel({ className = 'col-span-1 md:col-span-8',
 
   if (slides.length === 0) return null
 
-  const slide = slides[current]
+  const activeIndex = current % slides.length
+  const slide = slides[activeIndex]
 
   return (
     <div className={`${className} relative rounded-bento overflow-hidden min-h-[260px] md:min-h-[380px] bg-bg-panel`}>
@@ -66,7 +62,7 @@ export default function BannerCarousel({ className = 'col-span-1 md:col-span-8',
           rel="noopener noreferrer nofollow"
           aria-label={`${s.sponsorName} — ${s.tagline ?? ''}`}
           className={`absolute inset-0 transition-opacity duration-300 ${
-            i === current
+            i === activeIndex
               ? fading ? 'opacity-0' : 'opacity-100'
               : 'opacity-0 pointer-events-none'
           }`}
@@ -109,7 +105,7 @@ export default function BannerCarousel({ className = 'col-span-1 md:col-span-8',
             <span
               key={i}
               className={`rounded-full transition-all duration-300 ${
-                i === current
+                i === activeIndex
                   ? `w-5 h-1.5 ${slide.accent === 'purple' ? 'bg-accent-purple' : 'bg-primary'}`
                   : 'w-1.5 h-1.5 bg-white/25'
               }`}
@@ -123,7 +119,7 @@ export default function BannerCarousel({ className = 'col-span-1 md:col-span-8',
         <div className="absolute bottom-0 left-0 right-0 h-px bg-white/5 z-10 pointer-events-none">
           <div
             className={`h-full opacity-40 ${slide.accent === 'purple' ? 'bg-accent-purple' : 'bg-primary'}`}
-            style={{ width: `${((current + 1) / slides.length) * 100}%`, transition: 'none' }}
+            style={{ width: `${((activeIndex + 1) / slides.length) * 100}%`, transition: 'none' }}
           />
         </div>
       )}

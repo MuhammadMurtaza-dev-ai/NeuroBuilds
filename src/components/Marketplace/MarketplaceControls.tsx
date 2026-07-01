@@ -53,7 +53,8 @@ export default function MarketplaceControls({
           {filters.search && (
             <button
               onClick={() => setFilter('search', '')}
-              className="text-gray-500 hover:text-[var(--text-base)] transition-colors shrink-0"
+              className="size-10 flex items-center justify-center text-gray-500 hover:text-[var(--text-base)] transition-colors shrink-0"
+              aria-label="Clear search"
             >
               <span className="material-symbols-outlined text-sm leading-none">close</span>
             </button>
@@ -130,7 +131,7 @@ export default function MarketplaceControls({
                 <span className={`material-symbols-outlined text-base leading-none ${active ? 'text-primary' : 'text-gray-500 group-hover:text-primary'} transition-colors`}>
                   {cat.icon}
                 </span>
-                <span className="font-medium">{cat.name}</span>
+                <span className="font-medium truncate">{cat.name}</span>
               </button>
             );
           })}
@@ -162,7 +163,7 @@ export default function MarketplaceControls({
             <button
               key={type}
               onClick={() => setFilter('listingType', type)}
-              className={`px-3 py-2 rounded-xl text-sm capitalize transition-colors border ${
+              className={`min-h-11 px-3 py-2 rounded-xl text-sm capitalize transition-colors border ${
                 filters.listingType === type
                   ? 'bg-primary text-bg-dark font-bold border-primary'
                   : 'border-border-glass text-[var(--text-muted)] hover:text-[var(--text-base)] hover:bg-black/5 dark:hover:bg-white/5'
@@ -213,7 +214,7 @@ export default function MarketplaceControls({
                       : [...filters.conditions, cond],
                   )
                 }
-                className={`px-3.5 py-2 rounded-xl text-sm capitalize transition-all ${active ? 'bg-primary text-bg-dark font-bold' : 'bg-black/5 dark:bg-white/5 text-[var(--text-muted)] hover:bg-black/10 dark:hover:bg-white/10'}`}
+                className={`min-h-11 px-3.5 py-2 rounded-xl text-sm capitalize transition-all ${active ? 'bg-primary text-bg-dark font-bold' : 'bg-black/5 dark:bg-white/5 text-[var(--text-muted)] hover:bg-black/10 dark:hover:bg-white/10'}`}
               >
                 {cond}
               </button>
@@ -249,7 +250,7 @@ export default function MarketplaceControls({
       {hasActiveFilters && (
         <button
           onClick={onClearAll}
-          className="text-sm text-gray-500 hover:text-white transition-colors underline self-start"
+          className="min-h-11 text-sm text-gray-500 hover:text-white transition-colors underline self-start"
         >
           Clear all filters
         </button>

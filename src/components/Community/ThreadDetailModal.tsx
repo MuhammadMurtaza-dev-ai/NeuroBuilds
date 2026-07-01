@@ -156,9 +156,9 @@ export default function ThreadDetailModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative z-10 w-full max-w-3xl h-[90vh] flex flex-col glass-panel rounded-bento border border-white/10 shadow-neon overflow-hidden">
+      <div className="relative z-10 w-full max-w-[calc(100vw-1.5rem)] sm:max-w-3xl h-[90vh] flex flex-col glass-panel rounded-bento border border-white/10 shadow-neon overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-8 py-5 border-b border-white/10 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-5 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
               {categoryLabel}
@@ -172,13 +172,13 @@ export default function ThreadDetailModal({
               </span>
             )}
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+          <button onClick={onClose} className="size-10 flex items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-white/10 transition-colors shrink-0" aria-label="Close thread details">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-grow overflow-y-auto px-8 py-6 space-y-6">
+        <div className="flex-grow overflow-y-auto px-4 sm:px-8 py-5 sm:py-6 space-y-6">
           {/* Thread body */}
           <div>
             <h2 className="text-2xl font-bold text-white mb-2 leading-tight">{thread.title}</h2>
@@ -191,13 +191,13 @@ export default function ThreadDetailModal({
 
             {/* Thread images */}
             {thread.images && thread.images.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-4">
+              <div className="flex gap-2 mt-4 overflow-x-auto pb-1 snap-x snap-mandatory mask-gradient">
                 {thread.images.map((url, i) => (
                   <img
                     key={i}
                     src={url}
                     alt={`Thread image ${i + 1}`}
-                    className="max-h-48 max-w-xs object-cover rounded-xl border border-white/10 cursor-zoom-in"
+                    className="h-36 sm:max-h-48 w-56 sm:w-72 object-cover rounded-xl border border-white/10 cursor-zoom-in shrink-0 snap-start"
                     onClick={() => window.open(url, '_blank')}
                   />
                 ))}
@@ -210,7 +210,7 @@ export default function ThreadDetailModal({
             <button
               onClick={() => onVote('upvote')}
               disabled={isClosed}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+              className={`min-h-11 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                 hasUpvoted
                   ? 'bg-primary/20 text-primary border border-primary/40'
                   : 'text-gray-400 hover:text-primary hover:bg-primary/10 border border-transparent'
@@ -222,7 +222,7 @@ export default function ThreadDetailModal({
             <button
               onClick={() => onVote('downvote')}
               disabled={isClosed}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+              className={`min-h-11 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                 hasDownvoted
                   ? 'bg-accent-purple/20 text-accent-purple border border-accent-purple/40'
                   : 'text-gray-400 hover:text-accent-purple hover:bg-accent-purple/10 border border-transparent'
@@ -242,7 +242,7 @@ export default function ThreadDetailModal({
                     <button
                       onClick={() => handleLifecycle('solved')}
                       disabled={lifecycleLoading}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-green-500/30 bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-all disabled:opacity-50"
+                      className="min-h-11 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-green-500/30 bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-all disabled:opacity-50"
                     >
                       <span className="material-symbols-outlined text-[15px]">check_circle</span>
                       Mark Solved
@@ -252,7 +252,7 @@ export default function ThreadDetailModal({
                     <button
                       onClick={() => handleLifecycle('closed')}
                       disabled={lifecycleLoading}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-gray-500/30 bg-gray-500/10 text-gray-400 hover:bg-gray-500/20 transition-all disabled:opacity-50"
+                      className="min-h-11 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-gray-500/30 bg-gray-500/10 text-gray-400 hover:bg-gray-500/20 transition-all disabled:opacity-50"
                     >
                       <Lock size={13} />
                       Close Thread
@@ -266,7 +266,7 @@ export default function ThreadDetailModal({
                 <>
                   <button
                     onClick={onEditClick}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-all"
+                    className="min-h-11 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-all"
                   >
                     <span className="material-symbols-outlined text-[16px]">edit</span>
                     Edit
@@ -274,7 +274,7 @@ export default function ThreadDetailModal({
                   <button
                     onClick={handleDelete}
                     disabled={deleting}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="min-h-11 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="material-symbols-outlined text-[16px]">
                       {deleting ? 'progress_activity' : 'delete'}
@@ -308,7 +308,7 @@ export default function ThreadDetailModal({
         </div>
 
         {/* Reply form — pinned at bottom */}
-        <div className="shrink-0 px-8 py-5 border-t border-white/10 bg-bg-dark/60">
+        <div className="shrink-0 px-4 sm:px-8 py-4 sm:py-5 border-t border-white/10 bg-bg-dark/60">
           {isClosed ? (
             <div className="flex items-center gap-3 py-2 px-4 rounded-xl bg-gray-500/10 border border-gray-500/20">
               <Lock size={15} className="text-gray-500 shrink-0" />
@@ -338,7 +338,8 @@ export default function ThreadDetailModal({
                       <button
                         type="button"
                         onClick={() => setReplyImages(prev => prev.filter((_, idx) => idx !== i))}
-                        className="absolute -top-1.5 -right-1.5 size-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute -top-2 -right-2 size-8 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                        aria-label="Remove reply image"
                       >
                         <X size={9} className="text-white" />
                       </button>
@@ -347,7 +348,7 @@ export default function ThreadDetailModal({
                 </div>
               )}
 
-              <form onSubmit={handleSubmitReply} className="flex gap-3">
+              <form onSubmit={handleSubmitReply} className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-grow flex flex-col gap-1.5">
                   <textarea
                     ref={replyInputRef}
@@ -375,7 +376,7 @@ export default function ThreadDetailModal({
                           type="button"
                           onClick={() => replyFileRef.current?.click()}
                           disabled={uploadingReplyImages}
-                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-gray-400 hover:text-white border border-white/10 hover:border-white/20 transition-all disabled:opacity-50"
+                          className="min-h-11 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs text-gray-400 hover:text-white border border-white/10 hover:border-white/20 transition-all disabled:opacity-50"
                         >
                           {uploadingReplyImages ? <Loader size={12} className="animate-spin" /> : <ImagePlus size={12} />}
                           {uploadingReplyImages ? 'Uploading…' : `Add image (${replyImages.length}/${MAX_REPLY_IMAGES})`}
@@ -387,7 +388,7 @@ export default function ThreadDetailModal({
                 <button
                   type="submit"
                   disabled={submitting || !replyBody.trim() || uploadingReplyImages}
-                  className="px-5 py-3 bg-primary hover:bg-cyan-300 text-bg-dark font-bold rounded-xl transition-all shadow-[0_0_10px_rgba(13,242,242,0.3)] disabled:opacity-40 disabled:cursor-not-allowed self-end"
+                  className="min-h-11 px-5 py-3 bg-primary hover:bg-cyan-300 text-bg-dark font-bold rounded-xl transition-all shadow-[0_0_10px_rgba(13,242,242,0.3)] disabled:opacity-40 disabled:cursor-not-allowed self-stretch sm:self-end"
                 >
                   <span className="material-symbols-outlined text-[18px]">send</span>
                 </button>
@@ -397,7 +398,7 @@ export default function ThreadDetailModal({
               )}
             </>
           ) : (
-            <div className="flex items-center justify-between gap-4 py-1">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-1">
               <p className="text-sm text-gray-400">
                 <span className="material-symbols-outlined text-[16px] align-middle mr-1.5 text-gray-500">lock</span>
                 Sign in to join the discussion

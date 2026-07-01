@@ -199,7 +199,7 @@ export default function BlogAutomatorPanel() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Trigger form */}
-        <div className="glass-panel rounded-bento border border-white/10 p-6">
+        <div className="glass-panel rounded-bento border border-white/10 p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-5">
             <span className="material-symbols-outlined text-primary text-[20px]">auto_awesome</span>
             <h2 className="text-base font-bold text-white">Generate Blog Post</h2>
@@ -265,7 +265,7 @@ export default function BlogAutomatorPanel() {
             <button
               onClick={handleTrigger}
               disabled={triggering || !topic.trim()}
-              className="w-full py-2.5 rounded-xl font-bold text-sm transition-all bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 hover:shadow-neon disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full min-h-11 py-2.5 rounded-xl font-bold text-sm transition-all bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 hover:shadow-neon disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {triggering ? 'Queuing…' : 'Queue Pipeline'}
             </button>
@@ -279,8 +279,8 @@ export default function BlogAutomatorPanel() {
         </div>
 
         {/* Recent jobs */}
-        <div className="glass-panel rounded-bento border border-white/10 p-6">
-          <div className="flex items-center justify-between mb-5">
+        <div className="glass-panel rounded-bento border border-white/10 p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-3 mb-5">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-[20px]">history</span>
               <h2 className="text-base font-bold text-white">Recent Jobs</h2>
@@ -288,7 +288,7 @@ export default function BlogAutomatorPanel() {
             <button
               onClick={loadJobs}
               disabled={jobsLoading}
-              className="text-[11px] font-mono text-gray-500 hover:text-primary transition-colors disabled:opacity-40"
+              className="min-h-10 px-2 text-[11px] font-mono text-gray-500 hover:text-primary transition-colors disabled:opacity-40"
             >
               {jobsLoading ? 'loading…' : 'refresh'}
             </button>
@@ -348,9 +348,9 @@ export default function BlogAutomatorPanel() {
       </div>
 
       {/* ── Prompt editor ────────────────────────────────────────────────────── */}
-      <div className="glass-panel rounded-bento border border-white/10 p-6">
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-3">
+      <div className="glass-panel rounded-bento border border-white/10 p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="material-symbols-outlined text-accent-purple text-[20px]">edit_note</span>
             <h2 className="text-base font-bold text-white">System Prompts</h2>
             {prompts && (
@@ -372,7 +372,7 @@ export default function BlogAutomatorPanel() {
             {promptsDirty && (
               <button
                 onClick={handleResetPrompts}
-                className="text-[11px] font-mono text-gray-500 hover:text-gray-300 transition-colors"
+                className="min-h-10 px-2 text-[11px] font-mono text-gray-500 hover:text-gray-300 transition-colors"
               >
                 discard
               </button>
@@ -380,7 +380,7 @@ export default function BlogAutomatorPanel() {
             <button
               onClick={handleSavePrompts}
               disabled={promptsSaving || !promptsDirty}
-              className="px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-accent-purple/10 text-accent-purple border border-accent-purple/30 hover:bg-accent-purple/20 hover:shadow-glow-purple disabled:opacity-40 disabled:cursor-not-allowed"
+              className="min-h-10 px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-accent-purple/10 text-accent-purple border border-accent-purple/30 hover:bg-accent-purple/20 hover:shadow-glow-purple disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {promptsSaving ? 'Saving…' : 'Save Prompts'}
             </button>
