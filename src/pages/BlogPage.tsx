@@ -155,8 +155,8 @@ export default function BlogPage() {
                   ) : (
                     <div className="absolute inset-0 bg-gradient-to-br from-bg-panel to-bg-dark" />
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-black/5 to-transparent dark:from-black/85 dark:via-black/60 dark:to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/15 to-transparent dark:from-black/70 dark:to-transparent" />
 
                   <div className="absolute bottom-0 left-0 p-8 md:p-12 w-full z-20">
                     <div className="flex items-center gap-3 mb-4">
@@ -253,7 +253,7 @@ export default function BlogPage() {
                             </span>
                           </div>
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/15 to-transparent dark:from-black/80 dark:to-transparent" />
 
                         {/* Badges */}
                         <div className="absolute top-4 right-4 flex flex-col items-end gap-2">

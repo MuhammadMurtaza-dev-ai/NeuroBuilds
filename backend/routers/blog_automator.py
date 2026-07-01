@@ -595,14 +595,19 @@ async def list_jobs(
             detail="Firebase Admin SDK is not configured.",
         )
 
-    db   = fb_firestore.client()
-    docs = (
-        db.collection(_JOBS_COL)
-        .order_by("createdAt", direction=fb_firestore.Query.DESCENDING)
-        .limit(min(limit, 50))
-        .stream()
-    )
-    return [d.to_dict() for d in docs]
+    db = fb_firestore.client()
+
+    def _fetch() -> list[dict]:
+        docs = (
+            db.collection(_JOBS_COL)
+            .order_by("createdAt", direction=fb_firestore.Query.DESCENDING)
+            .limit(min(limit, 50))
+            .stream()
+        )
+        return [d.to_dict() for d in docs]
+
+    # Firestore .stream() is blocking network I/O — keep it off the event loop.
+    return await asyncio.to_thread(_fetch)
 
 
 @router.get("/prompts")
@@ -623,7 +628,10 @@ async def get_prompts(
         )
 
     db   = fb_firestore.client()
-    snap = db.collection(_META_COL).document(_PROMPTS_DOC).get()
+    # Blocking Firestore read — offload so it doesn't stall the event loop.
+    snap = await asyncio.to_thread(
+        db.collection(_META_COL).document(_PROMPTS_DOC).get
+    )
 
     if snap.exists:
         data       = snap.to_dict() or {}

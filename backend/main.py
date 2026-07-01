@@ -125,8 +125,15 @@ async def lifespan(app: FastAPI):
                 index_name=os.getenv("MONGODB_VECTOR_INDEX", "vector_index"),
             )
 
-            # Bind global LLM semantic cache — silently no-ops on any error
-            setup_semantic_cache(app.state.mongo, db_name)
+            # Bind global LLM semantic cache — opt-in. Its lookup embeds every
+            # prompt via Gemini embeddings, which share the (small, free-tier)
+            # Gemini quota; when that quota is exhausted the cache lookup itself
+            # stalls for ~90s per call. Enable only when the embedding quota is
+            # healthy: set ENABLE_SEMANTIC_CACHE=true.
+            if os.getenv("ENABLE_SEMANTIC_CACHE", "false").lower() == "true":
+                setup_semantic_cache(app.state.mongo, db_name)
+            else:
+                logger.info("Semantic LLM cache disabled (ENABLE_SEMANTIC_CACHE != true)")
 
             # Ensure geospatial + compound indexes for marketplace search
             listings_col_name = os.getenv("MONGODB_LISTINGS_COLLECTION", "listings")

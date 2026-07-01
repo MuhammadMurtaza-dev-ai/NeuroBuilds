@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import {
   doc,
   getDoc,
-  updateDoc,
   setDoc,
   serverTimestamp,
   collection,

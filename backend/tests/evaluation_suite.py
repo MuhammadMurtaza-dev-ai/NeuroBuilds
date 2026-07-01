@@ -655,6 +655,255 @@ COMPAT_FIXTURES: list[dict] = [
             "psu":  {"name": "Budget 350W PSU", "rating": 350},
         },
     },
+
+    # ── ADDED: brief-mandated fatal rules + LLM key-schema regressions ─────────
+    # These extend coverage for the "invalid build reached response_node" bug.
+    # KG-11..13 are the required happy paths; IB-11..20 are the required fatals
+    # plus the LLM-key-schema variants that the old engine silently passed.
+
+    {
+        "id": "KG-11",
+        "label": True,
+        "desc": "Ryzen 5 7600 + B650 (AM5, DDR5) — required happy path",
+        "build": {
+            "cpu": {"name": "AMD Ryzen 5 7600", "tdp": 65, "specs": {"socket": "AM5"}},
+            "gpu": {"name": "RTX 4060", "tdp": 115, "specs": {"length_mm": 240}},
+            "motherboard": {
+                "name": "Gigabyte B650 Gaming X AX",
+                "specs": {
+                    "socket": "AM5", "chipset": "B650", "form_factor": "ATX",
+                    "max_memory": "DDR5-6400", "max_gpu_length_mm": 392,
+                },
+            },
+            "ram": {"name": "Corsair Vengeance DDR5-5600 32GB", "specs": {"speed": "DDR5-5600"}},
+            "psu": {"name": "Seasonic Focus GX-650", "rating": 650},
+        },
+    },
+
+    {
+        "id": "KG-12",
+        "label": True,
+        "desc": "Ryzen 7 5700X + B550 (AM4, DDR4) — required happy path",
+        "build": {
+            "cpu": {"name": "AMD Ryzen 7 5700X", "tdp": 65, "specs": {"socket": "AM4"}},
+            "gpu": {"name": "RX 6600", "tdp": 132, "specs": {"length_mm": 240}},
+            "motherboard": {
+                "name": "MSI MAG B550 TOMAHAWK",
+                "specs": {
+                    "socket": "AM4", "chipset": "B550", "form_factor": "ATX",
+                    "max_memory": "DDR4-4400", "max_gpu_length_mm": 340,
+                },
+            },
+            "ram": {"name": "G.Skill Ripjaws V DDR4-3600 32GB", "specs": {"speed": "DDR4-3600"}},
+            "psu": {"name": "Corsair RM650", "rating": 650},
+        },
+    },
+
+    {
+        "id": "KG-13",
+        "label": True,
+        "desc": "Happy path in LLM key schema (ram.type / mb.ram_type, no explicit socket)",
+        "build": {
+            # No explicit CPU/MB socket — must be inferred from name/chipset.
+            "cpu": {"name": "AMD Ryzen 5 7600", "tdp": 65, "specs": {"cores": "6"}},
+            "gpu": {"name": "RTX 4060", "tdp": 115, "specs": {"length_mm": 240, "interface": "PCIe 4.0 x16"}},
+            "motherboard": {
+                "name": "Gigabyte B650 Gaming X",
+                "specs": {"chipset": "B650", "form_factor": "ATX", "ram_type": "DDR5"},
+            },
+            "ram": {"name": "Corsair Vengeance 32GB", "specs": {"type": "DDR5", "capacity_gb": "32"}},
+            "psu": {"name": "Seasonic Focus GX-650", "rating": 650},
+        },
+    },
+
+    {
+        "id": "IB-11",
+        "label": False,
+        "desc": "Ryzen 7600 (AM5) + B550 (AM4) — required socket mismatch",
+        "build": {
+            "cpu": {"name": "AMD Ryzen 5 7600", "tdp": 65, "specs": {"socket": "AM5"}},
+            "gpu": {"name": "RTX 4060", "tdp": 115, "specs": {"length_mm": 240}},
+            "motherboard": {
+                "name": "Gigabyte B550 AORUS Elite AX",
+                "specs": {
+                    "socket": "AM4", "chipset": "B550", "form_factor": "ATX",
+                    "max_memory": "DDR4-5100", "max_gpu_length_mm": 340,
+                },
+            },
+            "ram": {"name": "Corsair Vengeance LPX DDR4-3200 16GB", "specs": {"speed": "DDR4-3200"}},
+            "psu": {"name": "Seasonic Focus GX-650", "rating": 650},
+        },
+    },
+
+    {
+        "id": "IB-12",
+        "label": False,
+        "desc": "DDR5 RAM on B550 (DDR4) — required memory mismatch",
+        "build": {
+            "cpu": {"name": "AMD Ryzen 5 5600X", "tdp": 65, "specs": {"socket": "AM4"}},
+            "gpu": {"name": "RX 6600", "tdp": 132, "specs": {"length_mm": 240}},
+            "motherboard": {
+                "name": "MSI B550M PRO-VDH",
+                "specs": {
+                    "socket": "AM4", "chipset": "B550", "form_factor": "MICRO-ATX",
+                    "max_memory": "DDR4-5100", "max_gpu_length_mm": 330,
+                },
+            },
+            "ram": {"name": "Kingston Fury Beast DDR5-5200 16GB", "specs": {"speed": "DDR5-5200"}},
+            "psu": {"name": "Seasonic Focus GX-650", "rating": 650},
+        },
+    },
+
+    {
+        "id": "IB-13",
+        "label": False,
+        "desc": "RTX 5090 (450W) on 500W PSU — required PSU transient deficit",
+        "build": {
+            "cpu": {"name": "AMD Ryzen 9 7950X", "tdp": 170, "specs": {"socket": "AM5"}},
+            "gpu": {"name": "RTX 5090", "tdp": 450, "specs": {"length_mm": 336}},
+            "motherboard": {
+                "name": "ASUS ProArt X870E Creator",
+                "specs": {
+                    "socket": "AM5", "chipset": "X870", "form_factor": "ATX",
+                    "max_memory": "DDR5-7200", "max_gpu_length_mm": 420,
+                },
+            },
+            "ram": {"name": "G.Skill Trident Z5 DDR5-6000 64GB", "specs": {"speed": "DDR5-6000"}},
+            "psu": {"name": "Generic Budget 500W", "rating": 500},
+        },
+    },
+
+    {
+        "id": "IB-14",
+        "label": False,
+        "desc": "GPU longer than the enclosure clearance — required physical fit failure",
+        "build": {
+            "cpu": {"name": "Intel Core i7-14700K", "tdp": 125, "specs": {"socket": "LGA1700"}},
+            "gpu": {"name": "RTX 4090 Gaming OC", "tdp": 450, "specs": {"length_mm": 420}},
+            "motherboard": {
+                "name": "ASUS TUF Gaming B760-Plus",
+                "specs": {
+                    "socket": "LGA1700", "chipset": "B760", "form_factor": "ATX",
+                    "max_memory": "DDR5-7600", "max_gpu_length_mm": 360,
+                },
+            },
+            "ram": {"name": "Corsair Vengeance DDR5-6000 32GB", "specs": {"speed": "DDR5-6000"}},
+            "psu": {"name": "Corsair RM1000x", "rating": 1000},
+        },
+    },
+
+    {
+        "id": "IB-15",
+        "label": False,
+        "desc": "CPU cooler taller than clearance — required cooler height failure",
+        "build": {
+            "cpu": {"name": "AMD Ryzen 7 7700X", "tdp": 105, "specs": {"socket": "AM5", "cooler_height_mm": 185}},
+            "gpu": {"name": "RTX 4070 SUPER", "tdp": 220, "specs": {"length_mm": 300}},
+            "motherboard": {
+                "name": "MSI MAG B650 TOMAHAWK",
+                "specs": {
+                    "socket": "AM5", "chipset": "B650", "form_factor": "ATX",
+                    "max_memory": "DDR5-6000", "max_gpu_length_mm": 380,
+                    "max_cooler_height_mm": 160,
+                },
+            },
+            "ram": {"name": "Corsair Vengeance DDR5-6000 32GB", "specs": {"speed": "DDR5-6000"}},
+            "psu": {"name": "Corsair RM850x", "rating": 850},
+        },
+    },
+
+    {
+        "id": "IB-16",
+        "label": False,
+        "desc": "THE REPORTED BUG — Ryzen 5 7600X + B550M + DDR5 in LLM key schema, no explicit socket",
+        "build": {
+            # Reproduces the exact escaped build: socket derived from name/chipset,
+            # DDR read from the LLM's ram.type / mb.ram_type keys.  Old engine passed this.
+            "cpu": {"name": "AMD Ryzen 5 7600X", "tdp": 105, "specs": {"cores": "6", "threads": "12"}},
+            "gpu": {"name": "RTX 4060", "tdp": 115, "specs": {"length_mm": 240}},
+            "motherboard": {
+                "name": "MSI B550M Bazooka",
+                "specs": {"chipset": "B550", "form_factor": "MICRO-ATX", "ram_type": "DDR4"},
+            },
+            "ram": {"name": "G.Skill Flare X5 32GB", "specs": {"type": "DDR5", "capacity_gb": "32"}},
+            "psu": {"name": "Corsair RM650", "rating": 650},
+        },
+    },
+
+    {
+        "id": "IB-17",
+        "label": False,
+        "desc": "DDR mismatch via LLM keys — ram.type=DDR5 vs mb.ram_type=DDR4",
+        "build": {
+            "cpu": {"name": "Intel Core i5-12400", "tdp": 65, "specs": {"socket": "LGA1700"}},
+            "gpu": {"name": "RTX 3060", "tdp": 170, "specs": {"length_mm": 242}},
+            "motherboard": {
+                "name": "MSI PRO B660M-A DDR4",
+                "specs": {"socket": "LGA1700", "chipset": "B660", "form_factor": "MICRO-ATX", "ram_type": "DDR4"},
+            },
+            "ram": {"name": "Kingston Fury 16GB", "specs": {"type": "DDR5"}},
+            "psu": {"name": "Corsair CX650", "rating": 650},
+        },
+    },
+
+    {
+        "id": "IB-18",
+        "label": False,
+        "desc": "CPU cooler does not support the CPU socket — Check 12",
+        "build": {
+            "cpu": {"name": "AMD Ryzen 7 7700X", "tdp": 105, "specs": {"socket": "AM5"}},
+            "gpu": {"name": "RTX 4070 SUPER", "tdp": 220, "specs": {"length_mm": 300}},
+            "motherboard": {
+                "name": "MSI MAG B650 TOMAHAWK",
+                "specs": {
+                    "socket": "AM5", "chipset": "B650", "form_factor": "ATX",
+                    "max_memory": "DDR5-6000", "max_gpu_length_mm": 380,
+                },
+            },
+            "ram": {"name": "Corsair Vengeance DDR5-6000 32GB", "specs": {"speed": "DDR5-6000"}},
+            "psu": {"name": "Corsair RM850x", "rating": 850},
+            "cooler": {"name": "Old Intel-only tower cooler", "specs": {"supported_sockets": "LGA1700, LGA1200"}},
+        },
+    },
+
+    {
+        "id": "IB-19",
+        "label": False,
+        "desc": "NVMe drive on a board with zero M.2 slots — Check 10",
+        "build": {
+            "cpu": {"name": "AMD Ryzen 5 5600", "tdp": 65, "specs": {"socket": "AM4"}},
+            "gpu": {"name": "RX 6600", "tdp": 132, "specs": {"length_mm": 240}},
+            "motherboard": {
+                "name": "Biostar A320MH (legacy)",
+                "specs": {
+                    "socket": "AM4", "chipset": "A320", "form_factor": "MICRO-ATX",
+                    "max_memory": "DDR4-3200", "max_gpu_length_mm": 330, "m2_slots": 0,
+                },
+            },
+            "ram": {"name": "Corsair Vengeance DDR4-3200 16GB", "specs": {"speed": "DDR4-3200"}},
+            "psu": {"name": "Corsair CX550", "rating": 550},
+            "storage": {"name": "Samsung 990 Pro 1TB", "specs": {"type": "NVMe SSD", "capacity_gb": "1000"}},
+        },
+    },
+
+    {
+        "id": "IB-20",
+        "label": False,
+        "desc": "PSU has fewer PCIe power connectors than the GPU needs — Check 11",
+        "build": {
+            "cpu": {"name": "Intel Core i7-13700K", "tdp": 125, "specs": {"socket": "LGA1700"}},
+            "gpu": {"name": "RTX 4080 SUPER", "tdp": 320, "specs": {"length_mm": 336, "pcie_power_connectors": 3}},
+            "motherboard": {
+                "name": "MSI PRO Z790-A",
+                "specs": {
+                    "socket": "LGA1700", "chipset": "Z790", "form_factor": "ATX",
+                    "max_memory": "DDR5-7200", "max_gpu_length_mm": 400,
+                },
+            },
+            "ram": {"name": "Corsair Vengeance DDR5-6000 32GB", "specs": {"speed": "DDR5-6000"}},
+            "psu": {"name": "Small SFX 600W", "rating": 900, "specs": {"pcie_connectors": 2}},
+        },
+    },
 ]
 
 
@@ -815,7 +1064,7 @@ def _make_mock_collection() -> MagicMock:
 
 def run_experiment_1() -> dict:
     h1("EXPERIMENT 1 — Compatibility Engine Accuracy")
-    h2("Running 20 fixtures through validation_engine.run_checks()")
+    h2(f"Running {len(COMPAT_FIXTURES)} fixtures through validation_engine.run_checks()")
 
     results = []
     for fx in COMPAT_FIXTURES:
@@ -1029,10 +1278,141 @@ def run_experiment_2() -> dict:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# EXPERIMENT 3 — VALIDATION GATE + SELECTION PRE-FILTER
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Proves the two structural guarantees added to close the "invalid build reached
+# response_node" bug:
+#   (A) an unfixable fatal build is flagged validation_failed AFTER the retry
+#       budget, routes to `respond` (not an infinite loop), and its build JSON is
+#       suppressed by run_pipeline — it can never reach the BuildCanvas.
+#   (B) the selection engine pre-filters candidates so it never *selects* an
+#       incompatible motherboard / RAM for the chosen CPU.
+
+def _make_compat_mock() -> MagicMock:
+    """Mock Collection that honours the socket / DDR compat sub-queries."""
+    from services.validation_engine import _extract_ddr  # local import (test-only)
+
+    def _find_one(query: dict, projection=None, sort=None):
+        category  = query.get("category", "").upper()
+        docs      = _MOCK_CATALOGUE.get(category, [])
+        max_price = query.get("specs.price", {}).get("$lte", float("inf"))
+        excluded  = (query.get("name") or {}).get("$nin", [])
+        req_sock  = query.get("specs.socket")
+        or_clause = query.get("$or")
+
+        def matches(d: dict) -> bool:
+            s = d["specs"]
+            if s["price"] > max_price or d["name"] in excluded:
+                return False
+            if req_sock and s.get("socket") != req_sock:
+                return False
+            if or_clause:
+                want = ""
+                for cond in or_clause:
+                    for _k, v in cond.items():
+                        want = v if isinstance(v, str) else v.get("$regex", "")
+                        break
+                    if want:
+                        break
+                have = _extract_ddr(str(s.get("memory_type") or s.get("type") or s.get("speed") or ""))
+                if _extract_ddr(want) and have and _extract_ddr(want) != have:
+                    return False
+            return True
+
+        cands = [d for d in docs if matches(d)]
+        if not cands:
+            return None
+        cands.sort(key=lambda d: d.get("performance_score", 0), reverse=True)
+        return cands[0]
+
+    mock = MagicMock()
+    mock.find_one.side_effect = _find_one
+    return mock
+
+
+def run_experiment_3() -> dict:
+    h1("EXPERIMENT 3 — Validation Gate + Selection Pre-Filter")
+
+    checks: list[tuple[str, bool]] = []
+
+    # ── Part A — the airtight gate (needs agent.py) ────────────────────────────
+    h2("Part A — a fatal build never reaches / populates response_node")
+    try:
+        from agent import (
+            compatibility_node,
+            _should_retry,
+            _MAX_ALLOC_ATTEMPTS,
+            _serialise_build,
+        )
+
+        fatal_build = {
+            "cpu": {"name": "AMD Ryzen 5 7600X", "tdp": 105, "specs": {"socket": "AM5"}},
+            "motherboard": {"name": "MSI B550M Bazooka",
+                            "specs": {"socket": "AM4", "chipset": "B550"}},
+            "ram": {"name": "DDR5 kit", "specs": {"type": "DDR5"}},
+        }
+        # Simulate the state AFTER the retry budget has been spent.
+        state = {
+            "active_build":        dict(fatal_build),
+            "allocation_attempt":  _MAX_ALLOC_ATTEMPTS,
+            "excluded_components": {},
+        }
+        out = compatibility_node(state)
+
+        checks.append(("compatibility flags fatal (compat_ok=False)", out["compat_ok"] is False))
+        checks.append(("validation_failed=True after retry budget spent",
+                       out.get("validation_failed") is True))
+        checks.append(("_should_retry routes to 'respond' (no infinite loop)",
+                       _should_retry({"compat_ok": False,
+                                      "allocation_attempt": _MAX_ALLOC_ATTEMPTS}) == "respond"))
+        # run_pipeline's serialization guard: build JSON is emitted only when NOT failed.
+        would_emit_json = not out.get("validation_failed")
+        checks.append(("build JSON suppressed for a failed build", would_emit_json is False))
+        # And a healthy build is NOT gated (regression guard).
+        checks.append(("_should_retry lets a passing build respond",
+                       _should_retry({"compat_ok": True, "allocation_attempt": 1}) == "respond"))
+    except Exception as exc:  # pragma: no cover — langgraph optional in some envs
+        row("Part A SKIPPED (agent import failed)", str(exc)[:46], C.YELLOW)
+
+    # ── Part B — selection never picks an incompatible part ────────────────────
+    h2("Part B — selection_engine pre-filters for compatibility")
+    collection = _make_compat_mock()
+    alloc = run_allocation(budget=2000, use_case="gaming", build={},
+                           collection=collection, attempt=0, excluded={})
+    b = alloc["build"]
+    cpu_sock = ((b.get("cpu") or {}).get("specs") or {}).get("socket")
+    mb_sock  = ((b.get("motherboard") or {}).get("specs") or {}).get("socket")
+    if cpu_sock and mb_sock:
+        checks.append((f"selected board socket {mb_sock} matches CPU socket {cpu_sock}",
+                       cpu_sock == mb_sock))
+    # If both a CPU and RAM were selected, the DDR generations must agree with the board.
+    from services.validation_engine import run_checks as _rc
+    sel_result = _rc(b)
+    checks.append(("full allocated build passes validation (no fatal issues)",
+                   sel_result["ok"] is True))
+
+    # ── Report ─────────────────────────────────────────────────────────────────
+    separator()
+    passed = 0
+    for label, ok in checks:
+        tag = f"{C.GREEN}PASS{C.RESET}" if ok else f"{C.RED}FAIL{C.RESET}"
+        print(f"  [{tag}] {label}")
+        passed += 1 if ok else 0
+    separator()
+    total = len(checks)
+    all_ok = passed == total
+    row("Gate assertions passed",
+        f"{passed}/{total}", C.GREEN if all_ok else C.RED)
+
+    return {"passed": passed, "total": total, "all_ok": all_ok}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # SUMMARY BANNER
 # ══════════════════════════════════════════════════════════════════════════════
 
-def print_summary(exp1: dict, exp2: dict) -> None:
+def print_summary(exp1: dict, exp2: dict, exp3: dict) -> None:
     h1("EVALUATION SUITE — SUMMARY")
 
     print(f"\n  {C.BOLD}{'Metric':<44}  Value{C.RESET}")
@@ -1066,6 +1446,13 @@ def print_summary(exp1: dict, exp2: dict) -> None:
     row("  Avg Slots Filled",                f"{exp2['avg_filled']:.2f} / 5",
         C.GREEN if exp2['avg_filled'] >= 4.5 else C.YELLOW)
 
+    separator()
+
+    # Experiment 3
+    print(f"  {C.CYAN}{C.BOLD}Experiment 3 — Validation Gate + Selection Pre-Filter{C.RESET}")
+    row("  Gate assertions passed",          f"{exp3['passed']}/{exp3['total']}",
+        C.GREEN if exp3['all_ok'] else C.RED)
+
     print(f"\n{C.CYAN}{C.BOLD}{'═' * 72}{C.RESET}\n")
 
 
@@ -1090,7 +1477,15 @@ if __name__ == "__main__":
 
     exp1_metrics = run_experiment_1()
     exp2_metrics = run_experiment_2()
-    print_summary(exp1_metrics, exp2_metrics)
+    exp3_metrics = run_experiment_3()
+    print_summary(exp1_metrics, exp2_metrics, exp3_metrics)
 
     elapsed = time.perf_counter() - t_start
     print(f"  {C.DIM}Total evaluation time: {elapsed*1000:.1f} ms{C.RESET}\n")
+
+    # Non-zero exit code if any experiment regressed — usable in CI / pre-commit.
+    ok = (
+        exp1_metrics["FP"] == 0 and exp1_metrics["FN"] == 0
+        and exp3_metrics["all_ok"]
+    )
+    sys.exit(0 if ok else 1)

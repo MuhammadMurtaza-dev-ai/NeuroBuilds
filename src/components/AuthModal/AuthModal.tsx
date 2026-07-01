@@ -248,7 +248,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
           {/* ── Auth Form View ── */}
           {view === 'form' && <>
           {/* Mode Tabs */}
-          <div className="flex gap-1 bg-black/20 rounded-pill p-1 mb-8">
+          <div className="flex gap-1 bg-black/20 rounded-pill p-1 mt-8 mb-8">
             <button
               onClick={() => setFormMode('login')}
               className={`flex-1 py-2 px-4 rounded-full font-bold text-sm transition-all ${

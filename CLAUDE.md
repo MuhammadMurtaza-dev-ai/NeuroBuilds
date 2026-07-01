@@ -1,4 +1,4 @@
-# CLAUDE.md
+*# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -63,7 +63,7 @@ The `/share` route uses a standalone layout — all chrome (Navbar, ChatSidebar,
 
 | Path | Component |
 |------|-----------|
-| `/` | `HomePage` — landing + live Firestore stats (active listings count, thread count) + featured blog post + community feed threads + `SponsoredAdBanner` + `HomeFeedAdSlot` |
+| `/` | `HomePage` — landing + live Firestore stats (active listings count, thread count) + featured blog post + community feed threads + `BannerCarousel` + a `LIVE_FEED` glass-panel strip wrapping `HomeFeedAdSlot` (below the AI chat bar) |
 | `/chat` | `ChatPage` → `AIChatPanel` — AI build assistant |
 | `/blog` | `BlogPage` — Firestore-backed blog with admin CMS; uses `useUserRole` for role gating; supports deep-linking via `location.state` |
 | `/marketplace` | `MarketplacePage` — Firestore listings |
@@ -169,9 +169,9 @@ Ad components, all following the cyberpunk design system. Some are backed by sta
 - **Right** — `BuildCanvasCard` showing live extracted build components + power budget check
 
 **Data flow:**
-1. `useAIAssistant.sendMessage` POSTs to `${VITE_AI_SERVICE_URL}/api/chat` with message history + `activeBuild` context
+1. `useAIAssistant.sendMessage` POSTs to `${VITE_AI_SERVICE_URL}/api/chat` with the **last 12 messages** (`.slice(-12)` — the backend re-derives the build from `activeBuild` each turn, so full history is wasted tokens) + `activeBuild` context
 2. Response is consumed as a raw byte stream via `liveStream()` (no SSE framing)
-3. Any ` ```json { "build": {...} }``` ` block in the response is parsed by `extractBuild()` and merged into `activeBuild` state
+3. Any ` ```json { "build": {...} }``` ` block in the response is parsed by `extractBuild()` and merged into `activeBuild` state. `stripBuildFence()` removes the completed JSON fence from the **rendered** prose (the raw `accumulated` stream still keeps it so `extractBuild()` can parse it) — a partial/mid-stream fence isn't hidden until it closes
 4. If the service is unreachable (10 s timeout / non-ok response), falls back to `MOCK_RESPONSE` streamed locally at ~22ms/token
 5. `ChatPage` passes `location.state.initialMessage` for deep-linking into a pre-populated chat
 6. When streaming ends, `AIChatPanel` auto-saves the session via `useAISessions.saveSession()` with a generated title
@@ -180,14 +180,16 @@ Ad components, all following the cyberpunk design system. Some are backed by sta
 
 `sendMessage` uses refs (`messagesRef`, `activeBuildRef`, `isStreamingRef`) to access latest state without adding them as `useCallback` dependencies — keeping the function identity stable.
 
-**`BuildCanvasCard`** tracks: CPU, GPU, Motherboard, RAM, PSU. Calculates power budget as `cpuTdp + gpuTdp + 150W buffer` vs `psu.rating`. Shows live estimated total cost.
+`ActiveBuild` has **7 slots**: `cpu`, `gpu`, `motherboard`, `ram`, `psu`, `storage`, `case` (the last two added so the AI can propose a complete parts list — see the `hybrid_fill_node` / expanded pipeline below).
+
+**`BuildCanvasCard`** tracks all 7 slots (CPU, GPU, Motherboard, RAM, PSU, Storage, Case). Calculates power budget as `cpuTdp + gpuTdp + 150W buffer` vs `psu.rating`. Shows live estimated total cost.
 
 ### Shared Build Page (`src/pages/SharedBuildPage.tsx`)
 
 Standalone read-only page at `/share?build=<base64>`. The `build` query param is `btoa(encodeURIComponent(JSON.stringify(activeBuild)))`.
 
 Features:
-- **Component cards** — one card per populated slot (CPU, GPU, Motherboard, RAM, PSU); click opens a detail modal
+- **Component cards** — one card per populated slot (CPU, GPU, Motherboard, RAM, PSU, Storage, Case); click opens a detail modal (`COMPONENT_CONFIG` is keyed by every `ActiveBuild` slot — add new slots here in lockstep with the interface)
 - **Component detail modal** — full spec sheet, power badge (TDP/rating), YouTube review search link (Gamers Nexus / Hardware Unboxed / LTT), PCPartPicker search link
 - **Power speedometer** — SVG semicircular gauge showing PSU load % with colour zones (green < 80%, amber 80–100%, red > 100%)
 - **Total cost panel** — sum of all component prices
@@ -459,8 +461,10 @@ Class component wrapping the entire app. On uncaught render error:
 Cyberpunk/neon glassmorphism. Defined in `tailwind.config.js` + `src/index.css`:
 - **Colors**: `primary` (`#0df2f2` cyan), `accent-purple` (`#bf00ff`), `bg-dark` (`#1e1e1e`), `bg-panel` (`#252526`)
 - **Key utilities**: `.glass-panel`, `.rounded-bento` (2rem radius), `.shadow-neon`, `.shadow-glow-purple`, `.scanline`
-- **Font**: Space Grotesk
+- **Font**: Space Grotesk. `text-xs`/`text-sm` are bumped ~1 px in `tailwind.config.js` (`xs` 12→13 px, `sm` 14→15 px) for readability
 - **Z-index**: Navbar `z-50`, modals `z-50`, ChatSidebar backdrop `z-[60]`, ChatSidebar panel `z-[70]`
+
+**Light mode** (`html:not(.dark)` in `src/index.css`): every Tailwind color utility is a hardcoded hex tuned for dark backgrounds, so light mode **remaps each one** (and its `hover:` / `group-hover:` / `focus-within:` variants — Tailwind emits separate class names per variant) to a darker ≥4.5:1-contrast equivalent (e.g. `text-primary` cyan → `#0e7490`, `text-X-400` pastels → their `X-700`/`X-800` family member). White-opacity backgrounds/borders flip to black-opacity; badge border tints are re-tinted. When adding a new accent colour used on text, add its light-mode override here or it will wash out on the lavender page background.
 
 New UI should follow: backdrop blur, neon shadows on hover, dark panel backgrounds, `font-mono` for terminal/data text.
 
@@ -530,14 +534,28 @@ The backend is a standalone Python service — **must be run separately** from t
 
 **Firebase Admin SDK** is initialised in the FastAPI lifespan handler. Set `FIREBASE_SERVICE_ACCOUNT_PATH` to a service-account JSON file. On GCP the env var may be omitted — Application Default Credentials are used as a fallback. Required by all `require_admin`-guarded endpoints; non-fatal at startup (admin endpoints return 503 until resolved).
 
-**LangGraph pipeline** (`agent.py`) — nodes executed sequentially:
+**LangGraph pipeline** (`agent.py`) — a **deterministic router at `START`** (`route_request`, no LLM call) sends each turn down the cheapest capable path so follow-ups don't re-run three LLM calls + web search (which was causing multi-minute hangs):
 
 ```
-START → search_node → rag_node → market_node → intent_node → selection_node
-      → compatibility_node → response_node → END
+                         ┌─ "build" → search → rag → market → intent → budget_allocation
+                         │              → hybrid_fill → compatibility ─┐
+START ─ route_request ──┤                                              ├→ (retry loop) → response → END
+                         │  "edit"  → edit_node ─────────────────────────────────────→ response → END
+                         └─ "chat"  → chat_node ───────────────────────────────────────────────→ END
 ```
 
-`market_node` reads the latest weekly `market_intel` snapshot from MongoDB (via `services.market_intel.read_latest` / `format_brief`) into `state.market_context`, a read-only reference block surfaced in `_build_deterministic_context()` under "MARKET INTELLIGENCE". Like the RAG/search context, `response_node` may cite it but must not do arithmetic on it. Degrades to "" when no snapshot exists.
+- **`route_request`** → `'build' | 'edit' | 'chat'`. Uses keyword/signal heuristics: an existing build + an edit verb → `edit`; a strong build request or budget/resolution signal (and not a question) → `build`; otherwise `chat`. A bare "build" noun is treated as a question, not a new request.
+- **build** — full pipeline. `budget_allocation_node` (Layer B) fills slots from MongoDB; `hybrid_fill_node` (Layer A) then makes **one structured LLM call** to propose parts for any slot still empty and merges the proposal into **empty slots only** (deterministic DB picks always win). The proposal flows through `compatibility_node` exactly like a DB pick. Retry loop: `_should_retry` routes back to `budget_allocation` while `compat_ok=False` and `allocation_attempt < _MAX_ALLOC_ATTEMPTS` (=3), excluding the offending parts each pass.
+- **edit** — `edit_node` handles add/swap/remove on the existing build: removals are deterministic (keyword→slot), add/swap is one structured LLM call returning only the changed slots, then it re-runs `run_checks()` inline. No retry loop — a fatal edit sets `validation_failed=True` immediately.
+- **chat** — `chat_node` is one conversational LLM call to gather requirements / answer questions; it never assembles a parts list.
+
+**Hard validation gate (`validation_failed`):** when fatal issues survive the retry budget (build path) or a fatal edit occurs, `validation_failed=True`. `response_node` then uses a *validation-failure* system prompt that refuses to present the invalid build, and `run_pipeline` emits **no `json` build block** — an invalid build can never reach the BuildCanvas. `_serialise_build()` reduces `active_build` to the frontend `ActiveBuild` shape and is code-built (the LLM never hand-writes the block).
+
+**Resilient LLM invocation** (`_ainvoke_resilient` / `_structured_resilient`): the free Gemini tier rate-limits hard, and the google-genai SDK retries `503` at the gRPC layer ignoring LangChain's timeout. So every Gemini call is wrapped in `asyncio.wait_for(_GEMINI_HARD_TIMEOUT)` and gated by a **circuit breaker** (`_gemini_cooldown_until`) — once Gemini fails, it's skipped for a cooldown and calls go straight to an optional **OpenAI-compatible fallback** (Groq by default, via `FALLBACK_LLM_*`; no-op if unconfigured / `langchain-openai` missing). `intent_node` / `rag_node` skip entirely during cooldown and use safe defaults. `search_node`/`rag_node` are also `asyncio.wait_for`-bounded (`SEARCH_TIMEOUT_S`/`RAG_TIMEOUT_S`, both run in threads). Structured build output avoids provider-specific JSON-schema modes: it prompts for JSON, extracts the first balanced object, and validates via the tolerant `BuildBlock`/`ProposedComponent` pydantic models (coerce `specs` strings→dict, TDP/price strings→numbers).
+
+`run_pipeline` yields an immediate keep-alive cue ("🔧 Assembling your build…" / "Updating…") on the build/edit paths so the stream stays warm and the user gets instant feedback.
+
+`market_node` reads the latest weekly `market_intel` snapshot from MongoDB (via `services.market_intel.read_latest` / `format_brief`) into `state.market_context`, a read-only reference block surfaced in `_build_deterministic_context()` under "MARKET INTELLIGENCE". Like the RAG/search context, `response_node` may cite it but must not do arithmetic on it. Reference blocks (search/RAG/market) are included only when they carry real content and are length-capped so they don't dominate the narration prompt. Degrades to "" when no snapshot exists.
 
 #### Deterministic / Probabilistic Architecture Split
 
@@ -573,12 +591,15 @@ This is the core architectural guarantee of the system. Every node belongs to ex
 
 | Node | Layer | Type | Purpose | Fallback |
 |------|-------|------|---------|---------|
-| `search_node` | — | async | Tavily web search for live hardware prices (3 results) | Empty string |
-| `rag_node` | — | async | MongoDB Atlas vector similarity search on `hardware_specs` | Empty string |
-| `intent_node` | A | LLM (temp=0) | Extracts `BuildIntent`: budget, use_case, perf_target, brands, form factor | Safe defaults |
-| `selection_node` | B | pure Python | Price breakdown, budget constraint check, allocation ratios, efficiency score | "No priced components" |
-| `compatibility_node` | C | pure Python | PSU transient margin, socket match, BIOS flash advisory, RAM type, bottleneck %, upgrade path | "No active build" |
-| `response_node` | D | LLM (streaming) | Narrates Layer B+C findings into prose; forbidden from recalculating any figure | Pipeline error token |
+| `search_node` | — | async | Tavily web search for live hardware prices (3 results); timeout-bounded, skipped without `TAVILY_API_KEY` | Empty string |
+| `rag_node` | — | async | MongoDB Atlas vector similarity search on `hardware_specs`; thread + timeout-bounded, skipped during Gemini cooldown | Empty string |
+| `intent_node` | A | LLM (temp=0) | Extracts `BuildIntent`: budget, use_case, perf_target, brands, form factor; skipped during cooldown | Safe defaults |
+| `budget_allocation_node` | B | pure Python | Price breakdown, budget constraint check, allocation ratios, efficiency score (wraps `selection_engine`) | "No priced components" |
+| `hybrid_fill_node` | A | LLM (structured) | One call to propose parts for any **empty** slot; merges into empty slots only (DB picks win) | Leave slots empty |
+| `compatibility_node` | C | pure Python | 13-tier `run_checks()`; sets `compat_ok` + `validation_failed` after retry budget spent | "No active build" |
+| `response_node` | D | LLM (streaming) | Narrates Layer B+C findings; picks build / edit / validation-failure system prompt | Degraded text |
+| `chat_node` | — | LLM (streaming) | Lightweight conversational turn (no parts list) | Degraded text |
+| `edit_node` | A+C | LLM + pure Python | Add/swap/remove specific slots, then re-validate inline | Keep build unchanged |
 
 **`BuildIntent`** (output of `intent_node`, consumed by `selection_node`):
 ```python
@@ -591,9 +612,9 @@ This is the core architectural guarantee of the system. Every node belongs to ex
 }
 ```
 
-**`BuildState`** TypedDict: `messages`, `active_build`, `search_context`, `rag_context`, `market_context`, `build_intent`, `selection_report`, `compatibility_report`.
+**`BuildState`** TypedDict: `messages`, `active_build`, `search_context`, `rag_context`, `market_context`, `build_intent`, `selection_report`, `compatibility_report`, `compat_ok`, `validation_failed`, `allocation_attempt`, `excluded_components`, `response`.
 
-**Streaming**: `run_pipeline()` uses `astream_events(version="v2")` and yields only `on_chat_model_stream` events from the `response` node. `main.py` wraps this in `StreamingResponse` with `media_type="text/plain"` and `X-Accel-Buffering: no`. The frontend consumes raw bytes directly — no SSE framing.
+**Streaming**: `run_pipeline()` uses `astream_events(version="v2")` and yields `on_chat_model_stream` events from the `response` **and `chat`** nodes only (the intent/hybrid_fill/edit structured calls are tagged with their own node names and filtered out, so they never leak into the reply). After streaming, it appends the code-built ` ```json {"build": …}``` ` fence (unless `validation_failed`). `main.py` wraps this in `StreamingResponse` with `media_type="text/plain"` and `X-Accel-Buffering: no`. The frontend consumes raw bytes directly — no SSE framing.
 
 **System prompt** in `response_node` explicitly forbids the LLM from recalculating compatibility, performing price arithmetic, or contradicting any figure produced by `selection_node` or `compatibility_node`. It positions the LLM as a "translator, not a calculator."
 
@@ -603,6 +624,14 @@ This is the core architectural guarantee of the system. Every node belongs to ex
 |-----|---------|
 | `GOOGLE_API_KEY` | Gemini API key — used for LLM calls (`intent_node`, `response_node`, blog automator, market intel) and embeddings |
 | `GEMINI_MODEL` | Defaults to `gemini-2.0-flash`; used in `intent_node`, `response_node`, and blog automator |
+| `GEMINI_MAX_RETRIES` | LangChain retry cap per Gemini call (default `2`) |
+| `GEMINI_TIMEOUT_S` | Hard wall-clock bound per Gemini call via `asyncio.wait_for` (`_GEMINI_HARD_TIMEOUT`; code default `12`, `.env.example` ships `40`) |
+| `GEMINI_COOLDOWN_S` | Circuit-breaker cooldown after a Gemini failure before it's probed again (default `120`) |
+| `SEARCH_TIMEOUT_S` / `RAG_TIMEOUT_S` | Wall-clock bounds on `search_node` (default `8`) and `rag_node` (default `8`) |
+| `FALLBACK_LLM_API_KEY` | Optional OpenAI-compatible fallback LLM used when Gemini is rate-limited / in cooldown; empty disables it. Requires `pip install langchain-openai` |
+| `FALLBACK_LLM_BASE_URL` | Fallback base URL (default `https://api.groq.com/openai/v1`) |
+| `FALLBACK_LLM_MODEL` | Fallback model (default `llama-3.3-70b-versatile`) |
+| `ENABLE_SEMANTIC_CACHE` | `setup_semantic_cache()` is now **opt-in** (`true` to enable) — its lookup embeds every prompt via Gemini, sharing the small free-tier quota; when exhausted the lookup itself stalls ~90 s/call |
 | `TAVILY_API_KEY` | Node 1 web search + blog automator research stage |
 | `MONGODB_ATLAS_URI` | Node 2 vector store connection |
 | `MONGODB_DATABASE` | Defaults to `neurobuilds` |
@@ -677,9 +706,11 @@ python scripts/ingest_rag_documents.py --dry-run       # parse + Mongo diff, no 
 
 ### Backend Service Modules (`backend/services/`)
 
-**`validation_engine.py`** — 9-tier deterministic compatibility matrix (Layer C):
+**`validation_engine.py`** — 13-tier deterministic compatibility matrix (Layer C):
 - `run_checks(build, case?) → ValidationResult` — returns `{ ok, issues, warnings, passed }`
-- Check tiers: PSU transient margin (GPU-family-specific spike multipliers), CPU↔MB socket, BIOS flash advisory (AM4-400 + Ryzen 5000), RAM DDR4/DDR5 type, form factor fit, GPU physical clearance, CPU cooler clearance, hardware bottleneck (tier-gap %), platform upgrade path
+- Check tiers (fatal → `issues`, advisory → `warnings`): (1) PSU transient margin, (2) CPU↔MB socket, (3) BIOS flash advisory [warning], (4) RAM DDR type, (5) form factor fit, (6) GPU physical clearance, (7) CPU cooler height, (8) hardware bottleneck [warning], (9) platform upgrade path [**warning — never fatal now**, so a working-but-EOL board isn't excluded on retry], (10) storage interface fit (NVMe needs M.2), (11) PSU PCIe power connectors, (12) CPU cooler socket + TDP (reads an optional `cooler` slot), (13) PCIe generation [warning]
+- **Spec-key tolerance layer** (`_spec()` / `_extract_ddr()`): the build dict is produced by five sources that disagree on key names (board memory type has been `max_memory` / `memory_type` / `ram_type`; RAM type `speed` / `type`; case GPU clearance `max_gpu_clearance_mm` / `max_gpu_length_mm`). Every spec is read through tolerant helpers so a fatal mismatch is never silently skipped because a field was spelled differently (this is what let the **DDR5-on-B550** bug slip through). Socket/DDR are additionally backstopped by name/chipset inference (`_socket_from_cpu_name`, `_PLATFORM_SOCKET`, `_PLATFORM_DDR`) so LLM-invented parts that omit an explicit spec are still checked. LGA1700 is intentionally absent from DDR derivation (ships in both DDR4 and DDR5).
+- Re-exports `required_socket(cpu)` / `required_ddr(build)` for `selection_engine`'s compatibility pre-filter
 - GPU transient multipliers: RTX 40-series ×1.25, RTX 30 ×1.15, RX 7 ×1.20, RX 6 ×1.10; safety factor 1.20×
 - Pure Python, zero LLM/API calls; shared by `agent.py` nodes, ingestion scripts, and `tests/evaluation_suite.py`
 
@@ -687,6 +718,7 @@ python scripts/ingest_rag_documents.py --dry-run       # parse + Mongo diff, no 
 - `run_allocation(budget, use_case, build, collection, attempt, excluded) → AllocationResult`
 - `ALLOCATION_WEIGHTS` — per-persona budget fractions: `gaming` (GPU 40%, CPU 20%, MB 12%, RAM 8%, PSU 8%), `workstation` (CPU 35%, GPU 30%, MB 15%, RAM 12%, PSU 8%), etc.
 - Ceiling = `budget × weight × 1.15` margin; per-retry ceiling reduction on CPU/GPU when compatibility fails; excluded-names blacklist to skip incompatible components on retry
+- **Compatibility pre-filter** (`_compat_filter`): constrains each candidate query to parts compatible with slots already chosen (motherboard socket must equal the CPU's `required_socket`; RAM DDR generation must equal `required_ddr`) — applied **before** ranking so Layer B never even considers, let alone selects, a known-incompatible part. Tolerant of the several memory-type spellings; returns `{}` (unfiltered) when the constraint can't be determined. When no compatible part fits the budget the slot is left empty for `hybrid_fill`/retry.
 - MongoDB `performance_score`-ranked queries with price-sort fallback; builds human-readable report string for Layer D narration
 - Zero LLM calls; thin `budget_allocation_node` in `agent.py` wraps this
 
@@ -716,7 +748,7 @@ python scripts/ingest_rag_documents.py --dry-run       # parse + Mongo diff, no 
 - Cosine similarity threshold: 0.97 (tight — avoids false cache hits on different budgets)
 - Collection: `semantic_cache`; index: `semantic_cache_index`; requires `langchain-mongodb`
 - Silently no-ops if `OPENAI_API_KEY` absent, `langchain-mongodb` not installed, or Atlas unreachable — never blocks startup
-- Called once in FastAPI lifespan handler in `main.py`
+- **Opt-in**: `main.py` only calls it when `ENABLE_SEMANTIC_CACHE=true`. Its lookup embeds every prompt via Gemini embeddings (shared, small free-tier quota); when that quota is exhausted the cache lookup itself stalls ~90 s/call — so it's disabled by default
 
 **`auth_guard.py`** — FastAPI dependencies for Firebase JWT verification:
 - `require_admin` — verifies Bearer token via Firebase Admin SDK + asserts `admin: true` custom claim; raises HTTP 401/403/503
@@ -770,8 +802,9 @@ cd backend
 python tests/evaluation_suite.py
 ```
 
-- **Experiment 1 — Compatibility Engine Accuracy**: runs `run_checks()` against a fixture of labelled builds (Known Good / Intentionally Broken); reports confusion matrix, Precision, Recall, F1
-- **Experiment 2 — Budget Allocation Adherence**: runs `run_allocation()` across gaming/workstation/budget persona builds; reports MAE, variance, per-persona breakdown versus `ALLOCATION_WEIGHTS` targets
+- **Experiment 1 — Compatibility Engine Accuracy**: runs `run_checks()` against a fixture of labelled builds (Known Good / Intentionally Broken, incl. LLM-key-schema regression cases like DDR5-on-B550 and no-explicit-socket variants); reports confusion matrix, Precision, Recall, F1 (currently 100% across the board)
+- **Experiment 2 — Budget Allocation Adherence**: runs `run_allocation()` across gaming/workstation/budget persona builds; reports MAE, RMSE, within-±15% count, avg retries, avg slots filled versus `ALLOCATION_WEIGHTS` targets
+- **Experiment 3 — Validation Gate + Selection Pre-Filter**: asserts the `validation_failed` hard gate (fatal build → `_should_retry` routes to `respond`, no infinite loop, build JSON suppressed) and that `selection_engine`'s `_compat_filter` picks a socket-matched board
 - Imports directly from `services.validation_engine` and `services.selection_engine`
 
 ## Frontend Environment Variables
@@ -794,7 +827,7 @@ python tests/evaluation_suite.py
 - **Blog scheduled publishing**: `status: 'scheduled'` posts with a future `publishAt` are not auto-published — no cron or Cloud Function triggers the transition; currently requires manual admin action.
 - **scoringEngine integration**: `src/utils/scoringEngine.ts` exists but is not yet wired into any UI component.
 - **Notification triggers**: `writeNotification()` is exported but not yet called from marketplace/community/blog hooks — user-action notifications (new reply, new message, blog comment) are not yet generated. Exception: `listing_expired` notifications **are** sent server-side by `listings_maintenance.py` via the Admin SDK when the hourly sweep expires a listing.
-- **LLM semantic cache**: `cache_manager.setup_semantic_cache()` is wired into `main.py` startup but requires a `semantic_cache_index` Atlas Vector Search index to be created manually before the first cached call.
+- **LLM semantic cache**: `cache_manager.setup_semantic_cache()` is wired into `main.py` startup but is **opt-in** (`ENABLE_SEMANTIC_CACHE=true`) and requires a `semantic_cache_index` Atlas Vector Search index created manually before the first cached call.
 - **Blog Automator UI**: `src/components/Admin/BlogAutomatorPanel.tsx` is wired into `AdminPage.tsx` as tab 5. Backend pipeline at `backend/routers/blog_automator.py` is live.
 - **Location search API exposure**: `GET /api/marketplace/search?area=&city=&limit=` is live in `main.py`. The frontend still uses Firestore client-side filtering; wire it to this endpoint when ready.
 - **`pakistanGeoLocations.ts` ↔ backend sync**: area centroids in `src/data/pakistanGeoLocations.ts` and `backend/services/location_search.py`'s `_AREA_CENTROIDS` are manually kept in sync — no automated check.
@@ -804,6 +837,8 @@ python tests/evaluation_suite.py
 ## Known Lint Errors & Technical Debt
 
 **Build status**: TypeScript compiles clean (`tsc -b` passes). ESLint reports **43 errors, 4 warnings** as of last audit.
+
+> Regression fixed (this branch): adding `storage`/`case` to `ActiveBuild` broke `tsc` because `SharedBuildPage.COMPONENT_CONFIG` (a `Record<keyof ActiveBuild, …>`) no longer had every key — both slots were added there. Two pre-existing `tsc` breakers were also fixed at the same time: `MarketIntelPanel`'s `CategoryStat` was missing the `avgViews` field the backend already returns, and `ListingDetailModal` imported `updateDoc` without using it. Keep `SharedBuildPage.COMPONENT_CONFIG` and `BuildCanvasCard.ROWS` in sync with the `ActiveBuild` slot list.
 
 ### React Rule Violations (must fix before stricter lint enforcement)
 
@@ -838,3 +873,4 @@ Affects: `Dashboard.tsx:109`, `NewsFallback.tsx:34`, `useBlogCMS.ts:146,251`, `u
 1. **Now**: `AIChatPanel.tsx:62` ref mutation + `MarketplacePage.tsx:125` impure render
 2. **Next sprint**: Wrap all `catch` blocks with `unknown` + `instanceof Error` guard
 3. **Backlog**: Move context non-component exports; fix `setState`-in-effect pattern; add `user` dep; remove unused vars; code-split the bundle
+*

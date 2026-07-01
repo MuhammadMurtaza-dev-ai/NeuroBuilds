@@ -23,7 +23,13 @@ Public API:
 import logging
 from typing import Optional, TypedDict
 
-from services.validation_engine import component_tier, cpu_tier_table, gpu_tier_table
+from services.validation_engine import (
+    component_tier,
+    cpu_tier_table,
+    gpu_tier_table,
+    required_ddr,
+    required_socket,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -208,8 +214,12 @@ def run_allocation(
             ))
             continue
 
+        # Constrain the candidate pool to parts compatible with slots already
+        # filled (CPU chosen before motherboard, board before RAM) so the
+        # allocator never ranks — and never selects — an incompatible component.
         component, score = _query_best_component(
             collection, slot, ceiling, excluded.get(slot, []),
+            _compat_filter(slot, build),
         )
 
         if component:
@@ -255,11 +265,40 @@ def run_allocation(
 
 # ─── MongoDB query ────────────────────────────────────────────────────────────
 
+def _compat_filter(slot: str, build: dict) -> dict:
+    """
+    A Mongo sub-query constraining a slot to components compatible with the
+    parts already chosen.  Applied BEFORE ranking so an incompatible part is
+    never even a candidate (Layer B must not intentionally pick a mismatch).
+
+      • motherboard → socket must equal the CPU's required socket
+      • ram         → DDR generation must equal the board/CPU's required DDR
+
+    Tolerant of the several spellings the docs use for the memory-type field.
+    Returns {} when the constraint cannot be determined (query stays unfiltered).
+    """
+    if slot == "motherboard":
+        socket = required_socket(build.get("cpu") or {})
+        if socket:
+            return {"specs.socket": socket}
+    elif slot == "ram":
+        ddr = required_ddr(build)
+        if ddr:
+            return {"$or": [
+                {"specs.memory_type": ddr},
+                {"specs.type":        ddr},
+                {"specs.speed":  {"$regex": ddr, "$options": "i"}},
+                {"specs.max_memory": {"$regex": ddr, "$options": "i"}},
+            ]}
+    return {}
+
+
 def _query_best_component(
     collection,
     slot:           str,
     ceiling:        int,
     excluded_names: list[str],
+    compat_filter:  Optional[dict] = None,
 ) -> tuple[Optional[dict], Optional[float]]:
     """
     Query hardware_specs for the highest-performance component within a price ceiling.
@@ -269,7 +308,11 @@ def _query_best_component(
                 used when performance_score field is absent from the collection schema.
 
     The $nin filter on the name field ensures previously rejected components are
-    not re-selected during retry passes.
+    not re-selected during retry passes.  ``compat_filter`` (from _compat_filter)
+    additionally constrains the pool to parts compatible with already-chosen slots.
+    When no compatible component exists within budget the caller leaves the slot
+    empty — hybrid_fill / the retry loop then handle it — rather than selecting a
+    known-incompatible part.
 
     Returns (document, performance_score) or (None, None) on DB error / no match.
     """
@@ -280,6 +323,8 @@ def _query_best_component(
     }
     if excluded_names:
         query["name"] = {"$nin": excluded_names}
+    if compat_filter:
+        query.update(compat_filter)
 
     try:
         # Attempt primary sort: highest performance_score within budget
