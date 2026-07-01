@@ -3,6 +3,7 @@ import type { BlogPost, BlogPostInput, BlogStatus, AuthorType } from '../../hook
 import { useBlogCMS } from '../../hooks/useBlogCMS';
 import { Timestamp } from 'firebase/firestore';
 import CyberSelect from '../CyberSelect';
+import { uploadImageToImgBB } from '../../utils/imageUploader';
 
 interface BlogEditorProps {
   isAdmin: boolean;
@@ -50,6 +51,25 @@ export default function BlogEditor({
   });
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleThumbnailUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const url = await uploadImageToImgBB(file);
+      setForm((prev) => ({ ...prev, thumbnailUrl: url }));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Image upload failed.');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -173,9 +193,51 @@ export default function BlogEditor({
           </div>
 
           <div>
-            <label className={LABEL_CLS}>Thumbnail URL</label>
-            <input name="thumbnailUrl" value={form.thumbnailUrl} onChange={handleChange}
-              placeholder="https://example.com/image.jpg" className={INPUT_CLS} />
+            <label className={LABEL_CLS}>Thumbnail</label>
+            <div className="flex items-start gap-4">
+              {form.thumbnailUrl ? (
+                <div className="relative shrink-0">
+                  <img
+                    src={form.thumbnailUrl}
+                    alt="Thumbnail preview"
+                    className="w-28 h-28 object-cover rounded-lg border border-white/10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => ({ ...prev, thumbnailUrl: '' }))}
+                    className="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center rounded-full bg-red-500/90 text-white hover:bg-red-500 transition-colors"
+                    aria-label="Remove thumbnail"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">close</span>
+                  </button>
+                </div>
+              ) : (
+                <label
+                  className={`w-28 h-28 shrink-0 flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-white/20 cursor-pointer hover:border-primary/60 transition-colors text-gray-500 ${uploading ? 'pointer-events-none opacity-60' : ''}`}
+                >
+                  <span className="material-symbols-outlined">
+                    {uploading ? 'progress_activity' : 'add_photo_alternate'}
+                  </span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    {uploading ? 'Uploading…' : 'Upload'}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleThumbnailUpload}
+                    disabled={uploading}
+                    className="hidden"
+                  />
+                </label>
+              )}
+              <div className="flex-grow">
+                <input name="thumbnailUrl" value={form.thumbnailUrl} onChange={handleChange}
+                  placeholder="…or paste an image URL" className={INPUT_CLS} />
+                <p className="text-[11px] text-gray-600 mt-2">
+                  Upload from your device (via ImgBB) or paste a direct image URL.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Category is useful for all authors; AuthorType is admin-only */}
@@ -261,7 +323,7 @@ export default function BlogEditor({
           </button>
           <button
             onClick={() => submit('draft')}
-            disabled={saving}
+            disabled={saving || uploading}
             className="px-5 py-2 bg-accent-purple/10 hover:bg-accent-purple/20 border border-accent-purple/30 text-accent-purple rounded-full transition-all text-sm font-bold disabled:opacity-50 flex items-center gap-2"
           >
             <span className="material-symbols-outlined text-[16px]">save</span>
@@ -270,7 +332,7 @@ export default function BlogEditor({
           {isAdmin ? (
             <button
               onClick={() => submit()}
-              disabled={saving}
+              disabled={saving || uploading}
               className="px-5 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full transition-all text-sm font-bold disabled:opacity-50 flex items-center gap-2 shadow-neon"
             >
               <span className="material-symbols-outlined text-[16px]">publish</span>
@@ -279,7 +341,7 @@ export default function BlogEditor({
           ) : (
             <button
               onClick={() => submit('pending_review')}
-              disabled={saving}
+              disabled={saving || uploading}
               className="px-5 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full transition-all text-sm font-bold disabled:opacity-50 flex items-center gap-2 shadow-neon"
             >
               <span className="material-symbols-outlined text-[16px]">send</span>

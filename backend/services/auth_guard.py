@@ -20,6 +20,7 @@ Usage
         return {"message": f"Hello admin {uid}"}
 """
 
+import asyncio
 import logging
 from typing import Annotated
 
@@ -74,7 +75,11 @@ async def require_auth(
     token = credentials.credentials
 
     try:
-        decoded: dict = fb_auth.verify_id_token(token, check_revoked=True)
+        # verify_id_token performs blocking network I/O (cert fetch + revocation
+        # check). Run it off the event loop so concurrent requests don't serialise.
+        decoded: dict = await asyncio.to_thread(
+            fb_auth.verify_id_token, token, check_revoked=True
+        )
     except fb_auth.RevokedIdTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -150,7 +155,11 @@ async def require_admin(
 
     # ── 2. Cryptographically verify the ID token ───────────────────────────────
     try:
-        decoded: dict = fb_auth.verify_id_token(token, check_revoked=True)
+        # Blocking network I/O (cert fetch + revocation check) — offload to a
+        # thread so it doesn't freeze the event loop for other requests.
+        decoded: dict = await asyncio.to_thread(
+            fb_auth.verify_id_token, token, check_revoked=True
+        )
 
     except fb_auth.RevokedIdTokenError:
         raise HTTPException(

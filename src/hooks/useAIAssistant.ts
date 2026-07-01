@@ -33,6 +33,8 @@ export interface ActiveBuild {
   motherboard?: BuildComponent;
   ram?: BuildComponent;
   psu?: BuildComponent;
+  storage?: BuildComponent;   // SSD / NVMe
+  case?: BuildComponent;
 }
 
 // ─── Mock fallback text ────────────────────────────────────────────────────────
@@ -154,6 +156,13 @@ function extractBuild(text: string): ActiveBuild | null {
   return null;
 }
 
+// The machine-readable ```json {"build": …}``` block is appended to the stream to
+// populate the BuildCanvas — strip it from the prose the user sees. Only removes a
+// COMPLETE fence, so a partial (mid-stream) block simply isn't hidden until closed.
+function stripBuildFence(text: string): string {
+  return text.replace(/```json\s*[\s\S]*?```/g, '').replace(/\n{3,}/g, '\n\n').trimEnd();
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 const INITIAL_MESSAGES: ChatMessage[] = [
@@ -265,8 +274,11 @@ export function useAIAssistant() {
         firstChunkTimeRef.current = Date.now() - requestStartRef.current;
       }
       accumulated += chunk;
+      // `accumulated` keeps the raw stream (extractBuild needs the fence); the
+      // rendered message hides the machine-readable build block.
+      const display = stripBuildFence(accumulated);
       setMessages(prev =>
-        prev.map(m => (m.id === assistantId ? { ...m, content: accumulated } : m)),
+        prev.map(m => (m.id === assistantId ? { ...m, content: display } : m)),
       );
     };
 
@@ -286,10 +298,14 @@ export function useAIAssistant() {
     };
 
     try {
-      const historyForAPI = [...messagesRef.current, userMsg].map(m => ({
-        role: m.role,
-        content: m.content,
-      }));
+      // Send only the recent tail of the conversation — the backend re-derives the
+      // build from `activeBuild` each turn, so full history is wasted tokens.
+      const historyForAPI = [...messagesRef.current, userMsg]
+        .slice(-12)
+        .map(m => ({
+          role: m.role,
+          content: m.content,
+        }));
 
       const controller = new AbortController();
       const timeoutId = window.setTimeout(() => controller.abort(), 10_000);

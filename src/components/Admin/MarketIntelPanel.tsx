@@ -12,6 +12,7 @@ interface CategoryStat {
   priceMax: number;
   priceMedian: number;
   priceAvg: number;
+  avgViews: number;
 }
 interface HotItem { title: string; category: string; price: number; velocity: number }
 interface DeadItem { title: string; category: string; price: number; ageDays: number }

@@ -1,6 +1,7 @@
 import { useSearchParams, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import type { ActiveBuild, BuildComponent } from '../hooks/useAIAssistant';
+import { useTheme } from '../context/ThemeContext';
 
 // ─── DB lookup types ───────────────────────────────────────────────────────────
 
@@ -26,7 +27,7 @@ function decodeBuild(raw: string | null): ActiveBuild | null {
 function buildToText(build: ActiveBuild): string {
   const LABELS: [keyof ActiveBuild, string][] = [
     ['cpu', 'CPU'], ['gpu', 'GPU'], ['motherboard', 'Motherboard'],
-    ['ram', 'RAM'], ['psu', 'Power Supply'],
+    ['ram', 'RAM'], ['psu', 'Power Supply'], ['storage', 'Storage'], ['case', 'Case'],
   ];
   const lines = [
     '══════════════════════════════════════',
@@ -67,11 +68,22 @@ const COMPONENT_CONFIG: Record<
   motherboard: { label: 'MOTHERBOARD', icon: 'developer_board',  accent: 'text-blue-400',      border: 'border-blue-400/25',      bg: 'bg-blue-400/5',      ring: 'ring-blue-400/40'       },
   ram:         { label: 'RAM',         icon: 'storage',          accent: 'text-green-400',     border: 'border-green-400/25',     bg: 'bg-green-400/5',     ring: 'ring-green-400/40'      },
   psu:         { label: 'PSU',         icon: 'bolt',             accent: 'text-yellow-400',    border: 'border-yellow-400/25',    bg: 'bg-yellow-400/5',    ring: 'ring-yellow-400/40'     },
+  storage:     { label: 'STORAGE',     icon: 'hard_drive',       accent: 'text-orange-400',    border: 'border-orange-400/25',    bg: 'bg-orange-400/5',    ring: 'ring-orange-400/40'     },
+  case:        { label: 'CASE',        icon: 'dns',              accent: 'text-pink-400',      border: 'border-pink-400/25',      bg: 'bg-pink-400/5',      ring: 'ring-pink-400/40'       },
 };
 
 // ─── Power Speedometer ────────────────────────────────────────────────────────
 
 function PowerSpeedometer({ activeBuild }: { activeBuild: ActiveBuild }) {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+
+  // Theme-aware neutrals for the SVG (arbitrary hex fills aren't remapped by
+  // the light-mode CSS, so drive them from the theme directly).
+  const trackColor = isLight ? '#d5d7e5' : '#222';
+  const labelColor = isLight ? '#6b7280' : '#374151';
+  const subLabelColor = isLight ? '#6b7280' : '#4b5563';
+
   const cpuTdp = activeBuild.cpu?.tdp;
   const gpuTdp = activeBuild.gpu?.tdp;
   const psuRating = activeBuild.psu?.rating;
@@ -104,10 +116,11 @@ function PowerSpeedometer({ activeBuild }: { activeBuild: ActiveBuild }) {
   const startPt = fractionToXY(0);
   const endPt   = fractionToXY(1);
   const fillPt  = fractionToXY(clampedFraction);
-  const largeArc = clampedFraction > 0.5 ? 1 : 0;
-
+  // A semicircular gauge fill never spans more than 180°, so the SVG
+  // large-arc-flag must always be 0 — otherwise the arc is drawn the long
+  // way round and overshoots the gauge.
   const bgPath   = `M ${startPt.x} ${startPt.y} A ${r} ${r} 0 0 1 ${endPt.x} ${endPt.y}`;
-  const fillPath = `M ${startPt.x} ${startPt.y} A ${r} ${r} 0 ${largeArc} 1 ${fillPt.x} ${fillPt.y}`;
+  const fillPath = `M ${startPt.x} ${startPt.y} A ${r} ${r} 0 0 1 ${fillPt.x} ${fillPt.y}`;
 
   const color  = loadFraction < 0.8 ? '#22c55e' : loadFraction < 1.0 ? '#f59e0b' : '#ef4444';
   const isOver = loadFraction > 1.0;
@@ -117,7 +130,7 @@ function PowerSpeedometer({ activeBuild }: { activeBuild: ActiveBuild }) {
     <div className="flex flex-col items-center gap-5">
       <svg viewBox="0 0 200 125" className="w-full">
         {/* Background track */}
-        <path d={bgPath} fill="none" stroke="#222" strokeWidth="14" strokeLinecap="round" />
+        <path d={bgPath} fill="none" stroke={trackColor} strokeWidth="14" strokeLinecap="round" />
 
         {/* Coloured fill arc */}
         {clampedFraction > 0.005 && (
@@ -162,14 +175,14 @@ function PowerSpeedometer({ activeBuild }: { activeBuild: ActiveBuild }) {
         <text x={cx} y={cy - 22} textAnchor="middle" fill={color} fontSize="24" fontWeight="bold" fontFamily="monospace">
           {Math.round(loadFraction * 100)}%
         </text>
-        <text x={cx} y={cy - 8} textAnchor="middle" fill="#4b5563" fontSize="8" fontFamily="monospace" letterSpacing="2">
+        <text x={cx} y={cy - 8} textAnchor="middle" fill={subLabelColor} fontSize="8" fontFamily="monospace" letterSpacing="2">
           PSU_LOAD
         </text>
 
         {/* Scale labels */}
-        <text x="12"  y="122" fill="#374151" fontSize="8" fontFamily="monospace">0W</text>
-        <text x="84"  y="24"  fill="#374151" fontSize="8" fontFamily="monospace">50%</text>
-        <text x="188" y="122" fill="#374151" fontSize="8" fontFamily="monospace" textAnchor="end">{psuRating}W</text>
+        <text x="12"  y="122" fill={labelColor} fontSize="8" fontFamily="monospace">0W</text>
+        <text x="84"  y="24"  fill={labelColor} fontSize="8" fontFamily="monospace">50%</text>
+        <text x="188" y="122" fill={labelColor} fontSize="8" fontFamily="monospace" textAnchor="end">{psuRating}W</text>
       </svg>
 
       {/* Status badge */}
@@ -452,7 +465,7 @@ function ComponentCard({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const COMPONENT_ORDER: (keyof ActiveBuild)[] = ['cpu', 'gpu', 'motherboard', 'ram', 'psu'];
+const COMPONENT_ORDER: (keyof ActiveBuild)[] = ['cpu', 'gpu', 'motherboard', 'ram', 'psu', 'storage', 'case'];
 
 export default function SharedBuildPage() {
   const [params]       = useSearchParams();

@@ -10,6 +10,9 @@ langchain>=0.3.14
 langchain-core>=0.3.28
 langchain-google-genai>=2.0.0
 langchain-community>=0.3.14
+# Optional fallback LLM provider (Groq / xAI Grok / any OpenAI-compatible API),
+# used by agent.py when Gemini is rate-limited. Enabled via FALLBACK_LLM_* env vars.
+langchain-openai>=0.2
 
 # ── LangGraph (stateful multi-agent graphs) ───────────────────────────────────
 langgraph>=0.2.64

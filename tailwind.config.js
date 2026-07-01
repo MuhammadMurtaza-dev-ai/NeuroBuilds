@@ -6,6 +6,12 @@ export default {
   ],
   theme: {
     extend: {
+      fontSize: {
+        /* Bump the smallest sizes by ~1 px for readability.
+           text-xs: 12 → 13 px; text-sm: 14 → 15 px */
+        xs: ['0.8125rem', { lineHeight: '1.25rem' }],
+        sm: ['0.9375rem', { lineHeight: '1.5rem'  }],
+      },
       colors: {
         "primary": "#0df2f2",
         "primary-dim": "rgba(13, 242, 242, 0.1)",

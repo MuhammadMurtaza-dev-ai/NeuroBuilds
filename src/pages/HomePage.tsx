@@ -202,7 +202,6 @@ export default function HomePage() {
                   AI co-pilot
                 </span>.
               </h1>
-              <HomeFeedAdSlot accent="cyan" />
             </div>
           </div>
 
@@ -226,6 +225,24 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Live News Feed — below the AI chat bar */}
+          <div className="col-span-1 md:col-span-12 glass-panel rounded-bento px-6 py-4 flex items-center gap-4 border border-border-glass">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              <span className="text-[10px] font-mono font-bold tracking-[0.15em] text-primary/80">
+                LIVE_FEED
+              </span>
+            </div>
+            <div className="w-px h-4 bg-border-glass shrink-0" />
+            <div className="flex-1 min-w-0">
+              <HomeFeedAdSlot accent="cyan" />
+            </div>
+            <span className="hidden md:flex items-center gap-1.5 text-[10px] font-mono text-primary/50 px-2 py-1 rounded-full border border-primary/20 bg-primary/5 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse inline-block" />
+              LIVE
+            </span>
           </div>
 
           {/* Featured Build — dynamic from Firestore blogs (Hardware + published) */}

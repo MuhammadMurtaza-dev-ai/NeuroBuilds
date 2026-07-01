@@ -21,6 +21,8 @@ const ROWS: RowConfig[] = [
   { key: 'motherboard', label: 'MOTHERBOARD',  icon: 'developer_board',   accent: 'text-blue-400',       glow: 'border-blue-400/30 bg-blue-400/5'       },
   { key: 'ram',         label: 'RAM',          icon: 'storage',           accent: 'text-green-400',      glow: 'border-green-400/30 bg-green-400/5'     },
   { key: 'psu',         label: 'PSU',          icon: 'bolt',              accent: 'text-yellow-400',     glow: 'border-yellow-400/30 bg-yellow-400/5'   },
+  { key: 'storage',     label: 'STORAGE',      icon: 'hard_drive',        accent: 'text-orange-400',     glow: 'border-orange-400/30 bg-orange-400/5'   },
+  { key: 'case',        label: 'CASE',         icon: 'dns',               accent: 'text-pink-400',       glow: 'border-pink-400/30 bg-pink-400/5'       },
 ];
 
 // ─── Component row ─────────────────────────────────────────────────────────────
