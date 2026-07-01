@@ -89,11 +89,11 @@ export default function BlogComments({ postId }: Props) {
           {comments.map((comment) => (
             <div
               key={comment.id}
-              className="flex gap-3 group glass-panel rounded-xl p-4 border border-white/5 hover:border-primary/20 transition-all"
+              className="flex gap-3 group glass-panel rounded-xl p-3 sm:p-4 border border-white/5 hover:border-primary/20 transition-all"
             >
               {/* Avatar */}
               <div className="size-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
-                <span className="text-primary text-[11px] font-bold font-mono">
+                  <span className="text-primary text-xs font-bold font-mono">
                   {initials(comment.authorName) || '?'}
                 </span>
               </div>
@@ -102,7 +102,7 @@ export default function BlogComments({ postId }: Props) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="text-white text-xs font-semibold">{comment.authorName}</span>
-                  <span className="text-gray-600 text-[10px] font-mono">
+                  <span className="text-gray-600 text-xs font-mono">
                     {timeAgo(comment.createdAt)}
                   </span>
                 </div>
@@ -113,7 +113,7 @@ export default function BlogComments({ postId }: Props) {
               {user && user.uid === comment.authorId && (
                 <button
                   onClick={() => handleDelete(comment.id)}
-                  className="shrink-0 p-1 text-gray-700 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                  className="shrink-0 size-10 flex items-center justify-center rounded-full text-gray-700 hover:text-red-400 hover:bg-white/5 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                   title="Delete comment"
                 >
                   <span className="material-symbols-outlined text-[16px]">delete</span>
@@ -142,7 +142,7 @@ export default function BlogComments({ postId }: Props) {
             <button
               type="submit"
               disabled={submitting || !draft.trim()}
-              className="px-5 py-2 text-sm bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full transition-all font-bold shadow-neon disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+            className="min-h-11 px-5 py-2 text-sm bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full transition-all font-bold shadow-neon disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <span className="material-symbols-outlined text-[16px]">send</span>
               {submitting ? 'Posting…' : 'Post Comment'}

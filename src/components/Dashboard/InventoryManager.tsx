@@ -29,7 +29,7 @@ export default function InventoryManager({ userId, listings }: Props) {
   return (
     <div className="glass-panel rounded-bento border border-white/10 overflow-hidden">
       {/* Table header */}
-      <div className="px-6 py-4 border-b border-white/10">
+      <div className="px-4 sm:px-6 py-4 border-b border-white/10">
         <h3 className="text-sm font-bold text-white uppercase tracking-widest font-mono flex items-center gap-2">
           <Package size={16} className="text-primary" />
           Inventory Ledger
@@ -37,7 +37,7 @@ export default function InventoryManager({ userId, listings }: Props) {
         </h3>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="text-left text-[11px] font-mono text-gray-500 uppercase tracking-wider border-b border-white/5">
@@ -146,6 +146,96 @@ export default function InventoryManager({ userId, listings }: Props) {
             })}
           </tbody>
         </table>
+      </div>
+
+      <div className="md:hidden divide-y divide-white/5">
+        {inventoryListings.map((listing) => {
+          const qty = listing.stockQuantity ?? 0;
+          const isOutOfStock = qty === 0;
+
+          return (
+            <div
+              key={listing.id}
+              className={`p-4 ${isOutOfStock ? 'border-l-2 border-l-amber-500/60' : ''}`}
+            >
+              <div className="flex items-start gap-3">
+                <div className="size-12 rounded-xl bg-white/5 shrink-0 overflow-hidden border border-white/10">
+                  {listing.images?.[0] ? (
+                    <img
+                      src={listing.images[0]}
+                      alt={listing.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Package size={16} className="text-gray-600" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="text-white text-sm font-medium leading-snug break-words">
+                    {listing.title}
+                  </p>
+                  <p className="text-xs font-mono text-primary mt-1">
+                    PKR {listing.price.toLocaleString()}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-mono text-gray-500">
+                      SKU {listing.sku || '-'}
+                    </span>
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold border capitalize ${
+                        listing.status === 'active'
+                          ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                          : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                      }`}
+                    >
+                      {listing.status}
+                    </span>
+                    {isOutOfStock && (
+                      <span className="text-[10px] font-bold text-amber-400 font-mono bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                        OUT OF STOCK
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <span className="text-xs font-mono text-gray-500 uppercase tracking-widest">
+                  Stock
+                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => updateStock(listing.id, -1)}
+                    disabled={isOutOfStock}
+                    className="size-10 rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-white/30 transition-all flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label="Decrease stock"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">remove</span>
+                  </button>
+
+                  <span
+                    className={`min-w-[3ch] text-center text-base font-bold font-mono ${
+                      isOutOfStock ? 'text-amber-400' : 'text-white'
+                    }`}
+                  >
+                    {qty}
+                  </span>
+
+                  <button
+                    onClick={() => updateStock(listing.id, 1)}
+                    className="size-10 rounded-xl border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 hover:shadow-neon transition-all flex items-center justify-center"
+                    aria-label="Increase stock"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">add</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

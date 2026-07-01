@@ -33,9 +33,9 @@ const escapeHtml = (text: string): string =>
 
 const renderMarkdown = (text: string): string => {
   return escapeHtml(text)
-    .replace(/^### (.+)$/gm, '<h3 class="text-xl font-bold text-white mt-8 mb-3">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 class="text-2xl font-bold text-white mt-10 mb-4">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 class="text-3xl font-bold text-white mt-12 mb-5">$1</h1>')
+    .replace(/^### (.+)$/gm, '<h3 class="text-lg sm:text-xl font-bold text-white mt-8 mb-3">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 class="text-xl sm:text-2xl font-bold text-white mt-10 mb-4">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 class="text-2xl sm:text-3xl font-bold text-white mt-12 mb-5">$1</h1>')
     .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-bold">$1</strong>')
     .replace(/\*(.+?)\*/g, '<em class="text-gray-300 italic">$1</em>')
     .replace(/`(.+?)`/g, '<code class="bg-white/10 text-primary px-1.5 py-0.5 rounded text-sm font-mono">$1</code>')
@@ -62,10 +62,10 @@ export default function BlogPostModal({ post, isAdmin, onClose, onEdit }: BlogPo
       className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-md p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="glass-panel rounded-bento w-full max-w-3xl max-h-[90vh] flex flex-col border border-white/10 shadow-2xl overflow-hidden">
+      <div className="glass-panel rounded-bento w-full max-w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[90vh] flex flex-col border border-white/10 shadow-2xl overflow-hidden">
         {/* Hero thumbnail (only when no video embed) */}
         {post.thumbnailUrl && !embedId && (
-          <div className="h-64 relative shrink-0 overflow-hidden">
+          <div className="h-40 sm:h-56 lg:h-64 relative shrink-0 overflow-hidden">
             <img
               src={post.thumbnailUrl}
               alt={post.title}
@@ -89,7 +89,7 @@ export default function BlogPostModal({ post, isAdmin, onClose, onEdit }: BlogPo
         )}
 
         {/* Header */}
-        <div className="px-8 pt-6 pb-4 shrink-0 border-b border-white/10">
+        <div className="px-4 sm:px-8 pt-5 pb-4 shrink-0 border-b border-white/10">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-grow">
               <div className="flex items-center gap-3 mb-3 flex-wrap">
@@ -135,7 +135,7 @@ export default function BlogPostModal({ post, isAdmin, onClose, onEdit }: BlogPo
               {isAdmin && onEdit && (
                 <button
                   onClick={() => onEdit(post)}
-                  className="p-2 text-gray-400 hover:text-primary transition-colors"
+                  className="size-10 flex items-center justify-center rounded-full text-gray-400 hover:text-primary hover:bg-white/10 transition-colors"
                   title="Edit post"
                 >
                   <span className="material-symbols-outlined text-[20px]">edit</span>
@@ -143,7 +143,7 @@ export default function BlogPostModal({ post, isAdmin, onClose, onEdit }: BlogPo
               )}
               <button
                 onClick={onClose}
-                className="p-2 text-gray-400 hover:text-white transition-colors"
+                className="size-10 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
                 aria-label="Close"
               >
                 <span className="material-symbols-outlined text-[20px]">close</span>
@@ -153,7 +153,7 @@ export default function BlogPostModal({ post, isAdmin, onClose, onEdit }: BlogPo
         </div>
 
         {/* Scrollable content */}
-        <div className="overflow-y-auto flex-grow px-8 py-6">
+        <div className="overflow-y-auto flex-grow px-4 sm:px-8 py-6">
           <div
             className="prose-blog text-gray-300 leading-relaxed"
             dangerouslySetInnerHTML={{
@@ -168,10 +168,10 @@ export default function BlogPostModal({ post, isAdmin, onClose, onEdit }: BlogPo
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-4 border-t border-white/10 shrink-0 flex justify-end">
+        <div className="px-4 sm:px-8 py-4 border-t border-white/10 shrink-0 flex justify-end">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-full transition-all text-sm font-bold"
+            className="min-h-11 px-6 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-full transition-all text-sm font-bold"
           >
             Close
           </button>

@@ -27,14 +27,20 @@ export default function CyberSelect({ value, onChange, options, disabled, classN
   const openDropdown = () => {
     if (!triggerRef.current || disabled) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    const estimatedHeight = Math.min(options.length * 36 + 8, 256);
+    const viewportPadding = 12;
+    const dropdownWidth = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
+    const left = Math.min(
+      Math.max(rect.left, viewportPadding),
+      window.innerWidth - dropdownWidth - viewportPadding
+    );
+    const estimatedHeight = Math.min(options.length * 44 + 8, Math.floor(window.innerHeight * 0.5));
     const spaceBelow = window.innerHeight - rect.bottom;
     const openUpward = spaceBelow < estimatedHeight && rect.top > estimatedHeight;
 
     setDropdownStyle(
       openUpward
-        ? { position: 'fixed', bottom: window.innerHeight - rect.top + 4, left: rect.left, width: rect.width, zIndex: 9999 }
-        : { position: 'fixed', top: rect.bottom + 4, left: rect.left, width: rect.width, zIndex: 9999 }
+        ? { position: 'fixed', bottom: window.innerHeight - rect.top + 4, left, width: dropdownWidth, zIndex: 9999 }
+        : { position: 'fixed', top: rect.bottom + 4, left, width: dropdownWidth, zIndex: 9999 }
     );
     setOpen(true);
   };
@@ -95,7 +101,7 @@ export default function CyberSelect({ value, onChange, options, disabled, classN
           ref={listRef}
           role="listbox"
           style={dropdownStyle}
-          className="max-h-64 overflow-y-auto glass-panel rounded-xl border border-white/10 shadow-neon py-1 no-scrollbar"
+          className="max-h-[50vh] overflow-y-auto glass-panel rounded-xl border border-white/10 shadow-neon py-1 no-scrollbar"
         >
           {options.map(opt => {
             const isSel = opt.value === value;
@@ -106,7 +112,7 @@ export default function CyberSelect({ value, onChange, options, disabled, classN
                 aria-selected={isSel}
                 onClick={() => { onChange(opt.value); setOpen(false); }}
                 className={[
-                  'flex items-center gap-2 px-3 py-2 text-sm cursor-pointer select-none transition-colors',
+                  'min-h-11 flex items-center gap-2 px-3 py-2 text-sm cursor-pointer select-none transition-colors',
                   isSel
                     ? 'text-primary bg-primary/10'
                     : 'text-[var(--text-base)] hover:bg-white/5',

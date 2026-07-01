@@ -27,6 +27,8 @@ export default function ChatSidebar() {
   } = useChats();
 
   const [showGroupModal, setShowGroupModal] = useState(false);
+  // On mobile: false = show conversation list, true = show chat window
+  const [showChatOnMobile, setShowChatOnMobile] = useState(false);
 
   // Subscribe to messages and clear unread flag whenever the active conversation changes
   useEffect(() => {
@@ -46,25 +48,41 @@ export default function ChatSidebar() {
         className={`fixed inset-0 bg-black/60 z-[60] transition-opacity duration-300 ${
           isChatOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
-        onClick={() => setIsChatOpen(false)}
+        onClick={() => {
+          setIsChatOpen(false);
+          setShowChatOnMobile(false);
+        }}
       />
 
       {/* Sliding panel */}
       <div
-        className={`fixed right-0 top-0 h-full w-full max-w-3xl z-[70] flex flex-col
+        className={`fixed right-0 top-0 h-full w-full sm:max-w-3xl z-[70] flex flex-col
           bg-bg-panel border-l border-white/10 shadow-2xl
           transition-transform duration-300 ease-in-out
           ${isChatOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border-glass bg-black/5 dark:bg-black/20">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border-glass bg-black/5 dark:bg-black/20 flex-shrink-0">
+          {/* Back to list button on mobile when in chat view */}
+          {showChatOnMobile && (
+            <button
+              onClick={() => setShowChatOnMobile(false)}
+              className="md:hidden size-10 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors mr-1"
+              aria-label="Back to conversations"
+            >
+              <span className="material-symbols-outlined text-gray-400 text-[20px]">arrow_back</span>
+            </button>
+          )}
           <h2 className="font-bold text-white flex items-center gap-2">
             <span className="material-symbols-outlined text-primary text-[22px]">chat</span>
-            Messages
+            {showChatOnMobile ? (activeConversation?.groupName ?? activeConversation?.listingTitle ?? 'Messages') : 'Messages'}
           </h2>
           <button
-            onClick={() => setIsChatOpen(false)}
-            className="p-2 rounded-full hover:bg-white/10 transition-colors"
+            onClick={() => {
+              setIsChatOpen(false);
+              setShowChatOnMobile(false);
+            }}
+            className="size-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
             aria-label="Close chat"
           >
             <span className="material-symbols-outlined text-gray-400">close</span>
@@ -86,34 +104,50 @@ export default function ChatSidebar() {
           </div>
         ) : (
           <div className="flex-1 flex overflow-hidden">
-            {/* Left pane: conversation list */}
-            <ConversationList
-              conversations={conversations}
-              activeConversationId={activeConversationId}
-              currentUserId={user.uid}
-              loading={loadingConversations}
-              onSelectConversation={openChatWithConversation}
-              onStartDM={async (uid) => {
-                await startDirectMessage(uid);
-              }}
-              onCreateGroup={() => setShowGroupModal(true)}
-            />
+            {/* Left pane: conversation list — full width on mobile, fixed w-64 on desktop */}
+            <div
+              className={`flex-col overflow-hidden ${
+                showChatOnMobile ? 'hidden md:flex' : 'flex'
+              } w-full md:w-auto`}
+            >
+              <ConversationList
+                conversations={conversations}
+                activeConversationId={activeConversationId}
+                currentUserId={user.uid}
+                loading={loadingConversations}
+                onSelectConversation={(id) => {
+                  openChatWithConversation(id);
+                  setShowChatOnMobile(true);
+                }}
+                onStartDM={async (uid) => {
+                  await startDirectMessage(uid);
+                  setShowChatOnMobile(true);
+                }}
+                onCreateGroup={() => setShowGroupModal(true)}
+              />
+            </div>
 
             {/* Right pane: active chat window */}
-            <ChatWindow
-              messages={messages}
-              loading={loadingMessages}
-              conversationId={activeConversationId}
-              currentUserId={user.uid}
-              onSendMessage={(text) =>
-                activeConversationId
-                  ? sendMessage(activeConversationId, text)
-                  : Promise.resolve()
-              }
-              conversationType={activeConversation?.type ?? 'direct'}
-              groupName={activeConversation?.groupName}
-              listingTitle={activeConversation?.listingTitle}
-            />
+            <div
+              className={`flex-1 flex-col overflow-hidden ${
+                showChatOnMobile ? 'flex' : 'hidden md:flex'
+              }`}
+            >
+              <ChatWindow
+                messages={messages}
+                loading={loadingMessages}
+                conversationId={activeConversationId}
+                currentUserId={user.uid}
+                onSendMessage={(text) =>
+                  activeConversationId
+                    ? sendMessage(activeConversationId, text)
+                    : Promise.resolve()
+                }
+                conversationType={activeConversation?.type ?? 'direct'}
+                groupName={activeConversation?.groupName}
+                listingTitle={activeConversation?.listingTitle}
+              />
+            </div>
           </div>
         )}
       </div>

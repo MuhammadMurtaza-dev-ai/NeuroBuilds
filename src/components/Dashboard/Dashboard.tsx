@@ -208,19 +208,19 @@ const Dashboard: React.FC = () => {
 
         {/* Header */}
         <div className="mb-10">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
+          <h1 className="text-3xl md:text-5xl font-bold text-white mb-3 break-words">
             Welcome back,{' '}
             <span className="text-primary">
               {user.displayName || user.email?.split('@')[0] || 'Builder'}
             </span>
           </h1>
-          <p className="text-gray-400 text-lg">
+          <p className="text-gray-400 text-base md:text-lg">
             Real-time activity across your marketplace listings, saved items, and forum posts.
           </p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-10">
           {dataLoading
             ? [...Array(4)].map((_, i) => (
                 <div key={i} className="glass-panel rounded-bento p-6 animate-pulse">
@@ -232,13 +232,13 @@ const Dashboard: React.FC = () => {
             : stats.map((s) => (
                 <div
                   key={s.label}
-                  className={`glass-panel rounded-bento p-6 border-l-4 ${s.borderColor}`}
+                  className={`glass-panel rounded-bento p-4 sm:p-6 border-l-4 ${s.borderColor}`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-gray-400 text-sm uppercase tracking-wider">{s.label}</p>
+                    <p className="text-gray-400 text-xs sm:text-sm uppercase tracking-wider">{s.label}</p>
                     {s.icon}
                   </div>
-                  <p className="text-4xl font-bold text-white font-mono">
+                  <p className="text-3xl sm:text-4xl font-bold text-white font-mono">
                     {s.value.toLocaleString()}
                   </p>
                   <p className={`text-xs font-mono mt-2 ${s.textColor}`}>{s.sub}</p>
@@ -248,12 +248,12 @@ const Dashboard: React.FC = () => {
 
         {/* Tab bar — Inventory tab only visible when user has active listings */}
         {activeCount > 0 && (
-          <div className="flex items-center gap-2 mb-6 border-b border-white/10 pb-4">
+          <div className="flex items-center gap-2 mb-6 border-b border-white/10 pb-4 overflow-x-auto no-scrollbar">
             {(['overview', 'inventory'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all border ${
+                className={`min-h-11 flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all border shrink-0 ${
                   activeTab === tab
                     ? 'bg-primary/10 text-primary border-primary/30 shadow-neon'
                     : 'text-gray-400 hover:text-white border-transparent'
@@ -276,7 +276,7 @@ const Dashboard: React.FC = () => {
 
         {/* 3-Column sub-lists */}
         {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* My Listings */}
           <SectionPanel
             title="My Listings"
@@ -334,7 +334,7 @@ const Dashboard: React.FC = () => {
                   <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                     <Link
                       to={`/marketplace?id=${l.id}`}
-                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-primary/40 transition-all"
+                      className="min-h-10 px-3 py-1.5 rounded-lg text-xs font-bold bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-primary/40 transition-all inline-flex items-center"
                     >
                       View
                     </Link>
@@ -342,7 +342,7 @@ const Dashboard: React.FC = () => {
                       <button
                         onClick={() => setListingStatus(l.id, 'sold')}
                         disabled={busyId === l.id}
-                        className="px-2 py-1 rounded-lg text-[10px] font-bold bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50"
+                        className="min-h-10 px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50"
                       >
                         Mark Sold
                       </button>
@@ -350,7 +350,7 @@ const Dashboard: React.FC = () => {
                       <button
                         onClick={() => setListingStatus(l.id, 'active')}
                         disabled={busyId === l.id}
-                        className="px-2 py-1 rounded-lg text-[10px] font-bold bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-all disabled:opacity-50"
+                        className="min-h-10 px-3 py-1.5 rounded-lg text-xs font-bold bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-all disabled:opacity-50"
                       >
                         Reactivate
                       </button>
@@ -358,7 +358,7 @@ const Dashboard: React.FC = () => {
                     <button
                       onClick={() => removeListing(l.id)}
                       disabled={busyId === l.id}
-                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 border border-white/10 text-gray-400 hover:text-red-400 hover:border-red-500/30 transition-all disabled:opacity-50"
+                      className="min-h-10 px-3 py-1.5 rounded-lg text-xs font-bold bg-white/5 border border-white/10 text-gray-400 hover:text-red-400 hover:border-red-500/30 transition-all disabled:opacity-50"
                     >
                       Delete
                     </button>

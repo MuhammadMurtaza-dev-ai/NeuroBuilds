@@ -11,8 +11,8 @@ interface BarItem {
 function PercentBar({ item, max, color }: { item: BarItem; max: number; color: string }) {
   const pct = max > 0 ? Math.round((item.value / max) * 100) : 0;
   return (
-    <div className="flex items-center gap-3 group">
-      <span className="text-xs text-gray-400 w-32 truncate shrink-0 font-mono" title={item.label}>
+    <div className="flex items-center gap-2 sm:gap-3 group">
+      <span className="text-xs text-gray-400 w-20 sm:w-32 truncate shrink-0 font-mono" title={item.label}>
         {item.label}
       </span>
       <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
@@ -44,7 +44,7 @@ function AnalyticsCard({
   const max = items.reduce((m, i) => Math.max(m, i.value), 0);
 
   return (
-    <div className="glass-panel rounded-bento border border-white/10 p-6 flex flex-col gap-4">
+    <div className="glass-panel rounded-bento border border-white/10 p-4 sm:p-6 flex flex-col gap-4">
       <div className="flex items-center gap-2 mb-1">
         <span className={`material-symbols-outlined text-[20px] ${color.replace('bg-', 'text-').split('/')[0]}`}>
           {icon}
@@ -120,7 +120,7 @@ export default function AnalyticsDashboard() {
   }, [listings]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
       <AnalyticsCard
         title="Most Commented"
         icon="comment"

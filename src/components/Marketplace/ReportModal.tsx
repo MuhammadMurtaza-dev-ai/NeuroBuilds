@@ -72,7 +72,7 @@ export default function ReportModal({ listing, onClose }: Props) {
       className="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="glass-panel rounded-[2rem] border border-white/10 w-full max-w-md p-7 flex flex-col gap-5">
+      <div className="glass-panel rounded-[2rem] border border-white/10 w-full max-w-[calc(100vw-1.5rem)] sm:max-w-md max-h-[90vh] overflow-y-auto p-5 sm:p-7 flex flex-col gap-5">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center shrink-0">
@@ -80,7 +80,7 @@ export default function ReportModal({ listing, onClose }: Props) {
             </div>
             <h2 className="font-bold text-xl leading-tight">Report</h2>
           </div>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 transition-colors shrink-0">
+          <button onClick={onClose} className="size-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors shrink-0" aria-label="Close report modal">
             <span className="material-symbols-outlined text-base leading-none">close</span>
           </button>
         </div>
@@ -95,7 +95,7 @@ export default function ReportModal({ listing, onClose }: Props) {
             {/* Target selector */}
             <div>
               <label className="text-sm text-gray-400 mb-2 block">What are you reporting?</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   onClick={() => setTarget('listing')}
                   className={`py-2.5 rounded-xl text-sm font-medium transition-all ${target === 'listing' ? 'bg-primary text-bg-dark' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}
@@ -147,7 +147,8 @@ export default function ReportModal({ listing, onClose }: Props) {
                   <img src={proofPreview} alt="proof" className="w-full h-full object-cover" />
                   <button
                     onClick={() => { if (proofPreview) URL.revokeObjectURL(proofPreview); setProofFile(null); setProofPreview(null); }}
-                    className="absolute inset-0 bg-black/70 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity"
+                    className="absolute inset-0 bg-black/70 opacity-0 hover:opacity-100 focus:opacity-100 flex items-center justify-center transition-opacity"
+                    aria-label="Remove proof"
                   >
                     <span className="material-symbols-outlined text-white text-sm">close</span>
                   </button>
@@ -168,7 +169,7 @@ export default function ReportModal({ listing, onClose }: Props) {
               </div>
             )}
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={onClose}
                 disabled={submitting}

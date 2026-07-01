@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore'
 import { db } from '../../Firebase'
@@ -18,6 +18,34 @@ interface FeedItem {
   href?: string
   threadId?: string
   imageUrl?: string
+}
+
+const GNEWS_CACHE_KEY = 'gnews_cache_us'
+const GNEWS_CACHE_TTL = 24 * 60 * 60 * 1000
+const GNEWS_RATE_LIMIT_TTL = 60 * 60 * 1000
+
+function readCachedGNewsItems(count: number): FeedItem[] {
+  try {
+    const cached = localStorage.getItem(GNEWS_CACHE_KEY)
+    if (!cached) return []
+
+    const parsed = JSON.parse(cached) as {
+      articles: { title: string; url: string }[]
+      timestamp: number
+      rateLimited?: boolean
+    }
+    const ttl = parsed.rateLimited ? GNEWS_RATE_LIMIT_TTL : GNEWS_CACHE_TTL
+    if (parsed.rateLimited || Date.now() - parsed.timestamp >= ttl) return []
+
+    return parsed.articles.slice(0, count).map(a => ({
+      kind: 'gnews',
+      label: '[GNEWS]',
+      text: a.title,
+      href: a.url,
+    }))
+  } catch {
+    return []
+  }
 }
 
 function useTopThreads(count = 5): FeedItem[] {
@@ -50,42 +78,28 @@ function useTopThreads(count = 5): FeedItem[] {
 }
 
 function useGNewsItems(count = 4): FeedItem[] {
-  const [items, setItems] = useState<FeedItem[]>([])
+  const [items, setItems] = useState<FeedItem[]>(() => readCachedGNewsItems(count))
   useEffect(() => {
     const apiKey = import.meta.env.VITE_GNEWS_API_KEY as string | undefined
     if (!apiKey) return
 
-    const CACHE_KEY = 'gnews_cache_us'
-    const CACHE_TTL = 24 * 60 * 60 * 1000
-    const RATE_LIMIT_TTL = 60 * 60 * 1000
-
     try {
-      const cached = localStorage.getItem(CACHE_KEY)
+      const cached = localStorage.getItem(GNEWS_CACHE_KEY)
       if (cached) {
         const parsed = JSON.parse(cached) as {
           articles: { title: string; url: string }[]
           timestamp: number
           rateLimited?: boolean
         }
-        const ttl = parsed.rateLimited ? RATE_LIMIT_TTL : CACHE_TTL
+        const ttl = parsed.rateLimited ? GNEWS_RATE_LIMIT_TTL : GNEWS_CACHE_TTL
         if (Date.now() - parsed.timestamp < ttl) {
-          telemetry.recordCacheEvent({ cacheType: 'gnews', key: CACHE_KEY, hit: true, timestamp: Date.now() })
-          if (!parsed.rateLimited) {
-            setItems(
-              parsed.articles.slice(0, count).map(a => ({
-                kind: 'gnews',
-                label: '[GNEWS]',
-                text: a.title,
-                href: a.url,
-              })),
-            )
-          }
+          telemetry.recordCacheEvent({ cacheType: 'gnews', key: GNEWS_CACHE_KEY, hit: true, timestamp: Date.now() })
           return
         }
       }
     } catch { /* stale/corrupt — fall through */ }
 
-    telemetry.recordCacheEvent({ cacheType: 'gnews', key: CACHE_KEY, hit: false, timestamp: Date.now() })
+    telemetry.recordCacheEvent({ cacheType: 'gnews', key: GNEWS_CACHE_KEY, hit: false, timestamp: Date.now() })
     let cancelled = false
 
     fetch(
@@ -93,7 +107,7 @@ function useGNewsItems(count = 4): FeedItem[] {
     )
       .then(r => {
         if (r.status === 429) {
-          try { localStorage.setItem(CACHE_KEY, JSON.stringify({ articles: [], timestamp: Date.now(), rateLimited: true })) } catch { /* full */ }
+          try { localStorage.setItem(GNEWS_CACHE_KEY, JSON.stringify({ articles: [], timestamp: Date.now(), rateLimited: true })) } catch { /* full */ }
           return null
         }
         if (!r.ok) return null
@@ -102,7 +116,7 @@ function useGNewsItems(count = 4): FeedItem[] {
       .then((data: { articles?: { title: string; url: string }[] } | null) => {
         if (cancelled || !data) return
         const articles = data.articles ?? []
-        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ articles, timestamp: Date.now() })) } catch { /* full */ }
+        try { localStorage.setItem(GNEWS_CACHE_KEY, JSON.stringify({ articles, timestamp: Date.now() })) } catch { /* full */ }
         setItems(
           articles.slice(0, count).map(a => ({
             kind: 'gnews',
@@ -133,33 +147,33 @@ export default function HomeFeedAdSlot({ accent: _accent = 'cyan' }: Props) {
 
   const [current, setCurrent] = useState(0)
   const [visible, setVisible] = useState(true)
-  const feedRef = useRef<FeedItem[]>([])
 
   // Build merged feed: sponsor → community → gnews, interleaved
-  const sponsorItems: FeedItem[] = ads.map(ad => ({
+  const sponsorItems: FeedItem[] = useMemo(() => ads.map(ad => ({
     kind: 'spon',
     label: '[SPON]',
     text: `${ad.sponsorName} // ${ad.title}`,
     href: ad.targetUrl,
     imageUrl: ad.imageUrl,
-  }))
+  })), [ads])
 
-  const feed: FeedItem[] = []
-  const maxLen = Math.max(sponsorItems.length, communityItems.length, gnewsItems.length)
-  for (let i = 0; i < maxLen; i++) {
-    if (communityItems[i]) feed.push(communityItems[i])
-    if (gnewsItems[i])     feed.push(gnewsItems[i])
-    if (sponsorItems[i])   feed.push(sponsorItems[i])
-  }
-
-  feedRef.current = feed
+  const feed = useMemo(() => {
+    const merged: FeedItem[] = []
+    const maxLen = Math.max(sponsorItems.length, communityItems.length, gnewsItems.length)
+    for (let i = 0; i < maxLen; i++) {
+      if (communityItems[i]) merged.push(communityItems[i])
+      if (gnewsItems[i])     merged.push(gnewsItems[i])
+      if (sponsorItems[i])   merged.push(sponsorItems[i])
+    }
+    return merged
+  }, [communityItems, gnewsItems, sponsorItems])
 
   useEffect(() => {
     if (feed.length <= 1) return
     const id = setInterval(() => {
       setVisible(false)
       setTimeout(() => {
-        setCurrent(i => (i + 1) % feedRef.current.length)
+        setCurrent(i => (i + 1) % feed.length)
         setVisible(true)
       }, 280)
     }, 4200)
@@ -174,7 +188,7 @@ export default function HomeFeedAdSlot({ accent: _accent = 'cyan' }: Props) {
 
   if (feed.length === 0) return null
 
-  const item = feed[current]
+  const item = feed[current % feed.length]
   if (!item) return null
 
   const labelCls = `${LABEL_COLOURS[item.kind]} shrink-0 select-none`

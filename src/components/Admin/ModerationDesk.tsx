@@ -148,16 +148,16 @@ export default function ModerationDesk() {
             {openAppeals.map(a => {
               const appealBusy = busy === `appeal-${a.id}`;
               return (
-                <div key={a.id} className="glass-panel rounded-xl border border-amber-500/20 p-4 flex items-start justify-between gap-4">
+                <div key={a.id} className="glass-panel rounded-xl border border-amber-500/20 p-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-white">{a.displayName || a.uid.slice(0, 8)}</p>
                     <p className="text-xs text-gray-400 mt-1 whitespace-pre-wrap break-words">{a.message}</p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
                     <button
                       onClick={() => handleReinstate(a.id, a.uid)}
                       disabled={appealBusy}
-                      className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-all disabled:opacity-50 flex items-center gap-1"
+                      className="min-h-10 px-3 py-1.5 text-xs font-bold rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-all disabled:opacity-50 flex items-center gap-1"
                     >
                       <span className="material-symbols-outlined text-[13px]">lock_open</span>
                       {appealBusy ? 'Working…' : 'Re-enable'}
@@ -165,7 +165,7 @@ export default function ModerationDesk() {
                     <button
                       onClick={() => handleDismissAppeal(a.id)}
                       disabled={appealBusy}
-                      className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all disabled:opacity-50"
+                      className="min-h-10 px-3 py-1.5 text-xs font-bold rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all disabled:opacity-50"
                     >
                       Dismiss
                     </button>
@@ -180,7 +180,7 @@ export default function ModerationDesk() {
       {/* Repeat offenders banner */}
       {repeatOffenders.length > 0 && (
         <div className="mb-8">
-          <h3 className="text-sm font-bold text-red-400 mb-3 flex items-center gap-2">
+          <h3 className="text-sm font-bold text-red-400 mb-3 flex items-center gap-2 flex-wrap">
             <span className="material-symbols-outlined text-base leading-none">report</span>
             Repeat Offenders — {repeatOffenders.length} target{repeatOffenders.length !== 1 ? 's' : ''} with {SPAM_THRESHOLD}+ open reports
           </h3>
@@ -189,18 +189,18 @@ export default function ModerationDesk() {
               const count = spamMap.get(r.targetId) ?? 0;
               const anyBusy = busy === `hide-${r.id}` || busy === `disable-${r.id}` || busy === `resolve-${r.id}`;
               return (
-                <div key={r.targetId} className="glass-panel rounded-xl border border-red-500/25 p-3 flex items-center gap-3">
+                <div key={r.targetId} className="glass-panel rounded-xl border border-red-500/25 p-3 flex flex-col sm:flex-row sm:items-center gap-3">
                   <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border font-mono bg-red-500/10 text-red-400 border-red-500/30">
                     🚩 ×{count}
                   </span>
                   <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${TARGET_BADGE[r.targetType]}`}>
                     {r.targetType}
                   </span>
-                  <span className="flex-1 text-sm text-white truncate">{r.targetTitle}</span>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <span className="flex-1 text-sm text-white break-words">{r.targetTitle}</span>
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
                     <button
                       onClick={() => handleViewTarget(r)}
-                      className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-white/5 border border-white/15 text-gray-300 hover:text-white transition-all flex items-center gap-1"
+                      className="min-h-10 px-2.5 py-1 text-xs font-bold rounded-lg bg-white/5 border border-white/15 text-gray-300 hover:text-white transition-all flex items-center gap-1"
                     >
                       <span className="material-symbols-outlined text-[13px]">open_in_new</span>
                       View
@@ -209,7 +209,7 @@ export default function ModerationDesk() {
                       <button
                         onClick={() => handleDisable(r)}
                         disabled={anyBusy}
-                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50 flex items-center gap-1"
+                        className="min-h-10 px-2.5 py-1 text-xs font-bold rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50 flex items-center gap-1"
                       >
                         <span className="material-symbols-outlined text-[13px]">block</span>
                         Disable
@@ -218,7 +218,7 @@ export default function ModerationDesk() {
                       <button
                         onClick={() => handleHide(r)}
                         disabled={anyBusy}
-                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all disabled:opacity-50 flex items-center gap-1"
+                        className="min-h-10 px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all disabled:opacity-50 flex items-center gap-1"
                       >
                         <span className="material-symbols-outlined text-[13px]">visibility_off</span>
                         Hide
@@ -233,12 +233,12 @@ export default function ModerationDesk() {
       )}
 
       {/* Filter tabs */}
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex items-center gap-2 mb-6 overflow-x-auto no-scrollbar">
         {TAB_LABELS.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setFilter(key)}
-            className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${
+            className={`min-h-10 px-4 py-1.5 rounded-full text-xs font-bold border transition-all shrink-0 ${
               filter === key
                 ? 'bg-primary/10 text-primary border-primary/30 shadow-neon'
                 : 'bg-white/5 text-gray-400 border-white/10 hover:text-white'
@@ -285,7 +285,8 @@ export default function ModerationDesk() {
 
       {/* Table */}
       {!loading && visible.length > 0 && (
-        <div className="overflow-x-auto">
+        <>
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-[11px] font-mono text-gray-500 uppercase tracking-wider border-b border-white/5">
@@ -400,6 +401,111 @@ export default function ModerationDesk() {
             </tbody>
           </table>
         </div>
+        <div className="md:hidden space-y-3">
+          {visible.map((report) => {
+            const isResolved = report.status === 'resolved';
+            const hideBusy = busy === `hide-${report.id}`;
+            const resolveBusy = busy === `resolve-${report.id}`;
+            const disableBusy = busy === `disable-${report.id}`;
+            const anyBusy = hideBusy || resolveBusy || disableBusy;
+            const reportCount = spamMap.get(report.targetId) ?? 0;
+            const isSpam = reportCount >= SPAM_THRESHOLD;
+
+            return (
+              <div
+                key={report.id}
+                className={`glass-panel rounded-xl border border-white/10 p-4 ${isResolved ? 'opacity-50' : ''}`}
+              >
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-500 font-mono">Reporter</p>
+                    <p className="text-sm text-white truncate">
+                      {report.reporterName || report.reporterId.slice(0, 8)}
+                    </p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold border capitalize ${TARGET_BADGE[report.targetType]}`}>
+                    {report.targetType}
+                  </span>
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <p className="text-xs text-gray-500 font-mono">Reason</p>
+                    <p className={`text-gray-300 break-words ${isResolved ? 'line-through' : ''}`}>
+                      {report.reason}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 font-mono">Target</p>
+                    <div className="flex items-center gap-2">
+                      {isSpam && !isResolved && (
+                        <span className="shrink-0 text-xs font-bold text-red-400">
+                          {reportCount} reports
+                        </span>
+                      )}
+                      <span className="text-white break-words">{report.targetTitle}</span>
+                    </div>
+                    {report.proofUrl && (
+                      <a
+                        href={report.proofUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex min-h-9 items-center gap-1 text-xs font-mono text-accent-purple/70 hover:text-accent-purple transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">image</span>
+                        proof
+                      </a>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-xs font-mono text-gray-500">
+                    <span>{formatDate(report.createdAt)}</span>
+                    {isResolved && <span className="text-green-500/70">Resolved</span>}
+                  </div>
+                </div>
+
+                {!isResolved && (
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    <button
+                      onClick={() => handleViewTarget(report)}
+                      className="min-h-10 px-3 py-1.5 text-xs font-bold rounded-lg bg-white/5 border border-white/15 text-gray-300 hover:text-white transition-all flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                      View
+                    </button>
+                    {report.targetType === 'user' ? (
+                      <button
+                        onClick={() => handleDisable(report)}
+                        disabled={anyBusy}
+                        className="min-h-10 px-3 py-1.5 text-xs font-bold rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50 flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-[13px]">block</span>
+                        {disableBusy ? 'Disabling...' : 'Disable account'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleHide(report)}
+                        disabled={anyBusy}
+                        className="min-h-10 px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all disabled:opacity-50 flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-[13px]">visibility_off</span>
+                        {hideBusy ? 'Hiding...' : `Hide ${report.targetType}`}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleResolve(report.id)}
+                      disabled={anyBusy}
+                      className="min-h-10 px-3 py-1.5 text-xs font-bold rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-all disabled:opacity-50 flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                      {resolveBusy ? 'Resolving...' : 'Resolve'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        </>
       )}
     </div>
   );
