@@ -36,11 +36,11 @@ function ComponentRow({ row, component }: { row: RowConfig; component: BuildComp
         <span className={`material-symbols-outlined text-base leading-none ${row.accent}`}>
           {row.icon}
         </span>
-        <span className={`text-[9px] font-bold tracking-[0.15em] font-mono ${row.accent}`}>
+        <span className={`text-xs font-bold tracking-[0.15em] font-mono ${row.accent}`}>
           {row.label}
         </span>
         {component.price !== undefined && (
-          <span className="ml-auto text-[10px] font-mono text-gray-400">
+          <span className="ml-auto text-xs font-mono text-gray-400">
             ${component.price.toLocaleString()}
           </span>
         )}
@@ -53,7 +53,7 @@ function ComponentRow({ row, component }: { row: RowConfig; component: BuildComp
           {specEntries.map(([, v]) => (
             <span
               key={v}
-              className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/8 dark:bg-black/30 border border-black/10 dark:border-white/10 text-gray-400"
+              className="text-xs font-mono px-1.5 py-0.5 rounded bg-black/8 dark:bg-black/30 border border-black/10 dark:border-white/10 text-gray-400 break-words max-w-full"
             >
               {v}
             </span>
@@ -73,7 +73,7 @@ function PowerBadge({ activeBuild }: { activeBuild: ActiveBuild }) {
 
   if (cpuTdp === undefined || gpuTdp === undefined || psuRating === undefined) {
     return (
-      <p className="text-[9px] font-mono text-gray-600 text-center">
+      <p className="text-xs font-mono text-gray-600 text-center">
         CPU · GPU · PSU required for power check
       </p>
     );
@@ -92,13 +92,13 @@ function PowerBadge({ activeBuild }: { activeBuild: ActiveBuild }) {
       }`}
     >
       <div
-        className={`text-[10px] font-mono font-bold tracking-wider mb-1 ${
+        className={`text-xs font-mono font-bold tracking-wider mb-1 ${
           safe ? 'text-green-400' : 'text-amber-400 animate-pulse'
         }`}
       >
         {safe ? '✓ POWER BUDGET VALIDATED' : `⚠ PSU CRITICALLY LOW`}
       </div>
-      <div className="text-[9px] font-mono text-gray-500 leading-4">
+      <div className="text-xs font-mono text-gray-500 leading-5">
         {required}W required ({cpuTdp}W + {gpuTdp}W + 150W buffer)
         {!safe && (
           <span className="text-amber-500/80"> · +{shortfall}W needed</span>
@@ -209,9 +209,9 @@ function BuildScorePanel({ scores }: { scores: BuildScores }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <span className="material-symbols-outlined text-xs text-gray-600">analytics</span>
-          <span className="text-[9px] font-mono text-gray-600 tracking-widest">BUILD SCORE</span>
+          <span className="text-xs font-mono text-gray-600 tracking-widest">BUILD SCORE</span>
         </div>
-        <span className={`text-[8px] font-mono font-bold tracking-wider uppercase px-2 py-0.5 rounded border ${PERSONA_STYLE[scores.persona]}`}>
+        <span className={`text-xs font-mono font-bold tracking-wider uppercase px-2 py-0.5 rounded border ${PERSONA_STYLE[scores.persona]}`}>
           {scores.persona}
         </span>
       </div>
@@ -226,12 +226,12 @@ function BuildScorePanel({ scores }: { scores: BuildScores }) {
         {scores.breakdown.map(item => (
           <div key={item.key}>
             <div className="flex justify-between items-center mb-1">
-              <span className={`text-[8px] font-mono tracking-wider ${item.color}`}>
+              <span className={`text-xs font-mono tracking-wider ${item.color}`}>
                 {item.label}
               </span>
               <div className="flex items-center gap-1.5">
-                <span className="text-[8px] font-mono text-gray-700">×{item.weight.toFixed(2)}</span>
-                <span className={`text-[9px] font-mono font-bold ${item.color}`}>{item.value}</span>
+                <span className="text-xs font-mono text-gray-700">x{item.weight.toFixed(2)}</span>
+                <span className={`text-xs font-mono font-bold ${item.color}`}>{item.value}</span>
               </div>
             </div>
             <div className="h-2 bg-black/10 dark:bg-black/40 rounded-full overflow-hidden border border-black/[0.06] dark:border-white/[0.04]">
@@ -268,14 +268,14 @@ export default function BuildCanvasCard({ activeBuild }: Props) {
     <div className="h-full glass-panel rounded-bento overflow-hidden border border-border-glass flex flex-col">
       {/* Header */}
       <div className="p-5 border-b border-border-glass bg-black/5 dark:bg-black/20 shrink-0">
-        <h2 className="text-[10px] font-bold text-gray-400 tracking-[0.15em] font-mono flex items-center gap-2">
+        <h2 className="text-xs font-bold text-gray-400 tracking-[0.15em] font-mono flex items-center gap-2">
           <span className="material-symbols-outlined text-sm text-primary">
             precision_manufacturing
           </span>
           CONTEXTUAL RETRIEVAL ENGINE
         </h2>
         {hasBuildData && (
-          <p className="text-[9px] font-mono text-gray-600 mt-1 tracking-wide">
+          <p className="text-xs font-mono text-gray-600 mt-1 tracking-wide">
             AI-ASSISTED FRAMEWORK · BUDGET-CONSTRAINED BUILDS
           </p>
         )}
@@ -297,14 +297,14 @@ export default function BuildCanvasCard({ activeBuild }: Props) {
               </span>
             </div>
             <div className="text-center space-y-1.5">
-              <p className="text-[11px] font-mono font-bold text-gray-500 tracking-[0.2em]">
+              <p className="text-xs font-mono font-bold text-gray-500 tracking-[0.2em]">
                 NO ACTIVE BUILD
               </p>
-              <p className="text-[10px] font-mono text-gray-600 tracking-widest">
+              <p className="text-xs font-mono text-gray-600 tracking-widest">
                 COMPILED
               </p>
               <div className="w-8 h-px bg-primary/20 mx-auto my-2" />
-              <p className="text-[9px] font-mono text-gray-700 leading-5">
+              <p className="text-xs font-mono text-gray-700 leading-5">
                 Describe your budget &amp; use case<br />to receive guided recommendations.
               </p>
             </div>
@@ -334,7 +334,7 @@ export default function BuildCanvasCard({ activeBuild }: Props) {
 
           {totalCost > 0 && (
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono text-gray-500 tracking-wider">
+              <span className="text-xs font-mono text-gray-500 tracking-wider">
                 EST. TOTAL
               </span>
               <span className="text-sm font-bold font-mono text-white">

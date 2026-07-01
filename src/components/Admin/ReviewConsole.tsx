@@ -99,7 +99,7 @@ export default function ReviewConsole() {
         return (
           <div
             key={post.id}
-            className="glass-panel rounded-bento border border-white/10 p-6 hover:border-white/20 transition-all"
+            className="glass-panel rounded-bento border border-white/10 p-4 sm:p-6 hover:border-white/20 transition-all"
           >
             {/* Top row */}
             <div className="flex items-start justify-between gap-4 mb-3 flex-wrap">
@@ -170,14 +170,14 @@ export default function ReviewConsole() {
                   <button
                     onClick={handleSaveEdit}
                     disabled={isBusy}
-                    className="px-4 py-2 text-xs font-bold rounded-full bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-all disabled:opacity-50 flex items-center gap-1.5"
+                    className="min-h-10 px-4 py-2 text-xs font-bold rounded-full bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-all disabled:opacity-50 flex items-center gap-1.5"
                   >
                     <span className="material-symbols-outlined text-[14px]">save</span>
                     Save Edit
                   </button>
                   <button
                     onClick={() => setEditState(null)}
-                    className="px-4 py-2 text-xs font-bold rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all"
+                    className="min-h-10 px-4 py-2 text-xs font-bold rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all"
                   >
                     Cancel
                   </button>
@@ -187,14 +187,14 @@ export default function ReviewConsole() {
                   <button
                     onClick={handleReject}
                     disabled={isBusy}
-                    className="px-4 py-2 text-xs font-bold rounded-full bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50 flex items-center gap-1.5"
+                    className="min-h-10 px-4 py-2 text-xs font-bold rounded-full bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50 flex items-center gap-1.5"
                   >
                     <span className="material-symbols-outlined text-[14px]">block</span>
                     Confirm Reject
                   </button>
                   <button
                     onClick={() => setRejectState(null)}
-                    className="px-4 py-2 text-xs font-bold rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all"
+                    className="min-h-10 px-4 py-2 text-xs font-bold rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all"
                   >
                     Cancel
                   </button>
@@ -204,7 +204,7 @@ export default function ReviewConsole() {
                   <button
                     onClick={() => handleApprove(post)}
                     disabled={isBusy}
-                    className="px-4 py-2 text-xs font-bold rounded-full bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-all shadow-neon disabled:opacity-50 flex items-center gap-1.5"
+                    className="min-h-10 px-4 py-2 text-xs font-bold rounded-full bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-all shadow-neon disabled:opacity-50 flex items-center gap-1.5"
                   >
                     <span className="material-symbols-outlined text-[14px]">check_circle</span>
                     {isBusy ? 'Approving…' : 'Approve'}
@@ -213,14 +213,14 @@ export default function ReviewConsole() {
                     onClick={() =>
                       setEditState({ id: post.id, title: post.title, content: post.content })
                     }
-                    className="px-4 py-2 text-xs font-bold rounded-full bg-accent-purple/10 border border-accent-purple/30 text-accent-purple hover:bg-accent-purple/20 transition-all flex items-center gap-1.5"
+                    className="min-h-10 px-4 py-2 text-xs font-bold rounded-full bg-accent-purple/10 border border-accent-purple/30 text-accent-purple hover:bg-accent-purple/20 transition-all flex items-center gap-1.5"
                   >
                     <span className="material-symbols-outlined text-[14px]">edit</span>
                     Edit
                   </button>
                   <button
                     onClick={() => setRejectState({ id: post.id, note: '' })}
-                    className="px-4 py-2 text-xs font-bold rounded-full bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all flex items-center gap-1.5"
+                    className="min-h-10 px-4 py-2 text-xs font-bold rounded-full bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all flex items-center gap-1.5"
                   >
                     <span className="material-symbols-outlined text-[14px]">cancel</span>
                     Reject

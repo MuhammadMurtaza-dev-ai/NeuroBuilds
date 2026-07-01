@@ -151,7 +151,7 @@ export default function CommunityPage({ onOpenAuth }: Props) {
       <GradientBackground />
       <main className="relative z-10 flex-grow pt-32 pb-20 px-4 md:px-8 max-w-[1400px] mx-auto w-full">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-10">
+        <div className="flex flex-col md:flex-row justify-between md:items-end gap-6 mb-10">
           <div>
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tight">
               Community Forum
@@ -161,7 +161,7 @@ export default function CommunityPage({ onOpenAuth }: Props) {
             </p>
           </div>
 
-          <div className="flex gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
             <div className="relative flex-grow md:w-64">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
                 search
@@ -176,7 +176,7 @@ export default function CommunityPage({ onOpenAuth }: Props) {
             </div>
             <button
               onClick={handleNewTopicClick}
-              className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-cyan-300 text-bg-dark font-bold rounded-pill transition-all shadow-[0_0_15px_rgba(13,242,242,0.4)] whitespace-nowrap"
+              className="min-h-11 flex items-center justify-center gap-2 px-6 py-2.5 bg-primary hover:bg-cyan-300 text-bg-dark font-bold rounded-pill transition-all shadow-[0_0_15px_rgba(13,242,242,0.4)] whitespace-nowrap"
             >
               <span className="material-symbols-outlined text-[18px]">add</span>
               New Topic
@@ -186,12 +186,12 @@ export default function CommunityPage({ onOpenAuth }: Props) {
 
         {/* Filters row: category tabs + country dropdown */}
         <div className="flex items-center gap-4 mb-8 flex-wrap">
-          <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar flex-grow">
+          <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar flex-grow snap-x snap-mandatory mask-gradient">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setFilters({ ...filters, category: cat.id })}
-                className={`flex items-center gap-2 px-5 py-2 rounded-pill text-sm font-medium whitespace-nowrap transition-all ${
+                className={`min-h-11 snap-start flex items-center gap-2 px-5 py-2 rounded-pill text-sm font-medium whitespace-nowrap transition-all ${
                   filters.category === cat.id
                     ? 'bg-black/8 dark:bg-white/10 border border-black/12 dark:border-white/10'
                     : 'glass-panel hover:text-primary hover:border-primary/50'

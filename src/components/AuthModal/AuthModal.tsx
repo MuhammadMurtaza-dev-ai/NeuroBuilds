@@ -208,7 +208,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center px-4 py-4">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -216,22 +216,23 @@ const AuthModal: React.FC<AuthModalProps> = ({
       ></div>
 
       {/* Modal Content */}
-      <div className="relative z-10 w-full max-w-md bg-bg-dark rounded-bento border border-white/10 shadow-2xl shadow-black/50 overflow-hidden">
+      <div className="relative z-10 w-full max-w-[calc(100vw-1.5rem)] sm:max-w-md bg-bg-dark rounded-bento border border-white/10 shadow-2xl shadow-black/50 flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-hidden">
         {/* Background glows */}
         <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-accent-purple/10 blur-[120px] rounded-full pointer-events-none"></div>
         <div className="absolute bottom-[-20%] right-[-10%] w-[40%] h-[60%] bg-primary/5 blur-[100px] rounded-full pointer-events-none"></div>
 
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-6 right-6 z-20 p-2 hover:bg-white/10 rounded-lg transition-colors"
-          aria-label="Close"
-        >
-          <X size={24} className="text-gray-400" />
-        </button>
+        <div className="relative z-20 flex justify-end px-4 sm:px-6 pt-4 sm:pt-6 shrink-0">
+          <button
+            onClick={onClose}
+            className="size-10 flex items-center justify-center hover:bg-white/10 rounded-lg transition-colors"
+            aria-label="Close"
+          >
+            <X size={24} className="text-gray-400" />
+          </button>
+        </div>
 
         {/* Content */}
-        <div className="relative z-10 p-8 md:p-10">
+        <div className="relative z-10 px-5 pb-5 pt-2 sm:px-8 sm:pb-8 md:px-10 md:pb-10 overflow-y-auto flex-1">
 
           {/* ── Reset Password View ── */}
           {view === 'reset' && (
@@ -307,7 +308,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
           {/* ── Auth Form View ── */}
           {view === 'form' && <>
           {/* Mode Tabs */}
-          <div className="flex gap-1 bg-black/20 rounded-pill p-1 mt-8 mb-8">
+          <div className="flex gap-1 bg-black/20 rounded-pill p-1 mb-8">
             <button
               onClick={() => setFormMode('login')}
               className={`flex-1 py-2 px-4 rounded-full font-bold text-sm transition-all ${
@@ -486,7 +487,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
           {/* OAuth Buttons */}
           <div className="mt-8 pt-8 border-t border-white/5">
             <p className="text-center text-sm text-gray-400 mb-4">Or continue with</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={handleGoogleSignIn}

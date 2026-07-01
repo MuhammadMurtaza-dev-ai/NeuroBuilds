@@ -36,7 +36,7 @@ function ListingCard({ listing, savedByCurrentUser, onClick, onSave }: Props) {
       <button
         onClick={(e) => onSave(e, listing)}
         aria-label={savedByCurrentUser ? 'Remove from saved' : 'Save listing'}
-        className="absolute top-4 right-4 z-10 p-2 glass-panel rounded-full border border-black/10 dark:border-white/10 hover:border-primary/50 transition-all backdrop-blur-sm"
+        className="absolute top-3 right-3 z-10 size-11 flex items-center justify-center glass-panel rounded-full border border-black/10 dark:border-white/10 hover:border-primary/50 transition-all backdrop-blur-sm"
       >
         <span
           className={`material-symbols-outlined text-lg leading-none ${savedByCurrentUser ? 'text-red-400' : 'text-gray-400 group-hover:text-white'}`}
@@ -94,7 +94,7 @@ function ListingCard({ listing, savedByCurrentUser, onClick, onSave }: Props) {
           {listing.title}
         </h4>
 
-        <div className="flex items-baseline gap-2">
+        <div className="flex items-baseline gap-2 flex-wrap">
           {listing.listingType === 'exchange' ? (
             <span className="text-accent-purple font-bold text-lg">Exchange Only</span>
           ) : (
@@ -107,10 +107,10 @@ function ListingCard({ listing, savedByCurrentUser, onClick, onSave }: Props) {
           )}
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-gray-500">
-          <span className="flex items-center gap-1">
+        <div className="flex items-center gap-3 text-sm text-gray-500">
+          <span className="flex items-center gap-1 min-w-0">
             <span className="material-symbols-outlined text-base leading-none">location_on</span>
-            {listing.location}
+            <span className="truncate">{listing.location}</span>
           </span>
         </div>
 

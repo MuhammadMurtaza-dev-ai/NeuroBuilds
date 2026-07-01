@@ -139,9 +139,9 @@ export default function BlogEditor({
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
-      <div className="glass-panel rounded-bento w-full max-w-3xl max-h-[90vh] flex flex-col border border-white/10 shadow-2xl">
+      <div className="glass-panel rounded-bento w-full max-w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[90vh] flex flex-col border border-white/10 shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-8 py-5 border-b border-white/10 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-5 border-b border-white/10 shrink-0">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <span className="material-symbols-outlined text-primary">edit_note</span>
             {editingPost
@@ -152,7 +152,7 @@ export default function BlogEditor({
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="size-10 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
             aria-label="Close"
           >
             <span className="material-symbols-outlined">close</span>
@@ -160,7 +160,7 @@ export default function BlogEditor({
         </div>
 
         {/* Form body */}
-        <div className="overflow-y-auto flex-grow px-8 py-6 space-y-5">
+        <div className="overflow-y-auto flex-grow px-4 sm:px-8 py-5 sm:py-6 space-y-5">
           {/* Rejection note — shown when the author is editing a post that was sent back */}
           {!isAdmin && editingPost?.rejectionNote && (
             <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-start gap-2">
@@ -194,7 +194,7 @@ export default function BlogEditor({
 
           <div>
             <label className={LABEL_CLS}>Thumbnail</label>
-            <div className="flex items-start gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
               {form.thumbnailUrl ? (
                 <div className="relative shrink-0">
                   <img
@@ -205,7 +205,7 @@ export default function BlogEditor({
                   <button
                     type="button"
                     onClick={() => setForm((prev) => ({ ...prev, thumbnailUrl: '' }))}
-                    className="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center rounded-full bg-red-500/90 text-white hover:bg-red-500 transition-colors"
+                    className="absolute -top-2 -right-2 size-8 flex items-center justify-center rounded-full bg-red-500/90 text-white hover:bg-red-500 transition-colors"
                     aria-label="Remove thumbnail"
                   >
                     <span className="material-symbols-outlined text-[16px]">close</span>
@@ -218,7 +218,7 @@ export default function BlogEditor({
                   <span className="material-symbols-outlined">
                     {uploading ? 'progress_activity' : 'add_photo_alternate'}
                   </span>
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                  <span className="text-xs font-bold uppercase tracking-wider">
                     {uploading ? 'Uploading…' : 'Upload'}
                   </span>
                   <input
@@ -233,7 +233,7 @@ export default function BlogEditor({
               <div className="flex-grow">
                 <input name="thumbnailUrl" value={form.thumbnailUrl} onChange={handleChange}
                   placeholder="…or paste an image URL" className={INPUT_CLS} />
-                <p className="text-[11px] text-gray-600 mt-2">
+                <p className="text-xs text-gray-600 mt-2">
                   Upload from your device (via ImgBB) or paste a direct image URL.
                 </p>
               </div>
@@ -241,7 +241,7 @@ export default function BlogEditor({
           </div>
 
           {/* Category is useful for all authors; AuthorType is admin-only */}
-          <div className={isAdmin ? 'grid grid-cols-2 gap-4' : ''}>
+          <div className={isAdmin ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : ''}>
             <div>
               <label className={LABEL_CLS}>Category</label>
               <CyberSelect
@@ -277,7 +277,7 @@ export default function BlogEditor({
 
           {/* Status + Publish At — admin-only controls */}
           {isAdmin && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={LABEL_CLS}>Status</label>
                 <CyberSelect
@@ -313,18 +313,18 @@ export default function BlogEditor({
         </div>
 
         {/* Footer actions */}
-        <div className="flex items-center justify-end gap-3 px-8 py-5 border-t border-white/10 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 px-4 sm:px-8 py-4 sm:py-5 border-t border-white/10 shrink-0">
           <button
             onClick={onClose}
             disabled={saving}
-            className="px-5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-full transition-all text-sm font-bold disabled:opacity-50"
+            className="min-h-11 px-5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-full transition-all text-sm font-bold disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={() => submit('draft')}
             disabled={saving || uploading}
-            className="px-5 py-2 bg-accent-purple/10 hover:bg-accent-purple/20 border border-accent-purple/30 text-accent-purple rounded-full transition-all text-sm font-bold disabled:opacity-50 flex items-center gap-2"
+            className="min-h-11 px-5 py-2 bg-accent-purple/10 hover:bg-accent-purple/20 border border-accent-purple/30 text-accent-purple rounded-full transition-all text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <span className="material-symbols-outlined text-[16px]">save</span>
             {saving ? 'Saving…' : 'Save Draft'}
@@ -333,7 +333,7 @@ export default function BlogEditor({
             <button
               onClick={() => submit()}
               disabled={saving || uploading}
-              className="px-5 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full transition-all text-sm font-bold disabled:opacity-50 flex items-center gap-2 shadow-neon"
+              className="min-h-11 px-5 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full transition-all text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2 shadow-neon"
             >
               <span className="material-symbols-outlined text-[16px]">publish</span>
               {saving ? 'Saving…' : 'Save Post'}
@@ -342,7 +342,7 @@ export default function BlogEditor({
             <button
               onClick={() => submit('pending_review')}
               disabled={saving || uploading}
-              className="px-5 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full transition-all text-sm font-bold disabled:opacity-50 flex items-center gap-2 shadow-neon"
+              className="min-h-11 px-5 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-full transition-all text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2 shadow-neon"
             >
               <span className="material-symbols-outlined text-[16px]">send</span>
               {saving ? 'Submitting…' : 'Submit for Review'}

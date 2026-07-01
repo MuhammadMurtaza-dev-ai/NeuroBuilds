@@ -382,15 +382,15 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
     />
   );
 
-  const gridClass = 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6';
+  const gridClass = 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6';
 
   return (
     <>
       <GradientBackground />
-      <main className="relative z-10 flex-grow pt-32 pb-20 px-4 md:px-8 max-w-[1600px] mx-auto w-full">
+      <main className="relative z-10 flex-grow pt-24 md:pt-32 pb-20 px-4 md:px-8 max-w-[1600px] mx-auto w-full">
 
         {/* Page Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-3xl font-bold">Marketplace</h1>
             <p className="text-gray-500 text-sm mt-1">
@@ -401,7 +401,7 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
           </div>
           <button
             onClick={handlePostClick}
-            className="px-6 py-3 bg-primary hover:bg-cyan-300 text-bg-dark font-bold rounded-pill transition-all shadow-[0_0_15px_rgba(13,242,242,0.4)] flex items-center gap-2 text-sm"
+            className="min-h-11 px-6 py-3 bg-primary hover:bg-cyan-300 text-bg-dark font-bold rounded-pill transition-all shadow-[0_0_15px_rgba(13,242,242,0.4)] flex items-center justify-center gap-2 text-sm"
           >
             <span className="material-symbols-outlined text-base leading-none">add</span>
             Post a Listing
@@ -409,12 +409,12 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
         </div>
 
         {/* View Mode Tabs */}
-        <div className="flex items-center gap-1 mb-6 glass-panel rounded-2xl p-1 w-fit border border-white/10">
+        <div className="flex items-center gap-1 mb-6 glass-panel rounded-2xl p-1 w-full sm:w-fit border border-white/10 overflow-x-auto no-scrollbar">
           {(['all', 'mine', 'saved'] as ViewMode[]).map(mode => (
             <button
               key={mode}
               onClick={() => switchViewMode(mode)}
-              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all ${
+              className={`min-h-11 flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all shrink-0 ${
                 viewMode === mode
                   ? 'bg-primary text-bg-dark shadow-[0_0_12px_rgba(13,242,242,0.3)]'
                   : 'text-gray-400 hover:text-white'
@@ -553,7 +553,7 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
             </div>
 
             {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <div key={i} className="glass-panel rounded-[2rem] border border-border-glass overflow-hidden animate-pulse">
                     <div className="aspect-[4/3] bg-black/5 dark:bg-white/5" />
@@ -604,14 +604,14 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
                       <div className="flex gap-1.5 mt-auto pt-2 flex-wrap">
                         <Link
                           to={`/marketplace?id=${listing.id}`}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-primary/40 transition-all"
+                          className="min-h-10 px-3 py-1.5 rounded-lg text-xs font-bold bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-primary/40 transition-all flex items-center"
                         >
                           View
                         </Link>
                         <button
                           onClick={() => handleStatusToggle(listing)}
                           disabled={busyId === listing.id}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${
+                          className={`min-h-10 px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${
                             listing.status === 'active'
                               ? 'bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20'
                               : 'bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20'
@@ -622,7 +622,7 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
                         <button
                           onClick={() => handleDeleteOwned(listing)}
                           disabled={busyId === listing.id}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white/5 border border-white/10 text-gray-400 hover:text-red-400 hover:border-red-500/30 transition-all disabled:opacity-50"
+                          className="min-h-10 px-3 py-1.5 rounded-lg text-xs font-bold bg-white/5 border border-white/10 text-gray-400 hover:text-red-400 hover:border-red-500/30 transition-all disabled:opacity-50"
                         >
                           Delete
                         </button>

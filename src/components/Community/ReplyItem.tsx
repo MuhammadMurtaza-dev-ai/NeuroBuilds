@@ -11,12 +11,12 @@ interface Props {
 
 export default function ReplyItem({ reply, depth = 0, onReplyClick, currentUserId, onOpenAuth }: Props) {
   const isOwn = reply.authorId === currentUserId;
-  const indent = Math.min(depth, 3) * 20;
+  const indent = Math.min(depth, 2) * 8;
 
   return (
     <div
       style={{ marginLeft: indent }}
-      className="border-l-2 border-white/5 pl-4 py-3"
+      className="border-l-2 border-white/5 pl-2 sm:pl-4 py-3"
     >
       <div className="flex items-start gap-3">
         {/* Avatar placeholder */}
@@ -55,7 +55,7 @@ export default function ReplyItem({ reply, depth = 0, onReplyClick, currentUserI
 
           <button
             onClick={() => currentUserId ? onReplyClick(reply.id) : onOpenAuth?.()}
-            className="mt-1.5 text-xs text-gray-500 hover:text-primary transition-colors flex items-center gap-1"
+            className="mt-1.5 min-h-9 text-xs text-gray-500 hover:text-primary transition-colors flex items-center gap-1"
           >
             <span className="material-symbols-outlined text-[14px]">reply</span>
             {currentUserId ? 'Reply' : 'Sign in to reply'}

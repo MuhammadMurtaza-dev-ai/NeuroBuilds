@@ -271,10 +271,10 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) handleClose(); }}
     >
-      <div className="glass-panel rounded-[2rem] border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="glass-panel rounded-[2rem] border border-white/10 w-full max-w-[calc(100vw-1.5rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
 
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/5 sticky top-0 bg-bg-panel/90 backdrop-blur-md z-10 rounded-t-[2rem]">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/5 sticky top-0 bg-bg-panel/90 backdrop-blur-md z-10 rounded-t-[2rem]">
           <div className="flex items-center gap-3">
               <h2 className="font-bold text-xl">{isEditMode ? 'Edit Listing' : 'Post a Listing'}</h2>
               {isVerified && (
@@ -284,12 +284,12 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
                 </span>
               )}
             </div>
-          <button onClick={handleClose} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+          <button onClick={handleClose} className="size-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors" aria-label="Close listing form">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
-        <div className="p-6 flex flex-col gap-5 relative">
+        <div className="p-4 sm:p-6 flex flex-col gap-5 relative">
 
           {/* Verification gate — overlays all form inputs when seller is unverified (skip in edit mode) */}
           {!isVerified && !isEditMode && (
@@ -318,7 +318,7 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
           {/* Listing Type */}
           <div>
             <label className="text-sm text-gray-400 mb-2 block">Listing Type</label>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {(['sell', 'buy', 'exchange'] as const).map(type => (
                 <button
                   key={type}
@@ -345,7 +345,7 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
           </div>
 
           {/* Category & Condition */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-sm text-gray-400 mb-2 block">Category</label>
               <CyberSelect
@@ -374,7 +374,7 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
           {form.listingType !== 'exchange' && (
             <div>
               <label className="text-sm text-gray-400 mb-2 block">Price (PKR) *</label>
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1 flex items-center bg-black/40 border border-white/10 rounded-xl overflow-hidden focus-within:border-primary/50 transition-colors">
                   <span className="px-3 text-sm text-gray-400 shrink-0 border-r border-white/10 py-3">Rs.</span>
                   <input
@@ -450,24 +450,26 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
               onChange={handleFileChange}
               className="hidden"
             />
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory mask-gradient">
               {form.existingImageUrls.map((url, i) => (
-                <div key={`existing-${i}`} className="relative w-20 h-16 rounded-lg overflow-hidden border border-white/10 group/img">
+                <div key={`existing-${i}`} className="relative w-20 h-16 rounded-lg overflow-hidden border border-white/10 group/img shrink-0 snap-start">
                   <img src={url} alt="" className="w-full h-full object-cover" />
                   <button
                     onClick={() => removeExistingImage(i)}
-                    className="absolute inset-0 bg-black/70 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity"
+                    className="absolute inset-0 bg-black/70 opacity-0 group-hover/img:opacity-100 focus:opacity-100 flex items-center justify-center transition-opacity"
+                    aria-label="Remove image"
                   >
                     <span className="material-symbols-outlined text-white text-sm">close</span>
                   </button>
                 </div>
               ))}
               {form.imagePreviews.map((preview, i) => (
-                <div key={`new-${i}`} className="relative w-20 h-16 rounded-lg overflow-hidden border border-primary/30 group/img">
+                <div key={`new-${i}`} className="relative w-20 h-16 rounded-lg overflow-hidden border border-primary/30 group/img shrink-0 snap-start">
                   <img src={preview} alt="" className="w-full h-full object-cover" />
                   <button
                     onClick={() => removeImage(i)}
-                    className="absolute inset-0 bg-black/70 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity"
+                    className="absolute inset-0 bg-black/70 opacity-0 group-hover/img:opacity-100 focus:opacity-100 flex items-center justify-center transition-opacity"
+                    aria-label="Remove image"
                   >
                     <span className="material-symbols-outlined text-white text-sm">close</span>
                   </button>
@@ -477,7 +479,7 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-20 h-16 rounded-lg border border-dashed border-white/20 flex flex-col items-center justify-center gap-1 hover:border-primary/50 hover:bg-primary/5 transition-all"
+                  className="w-20 h-16 rounded-lg border border-dashed border-white/20 flex flex-col items-center justify-center gap-1 hover:border-primary/50 hover:bg-primary/5 transition-all shrink-0 snap-start"
                 >
                   <span className="material-symbols-outlined text-gray-400 text-xl leading-none">add_photo_alternate</span>
                   <span className="text-gray-500 text-[10px]">Add photo</span>
@@ -528,7 +530,7 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
           {/* Specs */}
           <div>
             <label className="text-sm text-gray-400 mb-2 block">Specifications <span className="text-gray-600">(optional)</span></label>
-            <div className="flex gap-2 mb-2">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 mb-2">
               <input
                 type="text"
                 value={form.specKey}
@@ -571,7 +573,7 @@ export default function CreateListingModal({ onClose, onSubmit, sellerId, seller
           )}
 
           {/* Actions */}
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <button
               onClick={handleClose}
               disabled={uploading}

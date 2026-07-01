@@ -151,7 +151,8 @@ export function RoleAssignmentMatrix() {
       )}
 
       {searched && (
-        <div className="overflow-x-auto">
+        <>
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/10 text-left">
@@ -204,6 +205,48 @@ export function RoleAssignmentMatrix() {
             </tbody>
           </table>
         </div>
+        <div className="md:hidden space-y-3">
+          {filtered.length === 0 ? (
+            <div className="glass-panel rounded-xl border border-white/10 p-6 text-center text-gray-600 text-xs">
+              No users found
+            </div>
+          ) : (
+            filtered.map(u => (
+              <div key={u.uid} className="glass-panel rounded-xl border border-white/10 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-white font-mono text-sm truncate">
+                      {u.displayName || <span className="text-gray-600">{u.uid.slice(0, 12)}...</span>}
+                    </p>
+                    <p className="text-xs font-mono text-primary/70 truncate">
+                      {u.username ? `@${u.username}` : 'No username'}
+                    </p>
+                    <p className="text-xs text-gray-400 truncate mt-1">{u.email || 'No email'}</p>
+                  </div>
+                  <div className="relative shrink-0">
+                    <select
+                      value={u.role}
+                      disabled={saving === u.uid}
+                      onChange={e => assignRole(u.uid, e.target.value as UserRole)}
+                      className={`appearance-none min-h-11 pr-8 pl-3 py-2 bg-bg-dark border rounded-lg text-xs font-mono cursor-pointer focus:outline-none focus:border-primary hover:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-colors disabled:opacity-50 ${ROLE_COLOURS[u.role]}`}
+                    >
+                      {ROLES.map(r => (
+                        <option key={r} value={r} className="text-white bg-bg-dark">
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={12}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        </>
       )}
     </div>
   );

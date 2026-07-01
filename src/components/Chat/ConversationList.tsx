@@ -56,14 +56,14 @@ export default function ConversationList({
   };
 
   return (
-    <div className="w-64 flex-shrink-0 border-r border-white/10 flex flex-col">
+    <div className="w-full md:w-64 flex-shrink-0 border-r border-white/10 flex flex-col">
       <div className="px-3 py-3 border-b border-white/5 space-y-2">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Chats</p>
           <button
             onClick={onCreateGroup}
             title="New Group"
-            className="p-1 text-gray-500 hover:text-accent-purple transition-colors"
+            className="size-10 flex items-center justify-center rounded-lg text-gray-500 hover:text-accent-purple hover:bg-white/5 transition-colors"
           >
             <Users size={15} />
           </button>

@@ -145,7 +145,7 @@ export default function SellerProfilePage({ onOpenAuth }: Props) {
       <main className="relative z-10 flex-grow pt-32 pb-20 px-4 md:px-8 max-w-[1400px] mx-auto w-full">
 
         {/* Profile Header */}
-        <div className="glass-panel rounded-[2rem] border border-white/10 p-8 mb-8 flex flex-col md:flex-row items-start gap-6">
+        <div className="glass-panel rounded-[2rem] border border-white/10 p-5 sm:p-8 mb-8 flex flex-col md:flex-row items-start gap-6">
           {loadingProfile ? (
             <div className="animate-pulse flex gap-6 w-full">
               <div className="w-24 h-24 rounded-full bg-white/10 shrink-0" />
@@ -219,7 +219,7 @@ export default function SellerProfilePage({ onOpenAuth }: Props) {
               {isOwnProfile && (
                 <button
                   onClick={() => navigate('/profile')}
-                  className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 text-sm text-gray-300 hover:text-white hover:border-primary/40 transition-all"
+                  className="min-h-11 shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 text-sm text-gray-300 hover:text-white hover:border-primary/40 transition-all"
                 >
                   <span className="material-symbols-outlined text-base leading-none">edit</span>
                   Edit Profile
@@ -236,7 +236,7 @@ export default function SellerProfilePage({ onOpenAuth }: Props) {
           </h2>
 
           {loadingListings ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="glass-panel rounded-[2rem] border border-border-glass overflow-hidden animate-pulse">
                   <div className="aspect-[4/3] bg-white/5" />
@@ -248,7 +248,7 @@ export default function SellerProfilePage({ onOpenAuth }: Props) {
               ))}
             </div>
           ) : listings.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {listings.map(l => (
                 <ListingCard
                   key={l.id}

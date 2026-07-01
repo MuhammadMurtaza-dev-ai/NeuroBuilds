@@ -247,7 +247,7 @@ export default function HomePage() {
 
           {/* Featured Build — dynamic from Firestore blogs (Hardware + published) */}
           {featuredLoading ? (
-            <div className="col-span-1 md:col-span-5 h-64 md:h-80 rounded-bento overflow-hidden border border-black/10 dark:border-white/10 bg-bg-panel animate-pulse relative">
+          <div className="col-span-1 md:col-span-5 h-40 sm:h-56 lg:h-80 rounded-bento overflow-hidden border border-black/10 dark:border-white/10 bg-bg-panel animate-pulse relative">
               <div className="absolute bottom-0 left-0 p-8 w-full space-y-3">
                 <div className="h-4 bg-black/10 dark:bg-white/10 rounded w-28" />
                 <div className="h-6 bg-black/10 dark:bg-white/10 rounded w-3/4" />
@@ -256,7 +256,7 @@ export default function HomePage() {
               </div>
             </div>
           ) : featuredPost ? (
-            <div className="col-span-1 md:col-span-5 h-64 md:h-80 relative rounded-bento overflow-hidden group border border-black/10 dark:border-white/10">
+            <div className="col-span-1 md:col-span-5 h-40 sm:h-56 lg:h-80 relative rounded-bento overflow-hidden group border border-black/10 dark:border-white/10">
               {featuredPost.thumbnailUrl ? (
                 <div
                   className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
@@ -265,7 +265,7 @@ export default function HomePage() {
               ) : (
                 <div className="absolute inset-0 bg-gradient-to-br from-[#252526] to-[#1e1e1e]" />
               )}
-              <div className="absolute bottom-0 left-0 p-8 w-full z-10">
+              <div className="absolute bottom-0 left-0 p-5 sm:p-8 w-full z-10">
                 <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold text-white mb-2 inline-block border border-white/10">
                   FEATURED BUILD
                 </span>
@@ -273,7 +273,7 @@ export default function HomePage() {
                 <p className="text-gray-300 text-sm mb-3">by {featuredPost.authorName}</p>
                 <button
                   onClick={() => navigate('/blog', { state: { openPostId: featuredPost.id } })}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary/20 hover:bg-primary/40 border border-primary/30 text-primary text-xs font-bold transition-all"
+                  className="min-h-11 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary/20 hover:bg-primary/40 border border-primary/30 text-primary text-xs font-bold transition-all"
                 >
                   VIEW BUILD DETAILS
                   <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
@@ -281,16 +281,16 @@ export default function HomePage() {
               </div>
             </div>
           ) : (
-            <div className="col-span-1 md:col-span-5 h-64 md:h-80 relative rounded-bento overflow-hidden border border-black/10 dark:border-white/10">
+            <div className="col-span-1 md:col-span-5 h-40 sm:h-56 lg:h-80 relative rounded-bento overflow-hidden border border-black/10 dark:border-white/10">
               <div className="absolute inset-0 bg-gradient-to-br from-bg-panel to-bg-dark" />
-              <div className="absolute bottom-0 left-0 p-8 w-full">
+              <div className="absolute bottom-0 left-0 p-5 sm:p-8 w-full">
                 <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold text-white mb-2 inline-block border border-white/10">
                   FEATURED BUILD
                 </span>
                 <p className="text-gray-600 text-sm font-mono mt-1">No featured builds yet.</p>
                 <button
                   onClick={() => navigate('/blog')}
-                  className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 text-xs font-bold transition-all"
+                  className="mt-3 min-h-11 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 text-xs font-bold transition-all"
                 >
                   BROWSE BLOG
                   <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
@@ -347,19 +347,19 @@ export default function HomePage() {
 
         {/* Marketplace Section */}
         <section className="mb-20">
-          <div className="flex items-center justify-between mb-8 px-4">
-            <h2 className="text-3xl font-bold tracking-tight">
-              MARKETPLACE <span className="text-gray-600 text-lg font-normal ml-2">// LATEST DROPS</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8 px-1 sm:px-4">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              MARKETPLACE <span className="block sm:inline text-gray-600 text-lg font-normal sm:ml-2">// LATEST DROPS</span>
             </h2>
             <button
               onClick={() => navigate('/marketplace')}
-              className="text-xs text-primary font-mono border border-primary/30 hover:border-primary/70 hover:bg-primary/10 rounded-full px-4 py-2 transition-all"
+              className="min-h-11 text-xs text-primary font-mono border border-primary/30 hover:border-primary/70 hover:bg-primary/10 rounded-full px-4 py-2 transition-all self-start sm:self-auto"
             >
               VIEW ALL &rarr;
             </button>
           </div>
 
-          <div className="rounded-[4rem] bg-bg-panel border border-border-glass p-4 md:p-6 relative overflow-hidden shadow-2xl">
+          <div className="rounded-[2rem] sm:rounded-[4rem] bg-bg-panel border border-border-glass p-3 sm:p-4 md:p-6 relative overflow-hidden shadow-2xl">
             <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-primary/5 to-transparent pointer-events-none"></div>
             {listingsLoading ? (
               <div className="flex gap-4 pb-4 px-2">

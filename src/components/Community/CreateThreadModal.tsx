@@ -100,14 +100,14 @@ export default function CreateThreadModal({ onClose, onSubmit, initialThread, av
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative z-10 w-full max-w-2xl glass-panel rounded-bento border border-white/10 p-8 shadow-neon max-h-[90vh] overflow-y-auto">
+      <div className="relative z-10 w-full max-w-[calc(100vw-1.5rem)] sm:max-w-2xl glass-panel rounded-bento border border-white/10 p-4 sm:p-8 shadow-neon max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <span className="material-symbols-outlined text-primary">{isEditMode ? 'edit' : 'post_add'}</span>
             {isEditMode ? 'Edit Thread' : 'New Thread'}
           </h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+          <button onClick={onClose} className="size-10 flex items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-white/10 transition-colors" aria-label="Close thread form">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
@@ -129,7 +129,7 @@ export default function CreateThreadModal({ onClose, onSubmit, initialThread, av
           </div>
 
           {/* Category + Country row */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-mono text-gray-400 mb-1.5 uppercase tracking-wider">
                 Category
@@ -177,9 +177,9 @@ export default function CreateThreadModal({ onClose, onSubmit, initialThread, av
               </label>
 
               {imageUrls.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-3">
+                <div className="flex gap-2 mb-3 overflow-x-auto pb-1 snap-x snap-mandatory mask-gradient">
                   {imageUrls.map((url, i) => (
-                    <div key={i} className="relative group">
+                    <div key={i} className="relative group shrink-0 snap-start">
                       <img
                         src={url}
                         alt={`Upload ${i + 1}`}
@@ -188,7 +188,8 @@ export default function CreateThreadModal({ onClose, onSubmit, initialThread, av
                       <button
                         type="button"
                         onClick={() => removeImage(i)}
-                        className="absolute -top-1.5 -right-1.5 size-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute -top-2 -right-2 size-8 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                        aria-label="Remove image"
                       >
                         <X size={11} className="text-white" />
                       </button>
@@ -211,7 +212,7 @@ export default function CreateThreadModal({ onClose, onSubmit, initialThread, av
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadingImages}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 hover:border-primary/40 rounded-xl text-sm text-gray-400 hover:text-white transition-all disabled:opacity-50"
+                    className="min-h-11 flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 hover:border-primary/40 rounded-xl text-sm text-gray-400 hover:text-white transition-all disabled:opacity-50"
                   >
                     {uploadingImages ? (
                       <><Loader size={15} className="animate-spin" /> Uploading…</>
@@ -247,7 +248,8 @@ export default function CreateThreadModal({ onClose, onSubmit, initialThread, av
                   <button
                     type="button"
                     onClick={() => setLinkedBlogId('')}
-                    className="ml-auto text-gray-500 hover:text-white transition-colors"
+                    className="ml-auto size-8 flex items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
+                    aria-label="Remove linked blog"
                   >
                     <span className="material-symbols-outlined text-[14px]">close</span>
                   </button>
@@ -264,7 +266,7 @@ export default function CreateThreadModal({ onClose, onSubmit, initialThread, av
           )}
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row sm:justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}

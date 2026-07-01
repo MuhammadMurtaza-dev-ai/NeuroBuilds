@@ -25,13 +25,13 @@ export function NotificationDrawer({ notif, onClose }: Props) {
   };
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-80 glass-panel border border-white/10 rounded-xl shadow-neon z-[80] overflow-hidden">
+    <div className="fixed left-3 right-3 top-20 max-h-[calc(100vh-6rem)] glass-panel border border-white/10 rounded-xl shadow-neon z-[80] overflow-hidden sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(20rem,calc(100vw-1.5rem))] sm:max-h-none">
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
         <span className="text-sm font-semibold text-white">Notifications</span>
         {notif.unreadCount > 0 && (
           <button
             onClick={() => notif.markAllRead()}
-            className="flex items-center gap-1 text-xs text-primary hover:text-white transition-colors"
+            className="min-h-10 flex items-center gap-1 text-xs text-primary hover:text-white transition-colors"
           >
             <CheckCheck size={13} />
             Mark all read
@@ -39,7 +39,7 @@ export function NotificationDrawer({ notif, onClose }: Props) {
         )}
       </div>
 
-      <div className="max-h-96 overflow-y-auto">
+      <div className="max-h-[calc(100vh-10rem)] overflow-y-auto sm:max-h-96">
         {notif.loading ? (
           <div className="px-4 py-6 text-center text-gray-500 text-sm">Loading…</div>
         ) : notif.notifications.length === 0 ? (
@@ -52,7 +52,7 @@ export function NotificationDrawer({ notif, onClose }: Props) {
             <button
               key={n.id}
               onClick={() => handleClick(n.id, n.linkUrl)}
-              className={`w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors ${
+              className={`w-full min-h-16 text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors ${
                 !n.isRead ? 'bg-primary/5' : ''
               }`}
             >
@@ -66,7 +66,7 @@ export function NotificationDrawer({ notif, onClose }: Props) {
                       {TYPE_LABELS[n.type] ?? n.type}
                     </span>
                   </div>
-                  <p className="text-sm text-white font-medium truncate">{n.title}</p>
+                  <p className="text-sm text-white font-medium line-clamp-2">{n.title}</p>
                   <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{n.body}</p>
                 </div>
                 <span className="text-[10px] text-gray-600 flex-shrink-0 mt-1">

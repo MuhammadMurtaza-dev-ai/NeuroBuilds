@@ -24,7 +24,7 @@ function VideoCard({ video }: { video: VideoItem }) {
   const [playing, setPlaying] = useState(false);
 
   return (
-    <div className="glass-panel rounded-[1.25rem] border border-white/10 hover:border-primary/40 hover:shadow-neon transition-all duration-300 overflow-hidden group">
+    <div className="glass-panel rounded-[1.25rem] border border-white/10 hover:border-primary/40 hover:shadow-neon transition-all duration-300 overflow-hidden group snap-start min-w-[82vw] sm:min-w-[20rem] md:min-w-0">
       {playing ? (
         <iframe
           className="aspect-video w-full"
@@ -93,7 +93,7 @@ export default function VideoReviewCarousel({ videos, loading, searchTerm }: Pro
           </span>
         </a>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto md:overflow-visible snap-x snap-mandatory pb-1 mask-gradient md:[mask-image:none]">
           {loading
             ? [0, 1, 2].map(i => <SkeletonCard key={i} />)
             : videos.map(v => <VideoCard key={v.videoId} video={v} />)

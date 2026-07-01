@@ -210,7 +210,7 @@ export default function ProfilePage() {
   return (
     <>
       <GradientBackground />
-      <main className="relative z-10 pt-28 pb-16 px-4 md:px-6 max-w-2xl mx-auto w-full">
+      <main className="relative z-10 pt-28 pb-20 px-4 md:px-6 max-w-2xl mx-auto w-full">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white">Profile Settings</h1>
@@ -224,7 +224,7 @@ export default function ProfilePage() {
         )}
 
         {/* Avatar Preview + card */}
-        <div className="glass-panel rounded-bento border border-white/10 p-6 mb-4 flex items-center gap-5">
+        <div className="glass-panel rounded-bento border border-white/10 p-4 sm:p-6 mb-4 flex flex-col sm:flex-row sm:items-center gap-5">
           <div className="relative shrink-0">
             <div className="size-20 rounded-full bg-gradient-to-tr from-primary to-accent-purple p-[2px]">
               {form.photoURL ? (
@@ -269,7 +269,7 @@ export default function ProfilePage() {
           title="Display Name"
           description="This is how other users will see you across the platform."
         >
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               value={form.displayName}
@@ -349,7 +349,7 @@ export default function ProfilePage() {
           title="Contact Phone"
           description="Used for marketplace seller contact. Visible only to buyers."
         >
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="tel"
               value={form.phoneNumber}
@@ -401,7 +401,7 @@ export default function ProfilePage() {
           description="Your unique @handle on NeuroBuilds. Used for DMs and mentions."
         >
           <div className="space-y-2">
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-mono">@</span>
                 <input
@@ -462,7 +462,7 @@ interface SettingsCardProps {
 
 function SettingsCard({ icon, title, description, children }: SettingsCardProps) {
   return (
-    <div className="glass-panel rounded-bento border border-white/10 p-6 mb-4">
+    <div className="glass-panel rounded-bento border border-white/10 p-4 sm:p-6 mb-4">
       <div className="flex items-center gap-2 mb-1">
         {icon}
         <h2 className="font-bold text-white text-sm">{title}</h2>
@@ -488,7 +488,7 @@ function SaveButton({ status, onClick, disabled }: SaveButtonProps) {
       type="button"
       onClick={onClick}
       disabled={disabled || isSaving}
-      className={`shrink-0 px-4 py-2.5 rounded-lg font-bold text-sm transition-all flex items-center gap-2 ${
+      className={`min-h-11 shrink-0 px-4 py-2.5 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 ${
         isSaved
           ? 'bg-green-500/20 border border-green-500/30 text-green-400'
           : 'bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary disabled:opacity-40 disabled:cursor-not-allowed'

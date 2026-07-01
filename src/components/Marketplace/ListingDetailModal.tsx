@@ -206,16 +206,16 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
       onClick={handleBackdropClick}
     >
-      <div className="glass-panel rounded-[2rem] border border-black/10 dark:border-white/10 shadow-neon w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="glass-panel rounded-[2rem] border border-black/10 dark:border-white/10 shadow-neon w-full max-w-[calc(100vw-1.5rem)] lg:max-w-4xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border-glass sticky top-0 bg-bg-panel/90 backdrop-blur-md z-10 rounded-t-[2rem]">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border-glass sticky top-0 bg-bg-panel/90 backdrop-blur-md z-10 rounded-t-[2rem]">
           <h2 className="font-bold text-xl">Listing Details</h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-black/8 dark:hover:bg-white/10 transition-colors">
+          <button onClick={onClose} className="size-10 flex items-center justify-center rounded-full hover:bg-black/8 dark:hover:bg-white/10 transition-colors" aria-label="Close listing details">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
-        <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Images */}
           <div className="flex flex-col gap-3">
             <button
@@ -239,12 +239,12 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
               )}
             </button>
             {listing.images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory scroll-smooth mask-gradient">
                 {listing.images.map((img, i) => (
                   <button
                     key={i}
                     onClick={() => setActiveImage(i)}
-                    className={`shrink-0 w-20 h-16 rounded-xl overflow-hidden border-2 transition-colors ${i === activeImage ? 'border-primary' : 'border-black/10 dark:border-white/10 hover:border-black/30 dark:hover:border-white/30'}`}
+                    className={`snap-start shrink-0 w-20 h-16 rounded-xl overflow-hidden border-2 transition-colors ${i === activeImage ? 'border-primary' : 'border-black/10 dark:border-white/10 hover:border-black/30 dark:hover:border-white/30'}`}
                   >
                     <img src={img} alt="" className="w-full h-full object-cover" />
                   </button>
@@ -276,13 +276,13 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
 
             {/* Title & Price */}
             <div>
-              <h1 className="text-2xl font-bold leading-tight mb-3">{listing.title}</h1>
+              <h1 className="text-xl sm:text-2xl font-bold leading-tight mb-3">{listing.title}</h1>
               {listing.listingType === 'exchange' ? (
                 <span className="text-accent-purple font-bold text-2xl">Exchange Only</span>
               ) : (
                 <div className="flex items-baseline gap-3 flex-wrap">
                   <span className="text-white font-mono text-3xl font-bold">Rs. {listing.price.toLocaleString('en-US')}</span>
-                  {listing.negotiable && <span className="text-primary text-sm font-medium">• Negotiable</span>}
+                  {listing.negotiable && <span className="text-primary text-sm font-medium">Negotiable</span>}
                 </div>
               )}
               {listing.listingType === 'sell' && typeof listing.stockQuantity === 'number' && (
@@ -347,7 +347,7 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
                   Share
                 </button>
                 {shareOpen && (
-                  <div className="absolute left-0 mt-2 z-20 w-60 glass-panel rounded-2xl border border-white/10 shadow-neon p-2 flex flex-col">
+                  <div className="absolute right-0 mt-2 z-20 w-[min(14rem,calc(100vw-3rem))] sm:w-60 glass-panel rounded-2xl border border-white/10 shadow-neon p-2 flex flex-col">
                     <button
                       onClick={copyShareLink}
                       className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors text-sm text-left"
@@ -438,7 +438,7 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
                         </div>
                         <p className="text-[11px] text-gray-500 mt-1.5 flex items-center gap-1">
                           <span className="material-symbols-outlined text-xs leading-none text-emerald-400">verified</span>
-                          Verified via WhatsApp — seller notified.
+                          Verified via WhatsApp. Seller notified.
                         </p>
                       </>
                     ) : (
@@ -514,7 +514,7 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
                 {!isOwner && isLoggedIn && (
                   <button
                     onClick={() => setShowReport(true)}
-                    className="flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-red-400 transition-colors pt-1"
+                    className="min-h-11 flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-red-400 transition-colors pt-1"
                   >
                     <span className="material-symbols-outlined text-base leading-none">flag</span>
                     Report this listing or seller
@@ -526,7 +526,7 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
         </div>
 
         {/* Description & Specs */}
-        <div className="px-6 pb-6 grid grid-cols-1 lg:grid-cols-2 gap-6 border-t border-border-glass pt-6">
+        <div className="px-4 sm:px-6 pb-6 grid grid-cols-1 lg:grid-cols-2 gap-6 border-t border-border-glass pt-6">
           <div>
             <h3 className="font-semibold mb-3 text-sm text-gray-400 uppercase tracking-wider">Description</h3>
             <p className="text-gray-300 text-sm leading-relaxed">{listing.description}</p>
@@ -536,9 +536,9 @@ export default function ListingDetailModal({ listing, savedByCurrentUser, isLogg
               <h3 className="font-semibold mb-3 text-sm text-gray-400 uppercase tracking-wider">Specifications</h3>
               <div className="flex flex-col">
                 {specEntries.map(([key, value]) => (
-                  <div key={key} className="flex justify-between text-sm py-2.5 border-b border-border-glass last:border-0">
-                    <span className="text-gray-500">{key}</span>
-                    <span className="text-white font-medium">{value}</span>
+                  <div key={key} className="flex justify-between gap-3 text-sm py-2.5 border-b border-border-glass last:border-0">
+                    <span className="text-gray-500 break-words">{key}</span>
+                    <span className="text-white font-medium text-right break-words">{value}</span>
                   </div>
                 ))}
               </div>
@@ -601,7 +601,7 @@ function ImageLightbox({
     >
       <button
         onClick={onClose}
-        className="absolute top-5 right-5 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+        className="absolute top-5 right-5 size-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
         aria-label="Close full-size view"
       >
         <span className="material-symbols-outlined">close</span>
@@ -618,14 +618,14 @@ function ImageLightbox({
         <>
           <button
             onClick={e => { e.stopPropagation(); onIndex((index - 1 + images.length) % images.length); }}
-            className="absolute left-5 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+            className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 size-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
             aria-label="Previous image"
           >
             <span className="material-symbols-outlined">chevron_left</span>
           </button>
           <button
             onClick={e => { e.stopPropagation(); onIndex((index + 1) % images.length); }}
-            className="absolute right-5 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+            className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 size-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
             aria-label="Next image"
           >
             <span className="material-symbols-outlined">chevron_right</span>

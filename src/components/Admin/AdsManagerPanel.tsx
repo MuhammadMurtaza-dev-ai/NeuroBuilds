@@ -274,7 +274,7 @@ export default function AdsManagerPanel() {
                 {searchResults.map(ad => (
                   <div
                     key={ad.id}
-                    className="flex items-center gap-3 rounded-xl border border-white/8 px-4 py-3 bg-white/2"
+                    className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-white/8 px-4 py-3 bg-white/2"
                   >
                     {/* Status dot */}
                     <div className={`w-2 h-2 rounded-full shrink-0 ${ad.status === 'active' ? 'bg-green-400' : 'bg-gray-600'}`} />
@@ -297,7 +297,7 @@ export default function AdsManagerPanel() {
                     <button
                       onClick={() => { openEdit(ad); setSearchOpen(false) }}
                       title="Edit"
-                      className="p-1.5 rounded-lg border border-white/10 text-gray-400 hover:text-white transition-colors shrink-0"
+                      className="size-10 rounded-lg border border-white/10 text-gray-400 hover:text-white transition-colors shrink-0 flex items-center justify-center"
                     >
                       <span className="material-symbols-outlined text-[15px]">edit</span>
                     </button>
@@ -358,7 +358,7 @@ export default function AdsManagerPanel() {
                   <button
                     type="button"
                     onClick={removeImage}
-                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/80"
+                    className="absolute top-2 right-2 size-9 rounded-full bg-black/70 flex items-center justify-center sm:opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/80"
                     title="Remove image"
                   >
                     <span className="material-symbols-outlined text-white text-[14px]">close</span>
@@ -366,7 +366,7 @@ export default function AdsManagerPanel() {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded bg-black/70 text-[11px] text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity hover:text-white"
+                    className="absolute bottom-2 right-2 min-h-9 flex items-center gap-1 px-2 py-1 rounded bg-black/70 text-[11px] text-gray-300 sm:opacity-0 group-hover:opacity-100 transition-opacity hover:text-white"
                   >
                     <span className="material-symbols-outlined text-[13px]">upload</span>
                     Replace
@@ -423,17 +423,17 @@ export default function AdsManagerPanel() {
             <p className="text-red-400 text-xs font-mono">{error}</p>
           )}
 
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={save}
               disabled={saving || imgUploading}
-              className="px-5 py-2 rounded-lg bg-primary/10 border border-primary/30 text-primary text-sm font-bold hover:bg-primary/20 transition-colors disabled:opacity-40"
+              className="min-h-10 px-5 py-2 rounded-lg bg-primary/10 border border-primary/30 text-primary text-sm font-bold hover:bg-primary/20 transition-colors disabled:opacity-40"
             >
               {imgUploading ? 'Uploading image…' : saving ? 'Saving…' : editingId ? 'Save Changes' : 'Create Ad'}
             </button>
             <button
               onClick={cancelEdit}
-              className="px-5 py-2 rounded-lg border border-white/10 text-gray-400 text-sm hover:text-white transition-colors"
+              className="min-h-10 px-5 py-2 rounded-lg border border-white/10 text-gray-400 text-sm hover:text-white transition-colors"
             >
               Cancel
             </button>
@@ -604,7 +604,7 @@ interface AdRowProps {
 
 function AdRow({ ad, placementLabel, onEdit, onToggleStatus, onToggleFeatured, onDelete, confirmDelete, onDeleteConfirm, onDeleteCancel }: AdRowProps) {
   return (
-    <div className="glass-panel rounded-xl border border-white/8 px-4 py-3 flex items-center gap-4">
+    <div className="glass-panel rounded-xl border border-white/8 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
       {/* Status indicator */}
       <div className={`w-2 h-2 rounded-full shrink-0 ${ad.status === 'active' ? 'bg-green-400' : 'bg-gray-600'}`} />
 
@@ -636,13 +636,13 @@ function AdRow({ ad, placementLabel, onEdit, onToggleStatus, onToggleFeatured, o
       </span>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
         <FeaturedControl ad={ad} onToggleFeatured={onToggleFeatured} compact />
 
         <button
           onClick={() => onToggleStatus(ad)}
           title={ad.status === 'active' ? 'Deactivate' : 'Activate'}
-          className={`p-1.5 rounded-lg border transition-colors ${
+          className={`size-10 rounded-lg border transition-colors flex items-center justify-center ${
             ad.status === 'active'
               ? 'text-green-400 border-green-400/20 hover:bg-green-400/10'
               : 'text-gray-500 border-white/10 hover:text-white'
@@ -656,7 +656,7 @@ function AdRow({ ad, placementLabel, onEdit, onToggleStatus, onToggleFeatured, o
         <button
           onClick={() => onEdit(ad)}
           title="Edit"
-          className="p-1.5 rounded-lg border border-white/10 text-gray-400 hover:text-white transition-colors"
+          className="size-10 rounded-lg border border-white/10 text-gray-400 hover:text-white transition-colors flex items-center justify-center"
         >
           <span className="material-symbols-outlined text-[16px]">edit</span>
         </button>
@@ -665,13 +665,13 @@ function AdRow({ ad, placementLabel, onEdit, onToggleStatus, onToggleFeatured, o
           <div className="flex items-center gap-1">
             <button
               onClick={() => onDeleteConfirm(ad.id)}
-              className="px-2 py-1 rounded text-[11px] font-bold text-red-400 border border-red-400/30 hover:bg-red-400/10 transition-colors"
+              className="min-h-10 px-3 py-1 rounded text-[11px] font-bold text-red-400 border border-red-400/30 hover:bg-red-400/10 transition-colors"
             >
               Confirm
             </button>
             <button
               onClick={onDeleteCancel}
-              className="px-2 py-1 rounded text-[11px] text-gray-500 hover:text-white transition-colors"
+              className="min-h-10 px-3 py-1 rounded text-[11px] text-gray-500 hover:text-white transition-colors"
             >
               Cancel
             </button>
@@ -680,7 +680,7 @@ function AdRow({ ad, placementLabel, onEdit, onToggleStatus, onToggleFeatured, o
           <button
             onClick={() => onDelete(ad.id)}
             title="Delete"
-            className="p-1.5 rounded-lg border border-white/10 text-gray-500 hover:text-red-400 hover:border-red-400/20 transition-colors"
+            className="size-10 rounded-lg border border-white/10 text-gray-500 hover:text-red-400 hover:border-red-400/20 transition-colors flex items-center justify-center"
           >
             <span className="material-symbols-outlined text-[16px]">delete</span>
           </button>

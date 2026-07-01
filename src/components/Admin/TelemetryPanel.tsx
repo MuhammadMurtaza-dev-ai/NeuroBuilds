@@ -80,12 +80,12 @@ type SortedEvent =
 function EventRow({ item }: { item: SortedEvent }) {
   const time = new Date(item.ts).toLocaleTimeString();
   return (
-    <div className="flex items-start gap-3 text-xs font-mono py-1.5 border-b border-white/5 last:border-0">
+    <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-3 text-xs font-mono py-2 sm:py-1.5 border-b border-white/5 last:border-0">
       <span className="text-gray-600 shrink-0 tabular-nums">{time}</span>
       {item.kind === 'ai' && (
         <>
           <span className="text-primary shrink-0">[AI]</span>
-          <span className="text-gray-300 truncate">
+          <span className="text-gray-300 break-words sm:truncate">
             {item.e.isMockFallback ? '<MOCK> ' : ''}
             {fmtMs(item.e.totalDurationMs)} · &quot;{item.e.promptSnippet}&quot;
           </span>
@@ -96,7 +96,7 @@ function EventRow({ item }: { item: SortedEvent }) {
           <span className={item.e.hit ? 'text-green-400 shrink-0' : 'text-orange-400 shrink-0'}>
             [{item.e.cacheType.toUpperCase()} {item.e.hit ? 'HIT' : 'MISS'}]
           </span>
-          <span className="text-gray-500 truncate">{item.e.key}</span>
+          <span className="text-gray-500 break-words sm:truncate">{item.e.key}</span>
         </>
       )}
       {item.kind === 'validation' && (
@@ -165,17 +165,17 @@ export default function TelemetryPanel() {
             Session: {fmtDuration(session.durationMs)} · auto-refreshes every 2 s
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <button
             onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border border-primary/30 text-primary hover:bg-primary/10 transition-all"
+            className="min-h-11 flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-bold border border-primary/30 text-primary hover:bg-primary/10 transition-all"
           >
             <span className="material-symbols-outlined text-[16px]">download</span>
             Export JSON
           </button>
           <button
             onClick={handleClear}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all ${
+            className={`min-h-11 flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all ${
               confirmClear
                 ? 'border-red-500/50 text-red-400 bg-red-500/10'
                 : 'border-white/10 text-gray-400 hover:text-white hover:border-white/20'
@@ -201,7 +201,7 @@ export default function TelemetryPanel() {
             No AI requests yet — send a message on the Chat page to populate metrics.
           </p>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <StatCard
               label="Avg Latency"
               value={fmtMs(ai.avgLatencyMs)}
@@ -238,7 +238,7 @@ export default function TelemetryPanel() {
 
       {/* Cache Performance ───────────────────────────────────────────────────── */}
       <div className="glass-panel rounded-bento border border-white/10 p-6">
-        <div className="flex items-center gap-2 mb-5">
+        <div className="flex flex-wrap items-center gap-2 mb-5">
           <span className="material-symbols-outlined text-accent-purple">cached</span>
           <h3 className="font-bold text-white">Cache Performance</h3>
           <span className="ml-auto text-xs font-mono text-gray-500">
@@ -270,11 +270,11 @@ export default function TelemetryPanel() {
       </div>
 
       {/* Validation Catches ──────────────────────────────────────────────────── */}
-      <div className="glass-panel rounded-bento border border-white/10 p-6">
-        <div className="flex items-center gap-2 mb-5">
+      <div className="glass-panel rounded-bento border border-white/10 p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
           <span className="material-symbols-outlined text-yellow-400">verified_user</span>
           <h3 className="font-bold text-white">Compatibility Validation Catches</h3>
-          <div className="ml-auto flex gap-4 text-xs font-mono">
+          <div className="sm:ml-auto flex flex-wrap gap-x-4 gap-y-1 text-xs font-mono">
             <span className="text-red-400">{validation.errorCount} err</span>
             <span className="text-yellow-400">{validation.warningCount} warn</span>
             <span className="text-gray-400">{validation.totalCaught} total</span>
@@ -285,43 +285,64 @@ export default function TelemetryPanel() {
             No validations triggered yet. Validation data is parsed automatically from AI build responses.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/10">
-                  <th className="text-left text-xs font-mono text-gray-500 pb-2 pr-6">Check Type</th>
-                  <th className="text-center text-xs font-mono text-gray-500 pb-2 pr-6">Count</th>
-                  <th className="text-left text-xs font-mono text-gray-500 pb-2">Severity</th>
-                </tr>
-              </thead>
-              <tbody>
-                {catchRows.map(([type, count]) => (
-                  <tr key={type} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                    <td className="py-2.5 pr-6 font-mono text-white">{CHECK_LABELS[type]}</td>
-                    <td className="py-2.5 pr-6 text-center">
-                      <span className="px-2.5 py-0.5 rounded bg-white/10 font-mono font-bold text-white">
-                        {count}
-                      </span>
-                    </td>
-                    <td className="py-2.5">
-                      <span className={`text-xs font-mono px-2 py-0.5 rounded ${
-                        CHECK_SEVERITY[type] === 'error'
-                          ? 'bg-red-500/20 text-red-400'
-                          : 'bg-yellow-500/20 text-yellow-400'
-                      }`}>
-                        {CHECK_SEVERITY[type].toUpperCase()}
-                      </span>
-                    </td>
+          <>
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left text-xs font-mono text-gray-500 pb-2 pr-6">Check Type</th>
+                    <th className="text-center text-xs font-mono text-gray-500 pb-2 pr-6">Count</th>
+                    <th className="text-left text-xs font-mono text-gray-500 pb-2">Severity</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {catchRows.map(([type, count]) => (
+                    <tr key={type} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                      <td className="py-2.5 pr-6 font-mono text-white">{CHECK_LABELS[type]}</td>
+                      <td className="py-2.5 pr-6 text-center">
+                        <span className="px-2.5 py-0.5 rounded bg-white/10 font-mono font-bold text-white">
+                          {count}
+                        </span>
+                      </td>
+                      <td className="py-2.5">
+                        <span className={`text-xs font-mono px-2 py-0.5 rounded ${
+                          CHECK_SEVERITY[type] === 'error'
+                            ? 'bg-red-500/20 text-red-400'
+                            : 'bg-yellow-500/20 text-yellow-400'
+                        }`}>
+                          {CHECK_SEVERITY[type].toUpperCase()}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="md:hidden space-y-3">
+              {catchRows.map(([type, count]) => (
+                <div key={type} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-mono text-sm text-white break-words">{CHECK_LABELS[type]}</p>
+                    <span className="px-2.5 py-0.5 rounded bg-white/10 font-mono font-bold text-white">
+                      {count}
+                    </span>
+                  </div>
+                  <span className={`mt-3 inline-flex text-xs font-mono px-2 py-0.5 rounded ${
+                    CHECK_SEVERITY[type] === 'error'
+                      ? 'bg-red-500/20 text-red-400'
+                      : 'bg-yellow-500/20 text-yellow-400'
+                  }`}>
+                    {CHECK_SEVERITY[type].toUpperCase()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
       {/* Recent Event Log ────────────────────────────────────────────────────── */}
-      <div className="glass-panel rounded-bento border border-white/10 p-6">
+      <div className="glass-panel rounded-bento border border-white/10 p-4 sm:p-6">
         <div className="flex items-center gap-2 mb-4">
           <span className="material-symbols-outlined text-gray-400">history</span>
           <h3 className="font-bold text-white">Recent Event Log</h3>
