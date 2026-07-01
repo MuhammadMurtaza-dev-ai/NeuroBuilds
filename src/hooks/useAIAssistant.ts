@@ -4,8 +4,10 @@ import { telemetry, parseValidationsFromResponse } from '../utils/telemetryTrack
 
 const AI_SERVICE_URL =
   (import.meta.env.VITE_AI_SERVICE_URL as string | undefined) ?? 'http://localhost:8000';
+const AI_REQUEST_TIMEOUT_MS = Number(
+  import.meta.env.VITE_AI_REQUEST_TIMEOUT_MS as string | undefined ?? '60000',
+);
 
- 
 const SpeechRecognition =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -145,8 +147,13 @@ async function* liveStream(
 // ─── Build extraction ──────────────────────────────────────────────────────────
 
 function extractBuild(text: string): ActiveBuild | null {
-  const match = text.match(/```json\s*([\s\S]*?)```/);
-  if (!match) return null;
+  // The backend appends its code-built build fence LAST (after any narration).
+  // If the model leaked a stray ```json block earlier in its prose, taking the
+  // first match would pick that up instead of the authoritative final one —
+  // so take the LAST fence in the accumulated stream.
+  const matches = [...text.matchAll(/```json\s*([\s\S]*?)```/g)];
+  if (!matches.length) return null;
+  const match = matches[matches.length - 1];
   try {
     const parsed = JSON.parse(match[1]) as { build?: ActiveBuild };
     if (parsed?.build && typeof parsed.build === 'object') return parsed.build;
@@ -239,6 +246,16 @@ export function useAIAssistant() {
     }
   }, [isRecording]); // setIsRecording is a stable React setter
 
+  const getIdTokenForRequest = useCallback(async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return null;
+      return await currentUser.getIdToken();
+    } catch {
+      return null;
+    }
+  }, []);
+
   const sendMessage = useCallback(async (prompt: string) => {
     const trimmed = prompt.trim();
     if (!trimmed || isStreamingRef.current) return;
@@ -308,53 +325,61 @@ export function useAIAssistant() {
         }));
 
       const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
+      const timeoutId = window.setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
 
-      // /api/chat requires a Firebase ID token; signed-out users get a clear
-      // sign-in prompt rather than a fabricated build.
-      const idToken = await auth.currentUser?.getIdToken();
+      try {
+        // Try to attach an auth token when the user is signed in, but fall back
+        // gracefully for guest usage so the AI request can still reach the backend.
+        const idToken = await getIdTokenForRequest();
 
-      const response = await fetch(`${AI_SERVICE_URL}/api/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
-        },
-        body: JSON.stringify({
-          messages: historyForAPI,
-          activeBuild: activeBuildRef.current,
-        }),
-        signal: controller.signal,
-      });
+        const response = await fetch(`${AI_SERVICE_URL}/api/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+          },
+          body: JSON.stringify({
+            messages: historyForAPI,
+            activeBuild: activeBuildRef.current,
+          }),
+          signal: controller.signal,
+        });
 
-      clearTimeout(timeoutId);
-
-      // The server is REACHABLE but returned an error. Do NOT fabricate a build —
-      // surface the real condition so the user can act on it (sign in, slow down,
-      // retry). Conflating these with the offline mock was a data-integrity bug.
-      if (!response.ok || !response.body) {
-        let message: string;
-        if (response.status === 401) {
-          message = 'Please sign in to use the live AI build assistant.';
-        } else if (response.status === 429) {
-          message = 'You are sending requests too quickly. Please wait a moment and try again.';
-        } else if (response.status === 422) {
-          message = 'That request was too large to process. Try a shorter message.';
-        } else if (response.status === 503) {
-          message = 'The AI service is starting up or temporarily unavailable. Please retry shortly.';
+        // The server is REACHABLE but returned an error. Do NOT fabricate a build —
+        // surface the real condition so the user can act on it (sign in, slow down,
+        // retry). Conflating these with the offline mock was a data-integrity bug.
+        if (!response.ok || !response.body) {
+          let message: string;
+          if (response.status === 401) {
+            message = 'Please sign in to use the live AI build assistant.';
+          } else if (response.status === 429) {
+            message = 'You are sending requests too quickly. Please wait a moment and try again.';
+          } else if (response.status === 422) {
+            message = 'That request was too large to process. Try a shorter message.';
+          } else if (response.status === 503) {
+            message = 'The AI service is starting up or temporarily unavailable. Please retry shortly.';
+          } else {
+            message = `The AI service returned an error (${response.status}). Please try again.`;
+          }
+          applyChunk(`[SERVICE ERROR] ${message}`);
         } else {
-          message = `The AI service returned an error (${response.status}). Please try again.`;
+          for await (const chunk of liveStream(response.body)) {
+            applyChunk(chunk);
+          }
         }
-        applyChunk(`[SERVICE ERROR] ${message}`);
-      } else {
-        for await (const chunk of liveStream(response.body)) {
-          applyChunk(chunk);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          applyChunk(`[SERVICE ERROR] The AI service is taking longer than expected. Please try again shortly.`);
+        } else {
+          // Reaching here means the request never completed because the backend is
+          // unreachable or the browser could not establish the connection.
+          await runMockFallback('OFFLINE MODE — backend unreachable. Showing a sample reference build.');
         }
+      } finally {
+        clearTimeout(timeoutId);
       }
     } catch {
-      // Reaching here means the request never completed: network failure, DNS
-      // error, or the 10 s AbortController timeout — i.e. the backend is offline.
-      // This is the legitimate graceful-degradation path (SRS §2.3.2).
+      // Defensive fallback for unexpected errors outside the request lifecycle.
       await runMockFallback('OFFLINE MODE — backend unreachable. Showing a sample reference build.');
     }
 
@@ -370,10 +395,14 @@ export function useAIAssistant() {
     });
     parseValidationsFromResponse(accumulated).forEach(v => telemetry.recordValidation(v));
 
-    // Parse any structured build JSON the model emitted and merge into state.
+    // Parse any structured build JSON the model emitted. The backend always
+    // serialises the COMPLETE current build (not a partial diff) each turn, so
+    // this must REPLACE state rather than merge — a shallow merge can only add
+    // or overwrite keys, never delete one, so a removed/omitted slot (e.g. "take
+    // out the GPU") would silently keep showing the stale component forever.
     const extracted = extractBuild(accumulated);
     if (extracted) {
-      setActiveBuild(prev => ({ ...prev, ...extracted }));
+      setActiveBuild(extracted);
     }
 
     isStreamingRef.current = false;

@@ -117,6 +117,24 @@ service cloud.firestore {
         && request.resource.data.commentCount >= 0;
     }
 
+    // True when the update touches ONLY savedBy AND the caller is adding or
+    // removing exactly their own uid (size moves by exactly one, and only the
+    // caller's uid enters/leaves the array). Needed so any signed-in buyer can
+    // save/unsave a listing they don't own — the "save" heart toggle was
+    // previously blocked by the seller-only update rule below.
+    function isSavedByOnlyUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['savedBy'])
+        && request.resource.data.savedBy is list
+        && (
+          (request.resource.data.savedBy.size() == resource.data.savedBy.size() + 1
+            && request.auth.uid in request.resource.data.savedBy
+            && !(request.auth.uid in resource.data.savedBy))
+          || (request.resource.data.savedBy.size() == resource.data.savedBy.size() - 1
+            && !(request.auth.uid in request.resource.data.savedBy)
+            && request.auth.uid in resource.data.savedBy)
+        );
+    }
+
 
     // ── users/{userId} ───────────────────────────────────────────────────────
     //
@@ -180,7 +198,10 @@ service cloud.firestore {
       allow create: if isVerifiedSeller()
         && isNotDisabled()
         && request.resource.data.sellerId == request.auth.uid;
-      allow update, delete: if isSignedIn()
+      allow update: if isSignedIn()
+        && resource.data.sellerId == request.auth.uid;
+      allow update: if isSignedIn() && isSavedByOnlyUpdate();
+      allow delete: if isSignedIn()
         && resource.data.sellerId == request.auth.uid;
 
       // Contact-reveal log (UC: "seller can see who accessed their info").

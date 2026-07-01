@@ -14,7 +14,7 @@ NeuroBuilds is a University **Final Year Project (FYP)**: a full-stack web appli
 | **Community** | Threaded forums with nested replies, transactional voting, and lifecycle states (open / solved / hidden) |
 | **Real-time chat** | 1:1 DMs and group chats over Firestore `onSnapshot`; "Message Seller" deep-links from a listing |
 | **Blog / CMS** | Admin authoring with a `draft → pending_review → published/scheduled` workflow, comments, and an **AI Blog Automator** (research → draft → self-critique loop → human review) |
-| **AI build assistant** | A LangGraph pipeline that researches live prices, retrieves hardware specs (RAG), allocates a budget, runs a 9-tier compatibility check, and streams an educational explanation |
+| **AI build assistant** | A LangGraph pipeline that researches live prices, retrieves hardware specs (RAG), allocates a budget, runs a 13-tier compatibility check, and streams an educational explanation |
 | **Admin workspace** | Review queue, moderation desk, analytics, weekly market-intelligence dashboard, role management, ads manager, and thesis-evaluation telemetry |
 | **Ads** | Static and Firestore-backed sponsored slots interleaved into the home feed and marketplace grid |
 
@@ -38,8 +38,8 @@ NeuroBuilds is a frontend SPA plus several independently-run backend services.
        └─────────────┘                 └────────────────────────┘
                                                   │
        ┌──────────────────────────┐     ┌─────────┴──────────────┐
-       │  WhatsApp OTP gateway     │     │  Gemini key manager     │
-       │  (Node, whatsapp-web.js)  │     │  (pooled key rotation)  │
+       │  WhatsApp OTP gateway     │     │  Gemini (single key)    │
+       │  (Node, whatsapp-web.js)  │     │  + Groq fallback        │
        └──────────────────────────┘     └────────────────────────┘
 ```
 
@@ -62,11 +62,11 @@ This makes the assistant's factual claims auditable: the numbers come from pure 
 
 **Frontend** — React 19, TypeScript, Vite, React Router v7, Tailwind (cyberpunk/neon design system), `vite-plugin-pwa` (installable, offline-capable).
 
-**Data & auth** — Firebase Auth (email/password + Google), Cloud Firestore (all live user data, real-time via `onSnapshot`), security enforced by `firestore.rules` (JWT custom-claim admin checks, server-only trust fields).
+**Data & auth** — Firebase Auth (email/password + Google + GitHub), Cloud Firestore (all live user data, real-time via `onSnapshot`), security enforced by `firestore.rules` (JWT custom-claim admin checks, server-only trust fields).
 
-**Backend (AI service)** — FastAPI + LangGraph, Google Gemini (pooled key rotation), Tavily web search, MongoDB Atlas Vector Search for RAG and an LLM semantic cache.
+**Backend (AI service)** — FastAPI + LangGraph, Google Gemini (single-key client with a circuit breaker) with an OpenAI-compatible fallback (Groq by default), Tavily web search, MongoDB Atlas Vector Search for RAG and an LLM semantic cache.
 
-**Supporting services** — a standalone Node WhatsApp OTP gateway for seller verification, and a TypeScript Gemini key-manager reference implementation.
+**Supporting services** — a standalone Node WhatsApp OTP gateway for seller verification. `misc/gemini-key-manager/` (a TS pooled key-rotation prototype) and `misc/blog-automator/` (the original TS blog pipeline, since migrated into the FastAPI backend) are kept for reference only and are not run in production.
 
 ---
 
@@ -81,7 +81,9 @@ backend/                  FastAPI AI service
   whatsapp-gateway/       Node WhatsApp OTP microservice
   scripts/                hardware / RAG ingestion
   tests/evaluation_suite.py   offline accuracy evaluation (no network/DB)
-gemini-key-manager/       standalone TS key-rotation/load-balancing reference service
+misc/                     reference material not part of the running app (see below)
+  blog-automator/         original TS blog pipeline, superseded by backend/routers/blog_automator.py
+  gemini-key-manager/     standalone TS key-rotation/load-balancing prototype, never wired in
 firestore.rules           Firestore security rules
 firestore.indexes.json    composite index definitions
 CLAUDE.md                 detailed architecture & contributor guide

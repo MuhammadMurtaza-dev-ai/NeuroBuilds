@@ -50,7 +50,12 @@ function clamp(v: number, lo = 0, hi = 100): number {
 }
 
 function spec(specs: Record<string, string> | undefined, key: string): string {
-  return specs?.[key] ?? '';
+  // The `specs` dict is typed Record<string, string>, but DB-sourced builds
+  // (backend/scripts/ingest_hardware.py) store several fields — cores,
+  // cuda_cores, tdp_w, etc. — as raw numbers. Coerce so every call site here
+  // (parseNum, .toLowerCase(), .toUpperCase()) always receives an actual string.
+  const v = specs?.[key];
+  return v === undefined || v === null ? '' : String(v);
 }
 
 // Extracts the first decimal number from a string (e.g. "5.3 GHz" → 5.3)

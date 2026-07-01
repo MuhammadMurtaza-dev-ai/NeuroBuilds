@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Antigravity when working with code in this repository.
 
 ## Commands
 
@@ -21,6 +21,14 @@ python tests/evaluation_suite.py        # Offline accuracy eval — no network/D
 ```
 
 Copy `backend/.env.example` to `backend/.env` and fill in API keys before starting the backend.
+
+### Gemini Key Manager (TypeScript / Node)
+```bash
+cd gemini-key-manager
+npm install
+npm run dev                             # Dry-run harness with mock keys
+GEMINI_KEY_1=AIza... npm run dev        # Live run with real key(s)
+```
 
 ### WhatsApp OTP Gateway (Node / Express)
 ```bash
@@ -63,7 +71,7 @@ The `/share` route uses a standalone layout — all chrome (Navbar, ChatSidebar,
 
 | Path | Component |
 |------|-----------|
-| `/` | `HomePage` — landing + live Firestore stats (active listings count, thread count) + featured blog post + community feed threads + `BannerCarousel` + a `LIVE_FEED` glass-panel strip wrapping `HomeFeedAdSlot` (below the AI chat bar) |
+| `/` | `HomePage` — landing + live Firestore stats (active listings count, thread count) + featured blog post + community feed threads + `SponsoredAdBanner` + `HomeFeedAdSlot` |
 | `/chat` | `ChatPage` → `AIChatPanel` — AI build assistant |
 | `/blog` | `BlogPage` — Firestore-backed blog with admin CMS; uses `useUserRole` for role gating; supports deep-linking via `location.state` |
 | `/marketplace` | `MarketplacePage` — Firestore listings |
@@ -84,7 +92,7 @@ The `/share` route uses a standalone layout — all chrome (Navbar, ChatSidebar,
 - `conversations` + `conversations/{id}/messages` → `useChats`
 - `blogs` + `blogs/{id}/comments` → `useBlogCMS` / `useBlogFeed` / `useBlogComments` / `useReviewQueue`
 - `reports` → `useReports`; `appeals` → `useAppeals`; `audit_logs` → `src/utils/auditLog.ts`
-- `advertisements` → `useAdvertisements` — Firestore-backed dynamic ad slots; documents carry `title`, `sponsorName`, `targetUrl`, `imageUrl`, `placement`, `status: 'active' | 'inactive'`, `accent: 'cyan' | 'purple'`, `featured?: boolean` + `featuredUntil?: Timestamp | null` (admin-toggled for a fixed 7/14/30-day run; promotes the ad into the premium top block of the `marketplace_grid` placement). `isFeaturedActive(ad)` (exported from `useAdvertisements`) is the single source of truth for "is this ad currently featured" — `true` only while `featured` is set **and** `featuredUntil` hasn't lapsed (or is unset); a lapsed featured ad falls back into the normal slot automatically, purely client-side, with no backend expiry sweep needed
+- `advertisements` → `useAdvertisements` — Firestore-backed dynamic ad slots; documents carry `title`, `sponsorName`, `targetUrl`, `imageUrl`, `placement`, `status: 'active' | 'inactive'`, `accent: 'cyan' | 'purple'`, `featured?: boolean` (admin-toggled; promotes the ad into the premium top block of the `marketplace_grid` placement)
 - `market_intel` (MongoDB, **not** Firestore) → weekly GenAI market-analysis snapshots (hot products, price ranges/movements, dead inventory); written by `services/market_intel.py`, surfaced in the Admin **Market Intel** tab, fed to the AI chat via `agent.py`'s `market_node`
 - `users/{uid}` → role (`role: 'user' | 'vendor' | 'moderator' | 'admin'`) + seller verification (`isVerified`, `phoneNumber`) + account moderation (`accountStatus: 'active' | 'disabled'`, `disabledReason`) + profile fields + `username`
 - `users/{uid}/aiSessions` → `useAISessions` — AI chat session history (newest-first, limit 20)
@@ -96,11 +104,9 @@ Static/UI-only data: `NavLink`, `FooterLink`, `Feature`, `Testimonial`, `Pricing
 
 ### Authentication
 
-Firebase Auth only — email/password + Google OAuth + GitHub OAuth. `useAuth` exposes `{ user, loading, error, register, login, googleSignIn, githubSignIn, logout }`. `src/Firebase.ts` exports `auth`, `db`, `storage`, and `firebaseAuth`.
+Firebase Auth only — email/password + Google OAuth. `useAuth` exposes `{ user, loading, error, register, login, googleSignIn, logout }`. `src/Firebase.ts` exports `auth`, `db`, `storage`, and `firebaseAuth`.
 
-`firebaseAuth` is a typed wrapper object (not the raw `Auth` instance) exposing: `register`, `login`, `googleSignIn`, `githubSignIn`, `logout`, `updateUserProfile`, `sendPasswordReset`, `getCurrentUser`, `onAuthStateChange`.
-
-GitHub sign-in requires a GitHub OAuth App (github.com/settings/developers) with authorization callback URL `https://<project-id>.firebaseapp.com/__/auth/handler`, and the resulting Client ID/Secret entered into the GitHub provider in Firebase Console → Authentication → Sign-in method (this manual console step is not part of the codebase).
+`firebaseAuth` is a typed wrapper object (not the raw `Auth` instance) exposing: `register`, `login`, `googleSignIn`, `logout`, `updateUserProfile`, `sendPasswordReset`, `getCurrentUser`, `onAuthStateChange`.
 
 > **TOTP 2FA — removed.** The multi-factor authentication feature (TOTP enrollment in `ProfilePage` + the sign-in MFA challenge in `AuthModal`) was removed because the project runs on the Firebase **Spark (free) plan**, which does not support TOTP MFA (the `TotpMultiFactorGenerator` enrollment call fails with `auth/operation-not-allowed`). MFA requires the paid Identity Platform upgrade. `qrcode.react` remains a dependency but is no longer used.
 
@@ -148,15 +154,12 @@ Role changes in Firestore are immutable to non-admins via `firestore.rules`; the
 
 Ad components, all following the cyberpunk design system. Some are backed by static data; the dynamic slots (homepage feed, marketplace grid) are Firestore-backed.
 
-- **`BannerCarousel.tsx`** — full-image hero carousel (replaces `SponsoredAdBanner` on the homepage grid); Firestore-backed via `useAdvertisements('banner')` with static `BANNER_ADS` fallback; crossfades every 5.5 s with a 300 ms fade transition; resets index when slide count changes (Firestore load); shows a skeleton while loading, renders nothing if no slides
-- **`SponsoredAdBanner.tsx`** — full-width rotating banner (legacy/non-homepage use); crossfades every 5.5 s; progress bar at bottom tracks position; gradient icon fallback when `imageUrl` is empty; `accent` prop controls cyan/purple theming; defaults to `BANNER_ADS` from `sponsoredAds.ts`
+- **`SponsoredAdBanner.tsx`** — full-width rotating banner; crossfades every 5.5 s; progress bar at bottom tracks position; gradient icon fallback when `imageUrl` is empty; `accent` prop controls cyan/purple theming; defaults to `BANNER_ADS` from `sponsoredAds.ts`
 - **`SponsoredNodeMicro.tsx`** — one-line inline ticker ("SPON" tag + sponsor // tagline) that slides in from left every 4.2 s; used inside listing/thread cards; defaults to `MICRO_ADS`
-- **`HomeFeedAdSlot.tsx`** — multi-kind feed ticker that rotates between three content types: `spon` (Firestore `homepage_feed` ads via `useAdvertisements`), `community` (top-5 threads by `upvoteCount` fetched from Firestore on mount, hidden threads filtered client-side), and `gnews` (tech headlines from GNews API with 24 h `localStorage` cache + 60 min backoff on 429). Rotates on a 4.2 s interval; shows a skeleton while loading; degrades gracefully when any source is unavailable; clicking a community item navigates to `/community` with `state.openThreadId`
-- **`Marketplace/MarketplaceAdCard.tsx`** — sponsored card shaped like a `ListingCard` (glass panel, 4:3 image with `campaign` icon fallback, SPONSORED badge, sponsor name + tagline, "Learn more" CTA → `targetUrl`); Firestore-backed via `useAdvertisements('marketplace_grid')`. Accepts a `featured?: boolean` prop that renders an amber "FEATURED" badge (top-left, separate from the SPONSORED badge). `MarketplacePage` interleaves these into the classifieds grid (all-view only): **4 featured ads → 6 listings → 4 normal ads → remaining listings**, computed via `isFeaturedActive()` (not the raw `featured` flag, so an expired featured run drops out live); degrades gracefully with <4 featured ads, no ads, or <6 listings
+- **`HomeFeedAdSlot.tsx`** — same ticker format but Firestore-backed via `useAdvertisements('homepage_feed')`; shows a skeleton while loading; renders nothing if no active ads for that placement
+- **`Marketplace/MarketplaceAdCard.tsx`** — sponsored card shaped like a `ListingCard` (glass panel, 4:3 image with `campaign` icon fallback, SPONSORED badge, sponsor name + tagline, "Learn more" CTA → `targetUrl`); Firestore-backed via `useAdvertisements('marketplace_grid')`. `MarketplacePage` interleaves these into the classifieds grid (all-view only): **4 featured ads → 6 listings → 4 normal ads → remaining listings**. `featured` ads (admin-toggled) fill the premium top block; degrades gracefully with <4 featured ads, no ads, or <6 listings
 
 **Ad placements** (the `placement` string on each `advertisements` doc, managed in `AdsManagerPanel`): `banner`, `homepage_feed`, `marketplace_grid`, `listing_card`, `thread_card`.
-
-**`AdsManagerPanel.tsx`** — admin CRUD interface for `advertisements` documents; now includes ImgBB image upload directly in the create/edit form (file picker → blob preview → upload on save, `VITE_IMGBB_API_KEY` required); URL revoked on cancel/change to avoid memory leaks; existing `imageUrl` shown as preview when editing without re-uploading; search/filter panel to find ads by title or sponsor name. `FeaturedControl` (local component) replaces the old featured checkbox: not-featured ads show a 7/14/30-day duration `<select>` + "Feature" button that writes `featured: true` and `featuredUntil` (`Timestamp.fromDate(now + N days)`); a currently-featured ad shows its expiry date and a click clears both fields. `toggleFeatured(ad, days?)` is the sole write path for the flag — the create/edit form no longer has a featured checkbox, since featuring always needs a duration and is set from the list view.
 
 **Static data (`src/data/sponsoredAds.ts`):**
 - `SponsoredAd` interface: `id`, `imageUrl`, `targetUrl`, `altText`, `sponsorName`, `tagline`, `accent`
@@ -171,10 +174,10 @@ Ad components, all following the cyberpunk design system. Some are backed by sta
 - **Right** — `BuildCanvasCard` showing live extracted build components + power budget check
 
 **Data flow:**
-1. `useAIAssistant.sendMessage` POSTs to `${VITE_AI_SERVICE_URL}/api/chat` with the **last 12 messages** (`.slice(-12)` — the backend re-derives the build from `activeBuild` each turn, so full history is wasted tokens) + `activeBuild` context. Attaches a Firebase ID token when signed in (`getIdTokenForRequest()`), but degrades to anonymous access when signed out — `POST /api/chat` uses `optional_auth` (verifies the token if one is present, never requires it), so guests can use the AI assistant without signing in
+1. `useAIAssistant.sendMessage` POSTs to `${VITE_AI_SERVICE_URL}/api/chat` with message history + `activeBuild` context
 2. Response is consumed as a raw byte stream via `liveStream()` (no SSE framing)
-3. Any ` ```json { "build": {...} }``` ` block in the response is parsed by `extractBuild()` — which takes the **last** fence in the accumulated stream (a stray earlier fence in the model's prose is never mistaken for the authoritative, code-built one) — and **replaces** `activeBuild` state entirely rather than merging it (the backend always serialises the complete current build each turn, so a shallow merge could never reflect a slot the user asked to remove). `stripBuildFence()` removes the completed JSON fence from the **rendered** prose (the raw `accumulated` stream still keeps it so `extractBuild()` can parse it) — a partial/mid-stream fence isn't hidden until it closes
-4. If the request errors out client-side (network failure, or the `VITE_AI_REQUEST_TIMEOUT_MS`-bounded abort, default 60 s), falls back to `MOCK_RESPONSE` streamed locally at ~22ms/token. A reachable-but-erroring server (401/429/422/503/other) surfaces a real, specific message instead — it is never conflated with the offline mock
+3. Any ` ```json { "build": {...} }``` ` block in the response is parsed by `extractBuild()` and merged into `activeBuild` state
+4. If the service is unreachable (10 s timeout / non-ok response), falls back to `MOCK_RESPONSE` streamed locally at ~22ms/token
 5. `ChatPage` passes `location.state.initialMessage` for deep-linking into a pre-populated chat
 6. When streaming ends, `AIChatPanel` auto-saves the session via `useAISessions.saveSession()` with a generated title
 7. "Generate PC Part Picker List" button calls `formatPartsList()` — formats `activeBuild` as a readable list (functional)
@@ -182,16 +185,14 @@ Ad components, all following the cyberpunk design system. Some are backed by sta
 
 `sendMessage` uses refs (`messagesRef`, `activeBuildRef`, `isStreamingRef`) to access latest state without adding them as `useCallback` dependencies — keeping the function identity stable.
 
-`ActiveBuild` has **7 slots**: `cpu`, `gpu`, `motherboard`, `ram`, `psu`, `storage`, `case` (the last two added so the AI can propose a complete parts list — see the `hybrid_fill_node` / expanded pipeline below).
-
-**`BuildCanvasCard`** tracks all 7 slots (CPU, GPU, Motherboard, RAM, PSU, Storage, Case). Calculates power budget as `cpuTdp + gpuTdp + 150W buffer` vs `psu.rating`. Shows live estimated total cost.
+**`BuildCanvasCard`** tracks: CPU, GPU, Motherboard, RAM, PSU. Calculates power budget as `cpuTdp + gpuTdp + 150W buffer` vs `psu.rating`. Shows live estimated total cost.
 
 ### Shared Build Page (`src/pages/SharedBuildPage.tsx`)
 
 Standalone read-only page at `/share?build=<base64>`. The `build` query param is `btoa(encodeURIComponent(JSON.stringify(activeBuild)))`.
 
 Features:
-- **Component cards** — one card per populated slot (CPU, GPU, Motherboard, RAM, PSU, Storage, Case); click opens a detail modal (`COMPONENT_CONFIG` is keyed by every `ActiveBuild` slot — add new slots here in lockstep with the interface)
+- **Component cards** — one card per populated slot (CPU, GPU, Motherboard, RAM, PSU); click opens a detail modal
 - **Component detail modal** — full spec sheet, power badge (TDP/rating), YouTube review search link (Gamers Nexus / Hardware Unboxed / LTT), PCPartPicker search link
 - **Power speedometer** — SVG semicircular gauge showing PSU load % with colour zones (green < 80%, amber 80–100%, red > 100%)
 - **Total cost panel** — sum of all component prices
@@ -217,9 +218,8 @@ Admin-only workspace at `/admin`. Requires auth + `role: 'admin'` in `users/{uid
 **ModerationDesk.tsx** — User-reported content + account appeals
 - Real-time list of `reports` collection, filterable by Open / Resolved / All
 - Report columns: Reporter, Reason, Target, Type, Date, Actions; `targetType` badge styled per type (`listing` cyan, `thread` purple, `user` red)
-- Listing/thread reports: `hideTarget(targetId, targetType)` sets `status: 'hidden'` on the target; `resolveReport(id)` closes the report; "View Target" navigates to the listing/thread/seller profile page
+- Listing/thread reports: `hideTarget(targetId, targetType)` sets `status: 'hidden'` on the target; `resolveReport(id)` closes the report
 - **User reports** (`targetType: 'user'`): "Disable account" action calls `useAdminModeration.setAccountStatus(uid, 'disabled', reason)` (confirm dialog) — hides the seller's active listings server-side; cannot self-disable
-- **Repeat Offenders banner** — `useMemo` aggregates open-report counts per `targetId`; targets with ≥ 3 open reports surface at the top as a red "Repeat Offenders" panel with quick-action buttons; threshold is `SPAM_THRESHOLD = 3`
 - **Account Appeals** banner at top — open `appeals` (via `useAppeals`); "Re-enable" calls `setAccountStatus(uid, 'active')` then `resolveAppeal`; "Dismiss" resolves the appeal without reinstating
 
 **AnalyticsDashboard.tsx** — Platform trends (horizontal bar charts)
@@ -228,9 +228,8 @@ Admin-only workspace at `/admin`. Requires auth + `role: 'admin'` in `users/{uid
 - Most Saved listings — from `useMarketplace()` sorted by `savedBy.length`
 
 **RoleAssignmentMatrix.tsx** — User role management
-- Fetches all users from Firestore `users` collection on mount (one-time `getDocs`), sorted alphabetically by `displayName || username || uid`
-- Filter by display name, `@username`, or email via a single search input (strips leading `@`)
-- Shows `username` column (`@handle` or `—`); reassign role (`user` → `vendor` → `moderator` → `admin`) via `POST /api/admin/users/{uid}/role`
+- Search users by display name; reassign role (`user` → `vendor` → `moderator` → `admin`)
+- Real-time Firestore updates to `users/{uid}.role`
 
 **BlogAutomatorPanel.tsx** — AI blog generation control panel (tab 5)
 - Trigger the Actor-Critic blog pipeline (research → draft → critique loop → HITL publish)
@@ -426,7 +425,6 @@ createdAt
 - `scoreBuild(build, persona?)` — returns `BuildScores` with 5 sub-scores: performance-per-rupee, compatibility confidence, thermal efficiency, upgrade potential, power efficiency
 - `detectPersona(build)` — auto-detects `gaming | productivity | budget` from price/specs
 - Persona-weighted aggregation; pure calculation — no Firestore access
-- `spec()` coerces every value to a string before use — `specs` is typed `Record<string, string>` but DB-sourced builds (`backend/scripts/ingest_hardware.py`) store several fields (`cores`, `cuda_cores`, `tdp_w`, etc.) as raw numbers, and every call site here (`parseNum`, `.toLowerCase()`, `.toUpperCase()`) requires an actual string
 
 **telemetryTracker.ts** — session-scoped instrumentation singleton (`telemetry`):
 - Persisted in `sessionStorage` under `nb_telemetry_v1`; survives page refresh within a session; capped at 100 events per type
@@ -464,10 +462,8 @@ Class component wrapping the entire app. On uncaught render error:
 Cyberpunk/neon glassmorphism. Defined in `tailwind.config.js` + `src/index.css`:
 - **Colors**: `primary` (`#0df2f2` cyan), `accent-purple` (`#bf00ff`), `bg-dark` (`#1e1e1e`), `bg-panel` (`#252526`)
 - **Key utilities**: `.glass-panel`, `.rounded-bento` (2rem radius), `.shadow-neon`, `.shadow-glow-purple`, `.scanline`
-- **Font**: Space Grotesk. `text-xs`/`text-sm` are bumped ~1 px in `tailwind.config.js` (`xs` 12→13 px, `sm` 14→15 px) for readability
+- **Font**: Space Grotesk
 - **Z-index**: Navbar `z-50`, modals `z-50`, ChatSidebar backdrop `z-[60]`, ChatSidebar panel `z-[70]`
-
-**Light mode** (`html:not(.dark)` in `src/index.css`): every Tailwind color utility is a hardcoded hex tuned for dark backgrounds, so light mode **remaps each one** (and its `hover:` / `group-hover:` / `focus-within:` variants — Tailwind emits separate class names per variant) to a darker ≥4.5:1-contrast equivalent (e.g. `text-primary` cyan → `#0e7490`, `text-X-400` pastels → their `X-700`/`X-800` family member). White-opacity backgrounds/borders flip to black-opacity; badge border tints are re-tinted. When adding a new accent colour used on text, add its light-mode override here or it will wash out on the lavender page background.
 
 New UI should follow: backdrop blur, neon shadows on hover, dark panel backgrounds, `font-mono` for terminal/data text.
 
@@ -491,14 +487,12 @@ New UI should follow: backdrop blur, neon shadows on hover, dark panel backgroun
 - Authenticated users can read/write their own subcollections (`aiSessions`, `notifications`); any signed-in user may push a notification into another user's subcollection
 - `role`, `isVerified`, `phoneNumber`, `accountStatus`, and `disabledReason` fields in `users/{uid}` are immutable to non-admins (`isNotChangingTrustFields()` helper). `isVerified`/`phoneNumber` are written **only** server-side by `routers/verify.py`; `accountStatus`/`disabledReason` **only** by `routers/admin_users.py` — both via the Admin SDK (which bypasses rules), so a client cannot self-grant the verified badge or re-enable a disabled account
 - `listings` create requires `isVerifiedSeller()` (a `get()` on the caller's `users/{uid}.isVerified == true`) **and** `isNotDisabled()` (caller's `accountStatus != 'disabled'`) — the seller-verification gate is enforced server-side, not just by the React modal overlay
-- `listings` update is split into two `allow update` statements: the owner may update any field; **any** signed-in user may update via `isSavedByOnlyUpdate()` — a helper that only passes when the diff touches solely `savedBy` and the caller is adding/removing exactly their own uid (array size moves by 1, only that uid enters/leaves). Fixes a gap where the "save" heart toggle on a listing the caller doesn't own was silently rejected by rules, since the update rule previously required `sellerId == request.auth.uid` for every update including non-owner saves
 - `listings/{id}/contactReveals/{viewerId}` — a buyer logs (under their own uid) that they revealed the seller's contact; readable only by the listing owner or an admin; immutable after create
 - `appeals` — a disabled user may create an appeal attributed to themselves and read their own; admins read all + `update` (resolve); delete forever denied
 - `threads` update rules are fine-grained: authors can edit content or mark `lifecycleStatus: 'solved'`; moderators can change `lifecycleStatus` only; anyone can make vote-only updates (`upvoteCount`, `upvotedBy`, etc.)
 - `reports` writable by any authenticated user; `read, update, delete` restricted to admins only (moderators cannot read reports)
 - `audit_logs` — append-only trail (§2.2.4): any signed-in user may create an entry attributed to themselves (`actorId == uid`, server `createdAt`); only admins may read; update/delete forever denied. Written by `src/utils/auditLog.ts` (`writeAuditLog`) on listing create + moderation actions (`hideTarget`, `resolveReport`)
 - `blogs` read: published posts are public; admins see all; authors see their own regardless of status
-- `blogs` update — `isCommentCountOnlyUpdate()` helper allows any signed-in user to increment/decrement `commentCount` (used by `addComment`/`deleteComment` Firestore transactions) without needing admin; clamps to non-negative integer
 - `advertisements` — public read (ads render on public pages, incl. anonymous visitors); create/update/delete restricted to admins (`isAdmin()`). The `featured` flag is set here by `AdsManagerPanel`, the sole authoring surface
 
 **`firestore.indexes.json`** — composite indexes:
@@ -510,8 +504,6 @@ New UI should follow: backdrop blur, neon shadows on hover, dark panel backgroun
 - `listings`: `country` ASC + `area` ASC + `status` ASC + `postedDate` DESC (area-level marketplace filtering)
 - `listings`: `country` ASC + `city` ASC + `status` ASC + `postedDate` DESC (city-level marketplace filtering)
 - `listings`: `sellerId` ASC + `postedDate` DESC (`SellerProfilePage` active-listings query)
-- `listings`: `sellerId` ASC + `status` ASC + `postedDate` DESC (Dashboard "My Listings" filtered by active status)
-- `listings`: `savedBy` (array-contains) + `postedDate` DESC (Dashboard "Saved Listings" query)
 - `listings`: `status` ASC + `expiresAt` ASC (listings_maintenance expiry sweep)
 - `conversations`: `participants` (array) + `updatedAt` DESC; `participants` (array) + `listingId` ASC
 - `appeals`: `uid` ASC + `createdAt` DESC (a user's own latest-appeal lookup in `AccountStatusBanner`)
@@ -523,10 +515,10 @@ The backend is a standalone Python service — **must be run separately** from t
 **Endpoints:**
 - `GET /health` — returns `{"status": "ok", "service": "neurobuilds-ai"}`
 - `GET /api/hardware/lookup` — searches `hardware_catalog` collection; requires `require_admin`
-- `POST /api/chat` — accepts `{messages, activeBuild}`, returns a raw token stream (`text/plain`); auth is **optional** via `optional_auth` (verifies a Firebase ID token when the caller provides one, but allows anonymous/guest access when absent)
+- `POST /api/chat` — accepts `{messages, activeBuild}`, returns a raw token stream (`text/plain`)
 - `GET /api/marketplace/search` — public 3-tier cascading geo-fallback search (query params: `area`, `city?`, `limit?`)
 - `POST /api/marketplace/search` — same search with richer filter body; requires `require_admin`
-- `GET /api/admin/gemini/status` — returns whether `GOOGLE_API_KEY` is configured; requires `require_admin`
+- `GET /api/admin/gemini/status` — sanitised Gemini key-pool snapshot (keys redacted); requires `require_admin`
 - `POST /api/admin/blog-automator/trigger` — queues AI blog generation pipeline; requires `require_admin`
 - `GET /api/admin/blog-automator/jobs` — lists recent automator jobs newest-first; requires `require_admin`
 - `POST /api/admin/users/{uid}/role` — assigns a role; sets BOTH `users/{uid}.role` AND the JWT `admin` custom claim (and revokes the target's refresh tokens) so the Firestore role and the rules' `isAdmin()` claim stay in sync; rejects self-demotion of the last admin; requires `require_admin` (`routers/admin_users.py`)
@@ -538,30 +530,14 @@ The backend is a standalone Python service — **must be run separately** from t
 
 **Firebase Admin SDK** is initialised in the FastAPI lifespan handler. Set `FIREBASE_SERVICE_ACCOUNT_PATH` to a service-account JSON file. On GCP the env var may be omitted — Application Default Credentials are used as a fallback. Required by all `require_admin`-guarded endpoints; non-fatal at startup (admin endpoints return 503 until resolved).
 
-**LangGraph pipeline** (`agent.py`) — a **deterministic router at `START`** (`route_request`, no LLM call) sends each turn down the cheapest capable path so follow-ups don't re-run three LLM calls + web search (which was causing multi-minute hangs):
+**LangGraph pipeline** (`agent.py`) — nodes executed sequentially:
 
 ```
-                         ┌─ "build" → search → rag → market → intent → budget_allocation
-                         │              → hybrid_fill → compatibility ─┐
-START ─ route_request ──┤                                              ├→ (retry loop) → response → END
-                         │  "edit"  → edit_node ─────────────────────────────────────→ response → END
-                         └─ "chat"  → chat_node ───────────────────────────────────────────────→ END
+START → search_node → rag_node → market_node → intent_node → selection_node
+      → compatibility_node → response_node → END
 ```
 
-- **`route_request`** → `'build' | 'edit' | 'chat'`. Uses keyword/signal heuristics: an existing build + an edit verb → `edit`; a strong build request or budget/resolution signal (and not a question) → `build`; otherwise `chat`. A bare "build" noun is treated as a question, not a new request.
-- **build** — full pipeline. `budget_allocation_node` (Layer B, now `async`) fills slots from MongoDB; `hybrid_fill_node` (Layer A) then makes **one structured LLM call** to propose parts for any slot still empty and merges the proposal into **empty slots only** (deterministic DB picks always win). The proposal flows through `compatibility_node` exactly like a DB pick. Retry loop: `_should_retry` routes back to `budget_allocation` while `compat_ok=False` and `allocation_attempt < _MAX_ALLOC_ATTEMPTS` (=3), excluding the offending parts each pass. Whenever `hybrid_fill_node`/`edit_node` adds an LLM-proposed motherboard or RAM, `_enforce_socket_ddr_coherence()` deterministically overwrites its socket/DDR spec to match the already-chosen CPU/board — a prompt instruction to match specs isn't a guarantee, and an unmatched LLM-invented part could otherwise slip a fatal mismatch past `compatibility_node`'s guarded checks.
-- **edit** — `edit_node` handles add/swap/remove on the existing build: removals are deterministic (keyword→slot), add/swap is one structured LLM call returning only the changed slots, then it re-runs `run_checks()` inline. No retry loop — a fatal edit sets `validation_failed=True` immediately.
-- **chat** — `chat_node` is one conversational LLM call to gather requirements / answer questions; it never assembles a parts list.
-
-**Hard validation gate (`validation_failed`):** when fatal issues survive the retry budget (build path) or a fatal edit occurs, `validation_failed=True`. `response_node` then uses a *validation-failure* system prompt that refuses to present the invalid build, and `run_pipeline` emits **no `json` build block** — an invalid build can never reach the BuildCanvas. `_serialise_build()` reduces `active_build` to the frontend `ActiveBuild` shape and is code-built (the LLM never hand-writes the block).
-
-**Resilient LLM invocation** (`_ainvoke_resilient` / `_structured_resilient`): the free Gemini tier rate-limits hard, and the google-genai SDK retries `503` at the gRPC layer ignoring LangChain's timeout. So every Gemini call is wrapped in `asyncio.wait_for(_GEMINI_HARD_TIMEOUT)` and gated by a **circuit breaker** (`_gemini_cooldown_until`) — once Gemini fails, it's skipped for a cooldown and calls go straight to an optional **OpenAI-compatible fallback** (Groq by default, via `FALLBACK_LLM_*`; no-op if unconfigured / `langchain-openai` missing). `intent_node` / `rag_node` skip entirely during cooldown and use safe defaults. `search_node`/`rag_node` are also `asyncio.wait_for`-bounded (`SEARCH_TIMEOUT_S`/`RAG_TIMEOUT_S`, both run in threads). Structured build output avoids provider-specific JSON-schema modes: it prompts for JSON, extracts the first balanced object, and validates via the tolerant `BuildBlock`/`ProposedComponent` pydantic models (coerce `specs` strings→dict, TDP/price strings→numbers).
-
-`run_pipeline` yields an immediate keep-alive cue ("🔧 Assembling your build…" / "Updating…") on the build/edit paths so the stream stays warm and the user gets instant feedback.
-
-`market_node` reads the latest weekly `market_intel` snapshot from MongoDB (via `services.market_intel.read_latest` / `format_brief`) into `state.market_context`, a read-only reference block surfaced in `_build_deterministic_context()` under "MARKET INTELLIGENCE". Like the RAG/search context, `response_node` may cite it but must not do arithmetic on it. Reference blocks (search/RAG/market) are included only when they carry real content and are length-capped so they don't dominate the narration prompt. Degrades to "" when no snapshot exists.
-
-**MongoDB timeout hardening**: every `MongoClient`/`AsyncIOMotorClient` sets `socketTimeoutMS` (env `MONGO_SOCKET_TIMEOUT_MS`, default `10000`) and `connectTimeoutMS` (5 s) — pymongo/Motor default to **no** socket timeout, so a mid-query network stall (an Atlas blip, a dropped connection) would otherwise hang the calling thread forever instead of raising, wedging the shared blocking-call thread pool (`asyncio.to_thread` / LangGraph's sync-node offload) one hang at a time until every blocking Mongo call in the process stalls too — the failure mode that causes the whole backend to go unresponsive until it's force-restarted. `budget_allocation_node` (now `async`) and `market_node` additionally wrap their Mongo reads in `asyncio.wait_for` (`MONGO_QUERY_TIMEOUT_S` / `MARKET_TIMEOUT_S`) on top of the socket timeout, and degrade gracefully (keep the existing build / empty market context) on timeout instead of propagating the error.
+`market_node` reads the latest weekly `market_intel` snapshot from MongoDB (via `services.market_intel.read_latest` / `format_brief`) into `state.market_context`, a read-only reference block surfaced in `_build_deterministic_context()` under "MARKET INTELLIGENCE". Like the RAG/search context, `response_node` may cite it but must not do arithmetic on it. Degrades to "" when no snapshot exists.
 
 #### Deterministic / Probabilistic Architecture Split
 
@@ -596,17 +572,13 @@ This is the core architectural guarantee of the system. Every node belongs to ex
 ```
 
 | Node | Layer | Type | Purpose | Fallback |
-|------|-------|------|---------|---------|
-| `search_node` | — | async | Tavily web search for live hardware prices (3 results); timeout-bounded, skipped without `TAVILY_API_KEY` | Empty string |
-| `rag_node` | — | async | MongoDB Atlas vector similarity search on `hardware_specs`; thread + timeout-bounded, skipped during Gemini cooldown | Empty string |
-| `market_node` | — | async | Reads the latest weekly `market_intel` snapshot; Mongo read offloaded to a thread with a hard timeout (`MARKET_TIMEOUT_S`) since it's a sync pymongo call inside an `async def` node | Empty string |
-| `intent_node` | A | LLM (temp=0) | Extracts `BuildIntent`: budget, use_case, perf_target, brands, form factor; skipped during cooldown | Safe defaults |
-| `budget_allocation_node` | B | async (offloads `run_allocation()` to a thread + `wait_for`) | Price breakdown, budget constraint check, allocation ratios, efficiency score; queries **`hardware_catalog`** (`MONGODB_CATALOG_COLLECTION`), not `hardware_specs` (wraps `selection_engine`) | "No priced components" |
-| `hybrid_fill_node` | A | LLM (structured) | One call to propose parts for any **empty** slot; merges into empty slots only (DB picks win); LLM-proposed motherboard/RAM get their socket/DDR spec deterministically overwritten to match the CPU/board | Leave slots empty |
-| `compatibility_node` | C | pure Python | 13-tier `run_checks()`; sets `compat_ok` + `validation_failed` after retry budget spent; surfaces `skipped` ("NOT VERIFIED") entries when a check couldn't run at all | "No active build" |
-| `response_node` | D | LLM (streaming) | Narrates Layer B+C findings; picks build / edit / validation-failure system prompt | Degraded text |
-| `chat_node` | — | LLM (streaming) | Lightweight conversational turn (no parts list) | Degraded text |
-| `edit_node` | A+C | LLM + pure Python | Add/swap/remove specific slots, then re-validate inline | Keep build unchanged |
+|------|-------|------|---------|----------|
+| `search_node` | — | async | Tavily web search for live hardware prices (3 results) | Empty string |
+| `rag_node` | — | async | MongoDB Atlas vector similarity search on `hardware_specs` | Empty string |
+| `intent_node` | A | LLM (temp=0) | Extracts `BuildIntent`: budget, use_case, perf_target, brands, form factor | Safe defaults |
+| `selection_node` | B | pure Python | Price breakdown, budget constraint check, allocation ratios, efficiency score | "No priced components" |
+| `compatibility_node` | C | pure Python | PSU transient margin, socket match, BIOS flash advisory, RAM type, bottleneck %, upgrade path | "No active build" |
+| `response_node` | D | LLM (streaming) | Narrates Layer B+C findings into prose; forbidden from recalculating any figure | Pipeline error token |
 
 **`BuildIntent`** (output of `intent_node`, consumed by `selection_node`):
 ```python
@@ -619,29 +591,19 @@ This is the core architectural guarantee of the system. Every node belongs to ex
 }
 ```
 
-**`BuildState`** TypedDict: `messages`, `active_build`, `search_context`, `rag_context`, `market_context`, `build_intent`, `selection_report`, `compatibility_report`, `compat_ok`, `validation_failed`, `allocation_attempt`, `excluded_components`, `response`.
+**`BuildState`** TypedDict: `messages`, `active_build`, `search_context`, `rag_context`, `market_context`, `build_intent`, `selection_report`, `compatibility_report`.
 
-**Streaming**: `run_pipeline()` uses `astream_events(version="v2")` and yields `on_chat_model_stream` events from the `response` **and `chat`** nodes only (the intent/hybrid_fill/edit structured calls are tagged with their own node names and filtered out, so they never leak into the reply). After streaming, it appends the code-built ` ```json {"build": …}``` ` fence (unless `validation_failed`). `main.py` wraps this in `StreamingResponse` with `media_type="text/plain"` and `X-Accel-Buffering: no`. The frontend consumes raw bytes directly — no SSE framing.
+**Streaming**: `run_pipeline()` uses `astream_events(version="v2")` and yields only `on_chat_model_stream` events from the `response` node. `main.py` wraps this in `StreamingResponse` with `media_type="text/plain"` and `X-Accel-Buffering: no`. The frontend consumes raw bytes directly — no SSE framing.
 
-**System prompt** in `response_node` explicitly forbids the LLM from recalculating compatibility, performing price arithmetic, or contradicting any figure produced by `selection_node` or `compatibility_node`. It positions the LLM as a "translator, not a calculator." Two further rules close gaps found in testing: it must tell the user plainly when the compatibility report has a "NOT VERIFIED" section instead of implying the build is fully validated, and it must never name, price, or spec any component absent from the CURRENT BUILD STATE JSON block — closing a path where the model could invent a plausible-sounding but nonexistent component (e.g. a storage drive) to fill a narrative gap.
+**System prompt** in `response_node` explicitly forbids the LLM from recalculating compatibility, performing price arithmetic, or contradicting any figure produced by `selection_node` or `compatibility_node`. It positions the LLM as a "translator, not a calculator."
 
 **Backend environment variables** (in `backend/.env`):
 
 | Var | Purpose |
 |-----|---------|
-| `GOOGLE_API_KEY` | Gemini API key — used for LLM calls (`intent_node`, `response_node`, blog automator, market intel) and embeddings |
+| `GEMINI_KEY_1` … `GEMINI_KEY_10` | Pool-mode key rotation via `GeminiKeyManager`; set at least `GEMINI_KEY_1` for pool mode |
+| `GOOGLE_API_KEY` | Single-key fallback when no `GEMINI_KEY_N` vars are set; also used for embeddings |
 | `GEMINI_MODEL` | Defaults to `gemini-2.0-flash`; used in `intent_node`, `response_node`, and blog automator |
-| `GEMINI_MAX_RETRIES` | LangChain retry cap per Gemini call (default `2`) |
-| `GEMINI_TIMEOUT_S` | Hard wall-clock bound per Gemini call via `asyncio.wait_for` (`_GEMINI_HARD_TIMEOUT`; code default `12`, `.env.example` ships `40`) |
-| `GEMINI_COOLDOWN_S` | Circuit-breaker cooldown after a Gemini failure before it's probed again (default `120`) |
-| `SEARCH_TIMEOUT_S` / `RAG_TIMEOUT_S` | Wall-clock bounds on `search_node` (default `8`) and `rag_node` (default `8`) |
-| `MONGO_SOCKET_TIMEOUT_MS` | Socket-level timeout (ms, default `10000`) on every Mongo client — pymongo/Motor default to none, so this bounds a mid-query network stall instead of letting it hang the calling thread forever |
-| `MONGO_QUERY_TIMEOUT_S` | Wall-clock bound (default `10`) layered on top via `asyncio.wait_for` for `budget_allocation_node`'s DB query |
-| `MARKET_TIMEOUT_S` | Wall-clock bound (default `6`) via `asyncio.wait_for` for `market_node`'s market-intel read |
-| `FALLBACK_LLM_API_KEY` | Optional OpenAI-compatible fallback LLM used when Gemini is rate-limited / in cooldown; empty disables it. Requires `pip install langchain-openai` |
-| `FALLBACK_LLM_BASE_URL` | Fallback base URL (default `https://api.groq.com/openai/v1`) |
-| `FALLBACK_LLM_MODEL` | Fallback model (default `llama-3.3-70b-versatile`) |
-| `ENABLE_SEMANTIC_CACHE` | `setup_semantic_cache()` is now **opt-in** (`true` to enable) — its lookup embeds every prompt via Gemini, sharing the small free-tier quota; when exhausted the lookup itself stalls ~90 s/call |
 | `TAVILY_API_KEY` | Node 1 web search + blog automator research stage |
 | `MONGODB_ATLAS_URI` | Node 2 vector store connection |
 | `MONGODB_DATABASE` | Defaults to `neurobuilds` |
@@ -658,7 +620,7 @@ This is the core architectural guarantee of the system. Every node belongs to ex
 | `GATEWAY_SECRET` | Shared Bearer secret for the WhatsApp gateway `/send-otp` endpoint; must match `GATEWAY_SECRET` set in the gateway process |
 | `YOUTUBE_API_KEY` | YouTube Data API v3 key used by the **backend** `GET /api/components/reviews` proxy; distinct from `VITE_YOUTUBE_API_KEY` (frontend direct-call fallback) |
 
-MongoDB Atlas requires a Vector Search index named `vector_index` on the `embedding` field (768 dims, cosine — Gemini `text-embedding-004`). `GPU_Exhaustive_Database.csv` and `CPU_Exhaustive_Database.csv` (`misc/`) contain hardware data for reference.
+MongoDB Atlas requires a Vector Search index named `vector_index` on the `embedding` field (768 dims, cosine — Gemini `text-embedding-004`). `GPU_Exhaustive_Database.csv` and `CPU_Exhaustive_Database.csv` (repo root) contain hardware data for reference.
 
 ### WhatsApp OTP Gateway (`backend/whatsapp-gateway/`)
 
@@ -703,7 +665,7 @@ python scripts/ingest_rag_documents.py --source data/hardware_source.csv
 python scripts/ingest_rag_documents.py --verify        # validate config + parse only (no network)
 python scripts/ingest_rag_documents.py --dry-run       # parse + Mongo diff, no embeddings/writes
 ```
-- Source: `backend/data/hardware_source.json` (default) or a structured CSV via `--source`; CPU/GPU rows only. Sample `hardware_source.json` + `hardware_source.csv` ship in `backend/data/`; exhaustive JSON datasets `hardware_source_cpu_exhaustive.json` and `hardware_source_gpu_exhaustive.json` also available in `backend/data/` for full-coverage ingestion
+- Source: `backend/data/hardware_source.json` (default) or a structured CSV via `--source`; CPU/GPU rows only. Sample `hardware_source.json` + `hardware_source.csv` ship in `backend/data/`
 - Serialises each component into a LangChain `Document` (`langchain_core.documents`): pipe-delimited `page_content` spec string + flattened spec `metadata` (CPU: `socket/cores/threads/tdp_watts/integrated_graphics`; GPU: `vram_gb/interface/tdp_watts/power_connectors`)
 - **Idempotency**: Mongo `_id` = SHA-256(`brand|model`); a `content_hash` skips unchanged docs (zero re-embedding) and upserts only new/changed ones
 - **Async batch embedding**: `--batch-size` (default 64, 50–100 recommended) chunks, `--concurrency` (default 4) in flight via `GeminiEmbeddings` (768-dim); per-row + per-chunk try/except with structured logging — corrupt rows are skipped, not fatal
@@ -712,16 +674,13 @@ python scripts/ingest_rag_documents.py --dry-run       # parse + Mongo diff, no 
 **`misc/csv-data/scrapper.py`** — TechPowerUP GPU database scraper:
 - Two-phase scraping: chip discovery (horizontal) → custom board traversal (vertical)
 - Extracts clocks, VRAM, AIB partner info; anti-bot throttling (5–10s delays)
-- Output: `misc/GPU_Exhaustive_Database.csv`; versioned snapshots in `misc/gpu_specs_v6.csv` and `misc/gpu_specs_v7.csv`
+- Output: `GPU_Exhaustive_Database.csv` at repo root
 
 ### Backend Service Modules (`backend/services/`)
 
-**`validation_engine.py`** — 13-tier deterministic compatibility matrix (Layer C):
-- `run_checks(build, case?) → ValidationResult` — returns `{ ok, issues, warnings, passed, skipped }`
-- Check tiers (fatal → `issues`, advisory → `warnings`): (1) PSU transient margin, (2) CPU↔MB socket, (3) BIOS flash advisory [warning], (4) RAM DDR type, (5) form factor fit, (6) GPU physical clearance, (7) CPU cooler height, (8) hardware bottleneck [warning], (9) platform upgrade path [**warning — never fatal now**, so a working-but-EOL board isn't excluded on retry], (10) storage interface fit (NVMe needs M.2), (11) PSU PCIe power connectors, (12) CPU cooler socket + TDP (reads an optional `cooler` slot), (13) PCIe generation [warning]
-- `skipped` — fatal-tier checks (PSU transient margin, socket, RAM type) that could not run **at all** because a required field was missing on one or both sides. Distinct from "passed": a vacuous "no issues found" is not the same as a verified-compatible build, so these are surfaced to the user as "NOT VERIFIED" rather than silently reading as a pass
-- **Spec-key tolerance layer** (`_spec()` / `_extract_ddr()`): the build dict is produced by five sources that disagree on key names (board memory type has been `max_memory` / `memory_type` / `ram_type`; RAM type `speed` / `type`; case GPU clearance `max_gpu_clearance_mm` / `max_gpu_length_mm`). Every spec is read through tolerant helpers so a fatal mismatch is never silently skipped because a field was spelled differently (this is what let the **DDR5-on-B550** bug slip through). Socket/DDR are additionally backstopped by name/chipset inference (`_socket_from_cpu_name`, `_PLATFORM_SOCKET`, `_PLATFORM_DDR`) so LLM-invented parts that omit an explicit spec are still checked. LGA1700 is intentionally absent from DDR derivation (ships in both DDR4 and DDR5).
-- Re-exports `required_socket(cpu)` / `required_ddr(build)` for `selection_engine`'s compatibility pre-filter
+**`validation_engine.py`** — 9-tier deterministic compatibility matrix (Layer C):
+- `run_checks(build, case?) → ValidationResult` — returns `{ ok, issues, warnings, passed }`
+- Check tiers: PSU transient margin (GPU-family-specific spike multipliers), CPU↔MB socket, BIOS flash advisory (AM4-400 + Ryzen 5000), RAM DDR4/DDR5 type, form factor fit, GPU physical clearance, CPU cooler clearance, hardware bottleneck (tier-gap %), platform upgrade path
 - GPU transient multipliers: RTX 40-series ×1.25, RTX 30 ×1.15, RX 7 ×1.20, RX 6 ×1.10; safety factor 1.20×
 - Pure Python, zero LLM/API calls; shared by `agent.py` nodes, ingestion scripts, and `tests/evaluation_suite.py`
 
@@ -729,9 +688,8 @@ python scripts/ingest_rag_documents.py --dry-run       # parse + Mongo diff, no 
 - `run_allocation(budget, use_case, build, collection, attempt, excluded) → AllocationResult`
 - `ALLOCATION_WEIGHTS` — per-persona budget fractions: `gaming` (GPU 40%, CPU 20%, MB 12%, RAM 8%, PSU 8%), `workstation` (CPU 35%, GPU 30%, MB 15%, RAM 12%, PSU 8%), etc.
 - Ceiling = `budget × weight × 1.15` margin; per-retry ceiling reduction on CPU/GPU when compatibility fails; excluded-names blacklist to skip incompatible components on retry
-- **Compatibility pre-filter** (`_compat_filter`): constrains each candidate query to parts compatible with slots already chosen (motherboard socket must equal the CPU's `required_socket`; RAM DDR generation must equal `required_ddr`) — applied **before** ranking so Layer B never even considers, let alone selects, a known-incompatible part. Tolerant of the several memory-type spellings; returns `{}` (unfiltered) when the constraint can't be determined. When no compatible part fits the budget the slot is left empty for `hybrid_fill`/retry.
-- MongoDB `performance_score`-ranked queries with a `specs.launch_msrp_usd`-DESC price-sort fallback (used whenever `performance_score` is absent from a matched doc — the current `hardware_catalog` seed data has no `performance_score` field, so every query currently takes this fallback path); builds human-readable report string for Layer D narration. Component `specs` use `launch_msrp_usd` / `tdp_w` / `wattage_w` field names, matching `ingest_hardware.py`'s schema — `validation_engine.py` reads through the same names
-- Zero LLM calls; thin `budget_allocation_node` in `agent.py` wraps this (now `async` — offloads the blocking Mongo call to a thread with a hard timeout, see MongoDB timeout hardening above)
+- MongoDB `performance_score`-ranked queries with price-sort fallback; builds human-readable report string for Layer D narration
+- Zero LLM calls; thin `budget_allocation_node` in `agent.py` wraps this
 
 **`location_search.py`** — 3-tier cascading geo-fallback search:
 - `LocationSearchService(collection).search(area, extra_filters?, radius_m?, limit?) → GeoSearchResult`
@@ -759,18 +717,18 @@ python scripts/ingest_rag_documents.py --dry-run       # parse + Mongo diff, no 
 - Cosine similarity threshold: 0.97 (tight — avoids false cache hits on different budgets)
 - Collection: `semantic_cache`; index: `semantic_cache_index`; requires `langchain-mongodb`
 - Silently no-ops if `OPENAI_API_KEY` absent, `langchain-mongodb` not installed, or Atlas unreachable — never blocks startup
-- **Opt-in**: `main.py` only calls it when `ENABLE_SEMANTIC_CACHE=true`. Its lookup embeds every prompt via Gemini embeddings (shared, small free-tier quota); when that quota is exhausted the cache lookup itself stalls ~90 s/call — so it's disabled by default
+- Called once in FastAPI lifespan handler in `main.py`
 
 **`auth_guard.py`** — FastAPI dependencies for Firebase JWT verification:
 - `require_admin` — verifies Bearer token via Firebase Admin SDK + asserts `admin: true` custom claim; raises HTTP 401/403/503
 - `require_auth` — same verification but accepts any valid non-revoked Firebase ID token (no admin claim check); raises HTTP 401/503
-- `optional_auth` — verifies a Firebase ID token when the `Authorization` header is present, but returns `None` (never raises) when it's absent, invalid, or Firebase Admin isn't initialised — lets `POST /api/chat` serve both signed-in and guest users from the same route
-- All three dependencies are used with `Annotated[str, Depends(...)]` (or `Annotated[str | None, Depends(optional_auth)]`) and return the verified UID
+- Both dependencies are used with `Annotated[str, Depends(...)]` and return the verified UID
 
-**`gemini_manager.py`** — Single-key Gemini client:
-- `GeminiClient` — async wrapper; `generate_text(prompt, *, model, system_prompt, max_tokens, temperature)` and `embed_content(text)` both run `google-genai` SDK calls via `asyncio.to_thread()`
-- Module-level singleton `gemini_client: GeminiClient | None` — initialised from `GOOGLE_API_KEY`; None when not set
-- Used by `market_intel.py` and exposed via `GET /api/admin/gemini/status`. `blog_automator.py`'s draft/critique stages no longer call this directly — they go through `agent.py`'s `_ainvoke_resilient` instead (see below)
+**`gemini_manager.py`** — Python port of `gemini-key-manager/` (TypeScript):
+- `GeminiKeyManager` — asyncio-safe pool manager; loads `GEMINI_KEY_1..GEMINI_KEY_10` from env, falls back to `GOOGLE_API_KEY`; 60-req/min rolling window per key; Fisher-Yates load balancing; `mark_throttled(key, cooldown_s)` + `evict_expired_throttles()`
+- `GeminiClient` — async wrapper with transparent 429-rotation retry; `generate_text(prompt, *, model, system_prompt, max_tokens, temperature)` and `embed_content(text)` both run `google-genai` SDK calls via `asyncio.to_thread()`
+- Module-level singletons: `gemini_manager: GeminiKeyManager | None` and `gemini_client: GeminiClient | None` (None when no API keys are set)
+- Used by `blog_automator.py` and exposed via `GET /api/admin/gemini/status`
 
 **`embeddings.py`** — `GeminiEmbeddings` — LangChain `Embeddings` subclass backed directly by the `google-genai` SDK:
 - Lazy model resolution: tries `embedding-001` → `text-embedding-004` → `gemini-embedding-exp-03-07` on first call, caches the winner
@@ -783,13 +741,13 @@ python scripts/ingest_rag_documents.py --dry-run       # parse + Mongo diff, no 
 
 ### Blog Automator Router (`backend/routers/blog_automator.py`)
 
-Python migration of the TypeScript `misc/blog-automator/` service into the FastAPI backend (the original TS project — a standalone Actor-Critic CLI pipeline — is retained under `misc/` for reference only and is no longer run). Draft/Critique LLM calls go through `agent.py`'s `_ainvoke_resilient` — the same Groq-primary / Gemini-fallback chain (with hard timeouts + circuit breakers) used by the AI build assistant, instead of calling `gemini_client` directly, so the automator doesn't compete with the build assistant for the small free-tier Gemini quota. All endpoints require `require_admin`.
+Python migration of the TypeScript `blog-automator/` service into the FastAPI backend. All LLM calls use `gemini_client` from `services.gemini_manager`. All endpoints require `require_admin`.
 
 **Pipeline stages:**
 ```
 [1] Research  — Tavily web search (top 5 results, same TAVILY_API_KEY as agent.py)
-[2] Draft     — writer LLM via `_ainvoke_resilient` (Groq primary, Gemini fallback; system prompt: SEO-optimised long-form, 1500–2500 words)
-[3] Critique  — critic LLM via `_ainvoke_resilient` (same chain; JSON response: score 0–100, feedback[], requiresRevision)
+[2] Draft     — Gemini writer LLM (system prompt: SEO-optimised long-form, 1500–2500 words)
+[3] Critique  — Gemini critic LLM (JSON response: score 0–100, feedback[], requiresRevision)
                If score < 75 AND iteration < 2 → back to [2] with feedback
 [4] Publish   — Creates Firestore `blogs` doc, status "pending_review", authorType "ai_agent"
                Admin reviews via existing ReviewConsole UI
@@ -814,10 +772,23 @@ cd backend
 python tests/evaluation_suite.py
 ```
 
-- **Experiment 1 — Compatibility Engine Accuracy**: runs `run_checks()` against a fixture of labelled builds (Known Good / Intentionally Broken, incl. LLM-key-schema regression cases like DDR5-on-B550 and no-explicit-socket variants); reports confusion matrix, Precision, Recall, F1 (currently 100% across the board)
-- **Experiment 2 — Budget Allocation Adherence**: runs `run_allocation()` across gaming/workstation/budget persona builds; reports MAE, RMSE, within-±15% count, avg retries, avg slots filled versus `ALLOCATION_WEIGHTS` targets
-- **Experiment 3 — Validation Gate + Selection Pre-Filter**: asserts the `validation_failed` hard gate (fatal build → `_should_retry` routes to `respond`, no infinite loop, build JSON suppressed) and that `selection_engine`'s `_compat_filter` picks a socket-matched board
+- **Experiment 1 — Compatibility Engine Accuracy**: runs `run_checks()` against a fixture of labelled builds (Known Good / Intentionally Broken); reports confusion matrix, Precision, Recall, F1
+- **Experiment 2 — Budget Allocation Adherence**: runs `run_allocation()` across gaming/workstation/budget persona builds; reports MAE, variance, per-persona breakdown versus `ALLOCATION_WEIGHTS` targets
 - Imports directly from `services.validation_engine` and `services.selection_engine`
+
+### Gemini Key Manager (`gemini-key-manager/`)
+
+Standalone TypeScript service — resilient Gemini API key rotation and load-balancing. The Python equivalent (`backend/services/gemini_manager.py`) is the live backend implementation; this TypeScript service is the reference implementation / standalone utility.
+
+**Architecture:**
+- **`KeyRotationManager`** (singleton) — manages a pool of up to 10 Gemini API keys; tracks per-key `requestsInCurrentWindow` and `tokensInCurrentWindow` (60-second rolling windows, 60 req/window cap); picks the least-utilised key from the lower half of the pool (Fisher-Yates shuffle to prevent hot-spotting)
+- **`GeminiProxyService`** — wraps `@google/genai` SDK; `generateText(prompt, model?)` and `getEmbeddings(text)` auto-retry with next available key on 429; parses `Retry-After` header for cooldown duration; retries bounded by pool size
+- `markThrottled(key, cooldownMs)` / `evictExpiredThrottles()` — auto-recovery when cooldown expires
+- `getStats()` — sanitized snapshot (keys redacted) for logging
+
+**Test harness (`src/index.ts`):** 5-phase demonstration — sequential warm-up (4 requests), concurrent burst (12 parallel text), embedding burst (8 parallel embed), throttle recovery check, final pool stats table.
+
+**Environment:** `GEMINI_KEY_1` … `GEMINI_KEY_10` — falls back to mock keys for dry-run/CI if none set.
 
 ## Frontend Environment Variables
 
@@ -825,7 +796,6 @@ python tests/evaluation_suite.py
 |-----|----------|---------|
 | `VITE_FIREBASE_API_KEY` etc. | Yes | Firebase config (6 vars) |
 | `VITE_AI_SERVICE_URL` | No (defaults to `http://localhost:8000`) | FastAPI AI service base URL |
-| `VITE_AI_REQUEST_TIMEOUT_MS` | No (defaults to `60000`) | Client-side abort timeout for `POST /api/chat` requests |
 | `VITE_IMGBB_API_KEY` | For marketplace image uploads | ImgBB image hosting API |
 | `VITE_GNEWS_API_KEY` | For news fallback | GNews top-headlines API |
 | `VITE_YOUTUBE_API_KEY` | For video reviews | YouTube Data API v3 |
@@ -840,7 +810,7 @@ python tests/evaluation_suite.py
 - **Blog scheduled publishing**: `status: 'scheduled'` posts with a future `publishAt` are not auto-published — no cron or Cloud Function triggers the transition; currently requires manual admin action.
 - **scoringEngine integration**: `src/utils/scoringEngine.ts` exists but is not yet wired into any UI component.
 - **Notification triggers**: `writeNotification()` is exported but not yet called from marketplace/community/blog hooks — user-action notifications (new reply, new message, blog comment) are not yet generated. Exception: `listing_expired` notifications **are** sent server-side by `listings_maintenance.py` via the Admin SDK when the hourly sweep expires a listing.
-- **LLM semantic cache**: `cache_manager.setup_semantic_cache()` is wired into `main.py` startup but is **opt-in** (`ENABLE_SEMANTIC_CACHE=true`) and requires a `semantic_cache_index` Atlas Vector Search index created manually before the first cached call.
+- **LLM semantic cache**: `cache_manager.setup_semantic_cache()` is wired into `main.py` startup but requires a `semantic_cache_index` Atlas Vector Search index to be created manually before the first cached call.
 - **Blog Automator UI**: `src/components/Admin/BlogAutomatorPanel.tsx` is wired into `AdminPage.tsx` as tab 5. Backend pipeline at `backend/routers/blog_automator.py` is live.
 - **Location search API exposure**: `GET /api/marketplace/search?area=&city=&limit=` is live in `main.py`. The frontend still uses Firestore client-side filtering; wire it to this endpoint when ready.
 - **`pakistanGeoLocations.ts` ↔ backend sync**: area centroids in `src/data/pakistanGeoLocations.ts` and `backend/services/location_search.py`'s `_AREA_CENTROIDS` are manually kept in sync — no automated check.
@@ -850,8 +820,6 @@ python tests/evaluation_suite.py
 ## Known Lint Errors & Technical Debt
 
 **Build status**: TypeScript compiles clean (`tsc -b` passes). ESLint reports **43 errors, 4 warnings** as of last audit.
-
-> Regression fixed (this branch): adding `storage`/`case` to `ActiveBuild` broke `tsc` because `SharedBuildPage.COMPONENT_CONFIG` (a `Record<keyof ActiveBuild, …>`) no longer had every key — both slots were added there. Two pre-existing `tsc` breakers were also fixed at the same time: `MarketIntelPanel`'s `CategoryStat` was missing the `avgViews` field the backend already returns, and `ListingDetailModal` imported `updateDoc` without using it. Keep `SharedBuildPage.COMPONENT_CONFIG` and `BuildCanvasCard.ROWS` in sync with the `ActiveBuild` slot list.
 
 ### React Rule Violations (must fix before stricter lint enforcement)
 
@@ -875,7 +843,7 @@ Affects: `Dashboard.tsx:109`, `NewsFallback.tsx:34`, `useBlogCMS.ts:146,251`, `u
 
 ### Unused Variables
 
-`CreateListingModal.tsx:171` — `_removed` · `CommunityPage.tsx:127-129` — `_linkedBlogId`, `_linkedBlogTitle`, `_images`.
+`gemini-key-manager/src/index.ts:88` — `status` · `gemini-key-manager/src/services/KeyRotationManager.ts:136` — `_redacted` · `CreateListingModal.tsx:171` — `_removed` · `CommunityPage.tsx:127-129` — `_linkedBlogId`, `_linkedBlogTitle`, `_images`.
 
 ### Missing Hook Dependency
 
@@ -886,4 +854,3 @@ Affects: `Dashboard.tsx:109`, `NewsFallback.tsx:34`, `useBlogCMS.ts:146,251`, `u
 1. **Now**: `AIChatPanel.tsx:62` ref mutation + `MarketplacePage.tsx:125` impure render
 2. **Next sprint**: Wrap all `catch` blocks with `unknown` + `instanceof Error` guard
 3. **Backlog**: Move context non-component exports; fix `setState`-in-effect pattern; add `user` dep; remove unused vars; code-split the bundle
-*

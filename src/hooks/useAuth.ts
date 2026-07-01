@@ -88,6 +88,23 @@ export const useAuth = () => {
     }
   };
 
+  const githubSignIn = async () => {
+    try {
+      setAuthState(prev => ({ ...prev, loading: true, error: null }));
+      const result = await firebaseAuth.githubSignIn();
+      setAuthState({
+        user: result.user,
+        loading: false,
+        error: null,
+      });
+      return result.user;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'GitHub sign-in failed';
+      setAuthState(prev => ({ ...prev, loading: false, error: errorMessage }));
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
       setAuthState(prev => ({ ...prev, loading: true, error: null }));
@@ -109,6 +126,7 @@ export const useAuth = () => {
     register,
     login,
     googleSignIn,
+    githubSignIn,
     logout,
   };
 };

@@ -7,11 +7,14 @@ import {
   deleteDoc,
   doc,
   serverTimestamp,
+  Timestamp,
 } from 'firebase/firestore'
 import { db } from '../../Firebase'
-import { useAllAdvertisements } from '../../hooks/useAdvertisements'
+import { useAllAdvertisements, isFeaturedActive } from '../../hooks/useAdvertisements'
 import type { Advertisement } from '../../hooks/useAdvertisements'
 import { uploadImageToImgBB } from '../../utils/imageUploader'
+
+const FEATURE_DURATIONS = [7, 14, 30]
 
 const PLACEMENTS = [
   { value: 'banner',           label: 'Homepage Banner' },
@@ -29,7 +32,6 @@ const EMPTY_FORM = {
   placement: 'banner',
   accent: 'cyan' as 'cyan' | 'purple',
   status: 'active' as 'active' | 'inactive',
-  featured: false,
 }
 
 type FormState = typeof EMPTY_FORM
@@ -77,7 +79,6 @@ export default function AdsManagerPanel() {
       placement: ad.placement,
       accent: ad.accent,
       status: ad.status,
-      featured: ad.featured ?? false,
     })
     // Show existing image as preview without re-uploading
     if (imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview)
@@ -141,7 +142,6 @@ export default function AdsManagerPanel() {
         placement: form.placement,
         accent: form.accent,
         status: form.status,
-        featured: form.featured,
       }
       if (editingId) {
         await updateDoc(doc(db, 'advertisements', editingId), payload)
@@ -166,10 +166,18 @@ export default function AdsManagerPanel() {
     })
   }
 
-  async function toggleFeatured(ad: Advertisement) {
-    await updateDoc(doc(db, 'advertisements', ad.id), {
-      featured: !ad.featured,
-    })
+  // Featuring always sets a fixed 7/14/30-day run (`days` required to turn on);
+  // unfeaturing clears the window. Expiry is enforced client-side via
+  // isFeaturedActive() — no backend sweep needed for this scope.
+  async function toggleFeatured(ad: Advertisement, days?: number) {
+    if (ad.featured) {
+      await updateDoc(doc(db, 'advertisements', ad.id), { featured: false, featuredUntil: null })
+    } else {
+      await updateDoc(doc(db, 'advertisements', ad.id), {
+        featured: true,
+        featuredUntil: Timestamp.fromDate(new Date(Date.now() + (days ?? 7) * 86_400_000)),
+      })
+    }
   }
 
   async function deleteAd(id: string) {
@@ -283,23 +291,7 @@ export default function AdsManagerPanel() {
                     </span>
 
                     {/* Featured toggle — prominent */}
-                    <button
-                      onClick={() => toggleFeatured(ad)}
-                      title={ad.featured ? 'Unfeature this ad' : 'Feature this ad'}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold font-mono transition-colors ${
-                        ad.featured
-                          ? 'text-amber-300 border-amber-400/30 bg-amber-400/10 hover:bg-amber-400/20'
-                          : 'text-gray-500 border-white/10 hover:text-amber-300 hover:border-amber-400/30 hover:bg-amber-400/5'
-                      }`}
-                    >
-                      <span
-                        className="material-symbols-outlined text-[15px]"
-                        style={{ fontVariationSettings: ad.featured ? "'FILL' 1" : "'FILL' 0" }}
-                      >
-                        star
-                      </span>
-                      {ad.featured ? 'Featured' : 'Feature'}
-                    </button>
+                    <FeaturedControl ad={ad} onToggleFeatured={toggleFeatured} />
 
                     {/* Edit shortcut */}
                     <button
@@ -422,21 +414,10 @@ export default function AdsManagerPanel() {
             </div>
           </div>
 
-          {/* Featured toggle — promotes the ad to the premium top block (Marketplace Grid) */}
-          <label className="flex items-center gap-3 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={form.featured}
-              onChange={e => setForm(f => ({ ...f, featured: e.target.checked }))}
-              className="accent-primary w-4 h-4"
-            />
-            <span className="text-sm text-gray-300">
-              Featured
-              <span className="text-gray-500 text-xs ml-2 font-mono">
-                top block of the Marketplace Grid
-              </span>
-            </span>
-          </label>
+          <p className="text-xs text-gray-600 font-mono">
+            To feature this ad in the Marketplace Grid, save it first, then use "Search &amp; Feature" above
+            with its ad ID to set a 7/14/30-day featured run.
+          </p>
 
           {error && (
             <p className="text-red-400 text-xs font-mono">{error}</p>
@@ -476,8 +457,8 @@ export default function AdsManagerPanel() {
         <div className="space-y-6">
           {grouped.map(group => {
             const isMarketplace = group.value === 'marketplace_grid'
-            const featuredAds = isMarketplace ? group.ads.filter(a => a.featured) : []
-            const standardAds = isMarketplace ? group.ads.filter(a => !a.featured) : group.ads
+            const featuredAds = isMarketplace ? group.ads.filter(isFeaturedActive) : []
+            const standardAds = isMarketplace ? group.ads.filter(a => !isFeaturedActive(a)) : group.ads
 
             return (
               <div key={group.value}>
@@ -547,6 +528,66 @@ export default function AdsManagerPanel() {
   )
 }
 
+// ─── Feature toggle with a 7/14/30-day duration picker ───────────────────────
+// Not featured: pick a duration, then click Feature to write featured:true +
+// featuredUntil. Featured: shows the expiry date; click again to unfeature.
+
+function FeaturedControl({
+  ad,
+  onToggleFeatured,
+  compact = false,
+}: {
+  ad: Advertisement
+  onToggleFeatured: (ad: Advertisement, days?: number) => void
+  compact?: boolean
+}) {
+  const [days, setDays] = useState(7)
+  const active = isFeaturedActive(ad)
+
+  if (active) {
+    return (
+      <div className="flex items-center gap-1.5 shrink-0">
+        {ad.featuredUntil && !compact && (
+          <span className="text-[10px] font-mono text-amber-400/70 whitespace-nowrap">
+            until {ad.featuredUntil.toDate().toLocaleDateString()}
+          </span>
+        )}
+        <button
+          onClick={() => onToggleFeatured(ad)}
+          title={ad.featuredUntil ? `Featured until ${ad.featuredUntil.toDate().toLocaleDateString()} — click to unfeature` : 'Unfeature this ad'}
+          className={`flex items-center gap-1.5 rounded-lg border text-xs font-bold font-mono transition-colors text-amber-300 border-amber-400/30 bg-amber-400/10 hover:bg-amber-400/20 ${compact ? 'p-1.5' : 'px-3 py-1.5'}`}
+        >
+          <span className="material-symbols-outlined text-[15px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+          {!compact && 'Featured'}
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 shrink-0">
+      <select
+        value={days}
+        onChange={e => setDays(Number(e.target.value))}
+        title="Feature duration"
+        className="bg-black/40 border border-white/10 rounded-lg text-[11px] font-mono text-gray-300 px-1.5 py-1.5 focus:outline-none focus:border-amber-400/40"
+      >
+        {FEATURE_DURATIONS.map(d => (
+          <option key={d} value={d}>{d}d</option>
+        ))}
+      </select>
+      <button
+        onClick={() => onToggleFeatured(ad, days)}
+        title="Feature this ad"
+        className={`flex items-center gap-1.5 rounded-lg border text-xs font-bold font-mono transition-colors text-gray-500 border-white/10 hover:text-amber-300 hover:border-amber-400/30 hover:bg-amber-400/5 ${compact ? 'p-1.5' : 'px-3 py-1.5'}`}
+      >
+        <span className="material-symbols-outlined text-[15px]" style={{ fontVariationSettings: "'FILL' 0" }}>star</span>
+        {!compact && 'Feature'}
+      </button>
+    </div>
+  )
+}
+
 // ─── Extracted ad row so marketplace split doesn't duplicate JSX ─────────────
 
 interface AdRowProps {
@@ -554,7 +595,7 @@ interface AdRowProps {
   placementLabel: (p: string) => string
   onEdit: (ad: Advertisement) => void
   onToggleStatus: (ad: Advertisement) => void
-  onToggleFeatured: (ad: Advertisement) => void
+  onToggleFeatured: (ad: Advertisement, days?: number) => void
   onDelete: (id: string) => void
   confirmDelete: string | null
   onDeleteConfirm: (id: string) => void
@@ -577,7 +618,7 @@ function AdRow({ ad, placementLabel, onEdit, onToggleStatus, onToggleFeatured, o
       </span>
 
       {/* Featured chip */}
-      {ad.featured && (
+      {isFeaturedActive(ad) && (
         <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border shrink-0 text-amber-300/80 border-amber-400/30 bg-amber-400/5">
           ★ featured
         </span>
@@ -596,19 +637,7 @@ function AdRow({ ad, placementLabel, onEdit, onToggleStatus, onToggleFeatured, o
 
       {/* Actions */}
       <div className="flex items-center gap-2 shrink-0">
-        <button
-          onClick={() => onToggleFeatured(ad)}
-          title={ad.featured ? 'Unfeature' : 'Mark featured'}
-          className={`p-1.5 rounded-lg border transition-colors ${
-            ad.featured
-              ? 'text-amber-300 border-amber-400/30 hover:bg-amber-400/10'
-              : 'text-gray-500 border-white/10 hover:text-white'
-          }`}
-        >
-          <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: ad.featured ? "'FILL' 1" : "'FILL' 0" }}>
-            star
-          </span>
-        </button>
+        <FeaturedControl ad={ad} onToggleFeatured={onToggleFeatured} compact />
 
         <button
           onClick={() => onToggleStatus(ad)}

@@ -934,87 +934,87 @@ BUDGET_INTENTS: list[dict] = [
 _MOCK_CATALOGUE: dict[str, list[dict]] = {
     "CPU": [
         {"name": "AMD Ryzen 3 4100",      "category": "CPU", "performance_score": 0.42,
-         "specs": {"price": 75,  "tdp": 65,  "socket": "AM4", "chipset": "B450"}},
+         "specs": {"launch_msrp_usd": 75,  "tdp_w": 65,  "socket": "AM4", "chipset": "B450"}},
         {"name": "Intel Core i3-12100F",  "category": "CPU", "performance_score": 0.50,
-         "specs": {"price": 100, "tdp": 58,  "socket": "LGA1700", "chipset": "B660"}},
+         "specs": {"launch_msrp_usd": 100, "tdp_w": 58,  "socket": "LGA1700", "chipset": "B660"}},
         {"name": "AMD Ryzen 5 5600X",     "category": "CPU", "performance_score": 0.65,
-         "specs": {"price": 150, "tdp": 65,  "socket": "AM4", "chipset": "B550"}},
+         "specs": {"launch_msrp_usd": 150, "tdp_w": 65,  "socket": "AM4", "chipset": "B550"}},
         {"name": "Intel Core i5-13600K",  "category": "CPU", "performance_score": 0.78,
-         "specs": {"price": 250, "tdp": 125, "socket": "LGA1700", "chipset": "Z690"}},
+         "specs": {"launch_msrp_usd": 250, "tdp_w": 125, "socket": "LGA1700", "chipset": "Z690"}},
         {"name": "AMD Ryzen 7 7700X",     "category": "CPU", "performance_score": 0.82,
-         "specs": {"price": 310, "tdp": 105, "socket": "AM5", "chipset": "B650"}},
+         "specs": {"launch_msrp_usd": 310, "tdp_w": 105, "socket": "AM5", "chipset": "B650"}},
         {"name": "Intel Core i7-13700K",  "category": "CPU", "performance_score": 0.87,
-         "specs": {"price": 380, "tdp": 125, "socket": "LGA1700", "chipset": "Z790"}},
+         "specs": {"launch_msrp_usd": 380, "tdp_w": 125, "socket": "LGA1700", "chipset": "Z790"}},
         {"name": "AMD Ryzen 9 7950X",     "category": "CPU", "performance_score": 0.96,
-         "specs": {"price": 550, "tdp": 170, "socket": "AM5", "chipset": "X670"}},
+         "specs": {"launch_msrp_usd": 550, "tdp_w": 170, "socket": "AM5", "chipset": "X670"}},
         {"name": "Intel Core i9-13900K",  "category": "CPU", "performance_score": 0.98,
-         "specs": {"price": 550, "tdp": 125, "socket": "LGA1700", "chipset": "Z790"}},
+         "specs": {"launch_msrp_usd": 550, "tdp_w": 125, "socket": "LGA1700", "chipset": "Z790"}},
     ],
     "GPU": [
         {"name": "Nvidia GTX 1660 Super", "category": "GPU", "performance_score": 0.38,
-         "specs": {"price": 130, "tdp": 125, "length_mm": 225}},
+         "specs": {"launch_msrp_usd": 130, "tdp_w": 125, "length_mm": 225}},
         {"name": "AMD RX 6600",           "category": "GPU", "performance_score": 0.48,
-         "specs": {"price": 170, "tdp": 132, "length_mm": 240}},
+         "specs": {"launch_msrp_usd": 170, "tdp_w": 132, "length_mm": 240}},
         {"name": "Nvidia RTX 3060",       "category": "GPU", "performance_score": 0.55,
-         "specs": {"price": 200, "tdp": 170, "length_mm": 242}},
+         "specs": {"launch_msrp_usd": 200, "tdp_w": 170, "length_mm": 242}},
         {"name": "Nvidia RTX 4060",       "category": "GPU", "performance_score": 0.62,
-         "specs": {"price": 280, "tdp": 115, "length_mm": 240}},
+         "specs": {"launch_msrp_usd": 280, "tdp_w": 115, "length_mm": 240}},
         {"name": "AMD RX 7700 XT",        "category": "GPU", "performance_score": 0.71,
-         "specs": {"price": 380, "tdp": 245, "length_mm": 267}},
+         "specs": {"launch_msrp_usd": 380, "tdp_w": 245, "length_mm": 267}},
         {"name": "Nvidia RTX 4070 SUPER", "category": "GPU", "performance_score": 0.80,
-         "specs": {"price": 490, "tdp": 220, "length_mm": 336}},
+         "specs": {"launch_msrp_usd": 490, "tdp_w": 220, "length_mm": 336}},
         {"name": "Nvidia RTX 4080 SUPER", "category": "GPU", "performance_score": 0.91,
-         "specs": {"price": 850, "tdp": 320, "length_mm": 336}},
+         "specs": {"launch_msrp_usd": 850, "tdp_w": 320, "length_mm": 336}},
         {"name": "Nvidia RTX 4090",       "category": "GPU", "performance_score": 1.00,
-         "specs": {"price": 1550,"tdp": 450, "length_mm": 336}},
+         "specs": {"launch_msrp_usd": 1550,"tdp_w": 450, "length_mm": 336}},
     ],
     "MOTHERBOARD": [
         {"name": "ASRock B450M HDV",      "category": "MOTHERBOARD", "performance_score": 0.40,
-         "specs": {"price": 70,  "socket": "AM4", "chipset": "B450", "form_factor": "MICRO-ATX",
+         "specs": {"launch_msrp_usd": 70,  "socket": "AM4", "chipset": "B450", "form_factor": "MICRO-ATX",
                    "max_memory": "DDR4-4266", "max_gpu_length_mm": 330}},
         {"name": "MSI PRO B660M-A DDR4",  "category": "MOTHERBOARD", "performance_score": 0.50,
-         "specs": {"price": 110, "socket": "LGA1700", "chipset": "B660", "form_factor": "MICRO-ATX",
+         "specs": {"launch_msrp_usd": 110, "socket": "LGA1700", "chipset": "B660", "form_factor": "MICRO-ATX",
                    "max_memory": "DDR4-5000", "max_gpu_length_mm": 340}},
         {"name": "Gigabyte B550 AORUS Elite", "category": "MOTHERBOARD", "performance_score": 0.62,
-         "specs": {"price": 160, "socket": "AM4", "chipset": "B550", "form_factor": "ATX",
+         "specs": {"launch_msrp_usd": 160, "socket": "AM4", "chipset": "B550", "form_factor": "ATX",
                    "max_memory": "DDR4-5100", "max_gpu_length_mm": 380}},
         {"name": "ASUS TUF Gaming B760-Plus", "category": "MOTHERBOARD", "performance_score": 0.72,
-         "specs": {"price": 200, "socket": "LGA1700", "chipset": "B760", "form_factor": "ATX",
+         "specs": {"launch_msrp_usd": 200, "socket": "LGA1700", "chipset": "B760", "form_factor": "ATX",
                    "max_memory": "DDR5-7600", "max_gpu_length_mm": 385}},
         {"name": "MSI MAG B650 TOMAHAWK",  "category": "MOTHERBOARD", "performance_score": 0.78,
-         "specs": {"price": 230, "socket": "AM5", "chipset": "B650", "form_factor": "ATX",
+         "specs": {"launch_msrp_usd": 230, "socket": "AM5", "chipset": "B650", "form_factor": "ATX",
                    "max_memory": "DDR5-7800", "max_gpu_length_mm": 380}},
         {"name": "ASUS ROG STRIX X670E-F", "category": "MOTHERBOARD", "performance_score": 0.90,
-         "specs": {"price": 390, "socket": "AM5", "chipset": "X670", "form_factor": "ATX",
+         "specs": {"launch_msrp_usd": 390, "socket": "AM5", "chipset": "X670", "form_factor": "ATX",
                    "max_memory": "DDR5-6800", "max_gpu_length_mm": 420}},
     ],
     "RAM": [
         {"name": "Crucial DDR4-3200 8GB",    "category": "RAM", "performance_score": 0.35,
-         "specs": {"price": 25,  "speed": "DDR4-3200"}},
+         "specs": {"launch_msrp_usd": 25,  "speed": "DDR4-3200"}},
         {"name": "Corsair Vengeance DDR4-3200 16GB", "category": "RAM", "performance_score": 0.55,
-         "specs": {"price": 45,  "speed": "DDR4-3200"}},
+         "specs": {"launch_msrp_usd": 45,  "speed": "DDR4-3200"}},
         {"name": "G.Skill Ripjaws V DDR4-3600 32GB", "category": "RAM", "performance_score": 0.65,
-         "specs": {"price": 75,  "speed": "DDR4-3600"}},
+         "specs": {"launch_msrp_usd": 75,  "speed": "DDR4-3600"}},
         {"name": "Kingston Fury Beast DDR5-5200 16GB", "category": "RAM", "performance_score": 0.70,
-         "specs": {"price": 65,  "speed": "DDR5-5200"}},
+         "specs": {"launch_msrp_usd": 65,  "speed": "DDR5-5200"}},
         {"name": "Corsair Dominator DDR5-6000 32GB",   "category": "RAM", "performance_score": 0.85,
-         "specs": {"price": 130, "speed": "DDR5-6000"}},
+         "specs": {"launch_msrp_usd": 130, "speed": "DDR5-6000"}},
         {"name": "G.Skill Trident Z5 DDR5-6400 64GB",  "category": "RAM", "performance_score": 0.95,
-         "specs": {"price": 230, "speed": "DDR5-6400"}},
+         "specs": {"launch_msrp_usd": 230, "speed": "DDR5-6400"}},
     ],
     "PSU": [
         {"name": "Corsair CX450",          "category": "PSU", "performance_score": 0.35,
-         "specs": {"price": 45,  "wattage": 450}},
+         "specs": {"launch_msrp_usd": 45,  "wattage_w": 450}},
         {"name": "Seasonic Focus GX-550",  "category": "PSU", "performance_score": 0.55,
-         "specs": {"price": 75,  "wattage": 550}},
+         "specs": {"launch_msrp_usd": 75,  "wattage_w": 550}},
         {"name": "Corsair RM750x",         "category": "PSU", "performance_score": 0.72,
-         "specs": {"price": 100, "wattage": 750}},
+         "specs": {"launch_msrp_usd": 100, "wattage_w": 750}},
         {"name": "Seasonic Focus GX-850",  "category": "PSU", "performance_score": 0.82,
-         "specs": {"price": 130, "wattage": 850}},
+         "specs": {"launch_msrp_usd": 130, "wattage_w": 850}},
         {"name": "be quiet! Dark Power 1000W", "category": "PSU", "performance_score": 0.90,
-         "specs": {"price": 180, "wattage": 1000}},
+         "specs": {"launch_msrp_usd": 180, "wattage_w": 1000}},
         {"name": "Seasonic Prime TX-1300", "category": "PSU", "performance_score": 0.97,
-         "specs": {"price": 280, "wattage": 1300}},
+         "specs": {"launch_msrp_usd": 280, "wattage_w": 1300}},
     ],
 }
 
@@ -1032,13 +1032,13 @@ def _make_mock_collection() -> MagicMock:
         if not docs:
             return None
 
-        price_filter = query.get("specs.price", {})
+        price_filter = query.get("specs.launch_msrp_usd", {})
         max_price = price_filter.get("$lte", float("inf"))
         excluded  = (query.get("name") or {}).get("$nin", [])
 
         candidates = [
             d for d in docs
-            if d["specs"]["price"] <= max_price
+            if d["specs"]["launch_msrp_usd"] <= max_price
             and d["name"] not in excluded
         ]
         if not candidates:
@@ -1049,7 +1049,7 @@ def _make_mock_collection() -> MagicMock:
         if sort_key == "performance_score":
             candidates.sort(key=lambda d: d.get("performance_score", 0), reverse=True)
         else:
-            candidates.sort(key=lambda d: d["specs"]["price"], reverse=True)
+            candidates.sort(key=lambda d: d["specs"]["launch_msrp_usd"], reverse=True)
 
         return candidates[0]
 
@@ -1296,14 +1296,14 @@ def _make_compat_mock() -> MagicMock:
     def _find_one(query: dict, projection=None, sort=None):
         category  = query.get("category", "").upper()
         docs      = _MOCK_CATALOGUE.get(category, [])
-        max_price = query.get("specs.price", {}).get("$lte", float("inf"))
+        max_price = query.get("specs.launch_msrp_usd", {}).get("$lte", float("inf"))
         excluded  = (query.get("name") or {}).get("$nin", [])
         req_sock  = query.get("specs.socket")
         or_clause = query.get("$or")
 
         def matches(d: dict) -> bool:
             s = d["specs"]
-            if s["price"] > max_price or d["name"] in excluded:
+            if s["launch_msrp_usd"] > max_price or d["name"] in excluded:
                 return False
             if req_sock and s.get("socket") != req_sock:
                 return False

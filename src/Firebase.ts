@@ -6,6 +6,7 @@ import {
   signOut,
   signInWithPopup,
   GoogleAuthProvider,
+  GithubAuthProvider,
   updateProfile,
   sendPasswordResetEmail,
 } from "firebase/auth";
@@ -37,6 +38,11 @@ export const firebaseAuth = {
 
   googleSignIn: async () => {
     const provider = new GoogleAuthProvider();
+    return signInWithPopup(auth, provider);
+  },
+
+  githubSignIn: async () => {
+    const provider = new GithubAuthProvider();
     return signInWithPopup(auth, provider);
   },
 

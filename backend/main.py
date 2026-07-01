@@ -31,7 +31,7 @@ from routers.admin_users import router as admin_users_router
 from routers.components import router as components_router, ensure_youtube_cache_index
 from routers.listings_maintenance import router as listings_maintenance_router, start_background_sweep
 from routers.market_intel import router as market_intel_router, start_market_intel_loop
-from services.auth_guard import require_admin, require_auth
+from services.auth_guard import optional_auth, require_admin, require_auth
 from services.cache_manager import setup_semantic_cache
 from services.market_intel import ensure_market_intel_index
 from services.vector_store import VectorStoreEngine
@@ -112,9 +112,26 @@ async def lifespan(app: FastAPI):
             # unreachable Atlas cluster degrades gracefully instead of crashing
             # the entire lifespan (serverSelectionTimeoutMS only gates server
             # selection, not the initial SRV resolution).
-            app.state.mongo  = MongoClient(mongo_uri, serverSelectionTimeoutMS=5_000)
+            #
+            # socketTimeoutMS defaults to None (no timeout) in pymongo/Motor — a
+            # mid-query network stall then hangs the calling thread/task forever
+            # instead of raising, which can wedge the shared blocking-call thread
+            # pool (asyncio.to_thread / LangGraph's sync-node offload) one hang at
+            # a time until the whole service is unresponsive until restarted.
+            _mongo_socket_timeout_ms = int(os.getenv("MONGO_SOCKET_TIMEOUT_MS", "10000"))
+            app.state.mongo  = MongoClient(
+                mongo_uri,
+                serverSelectionTimeoutMS=5_000,
+                connectTimeoutMS=5_000,
+                socketTimeoutMS=_mongo_socket_timeout_ms,
+            )
             # Async Motor client — used by the GET /api/marketplace/search endpoint
-            app.state.motor  = AsyncIOMotorClient(mongo_uri, serverSelectionTimeoutMS=5_000)
+            app.state.motor  = AsyncIOMotorClient(
+                mongo_uri,
+                serverSelectionTimeoutMS=5_000,
+                connectTimeoutMS=5_000,
+                socketTimeoutMS=_mongo_socket_timeout_ms,
+            )
             logger.info("MongoDB clients initialised (sync + async Motor)")
 
             # Wire vector store engine — shared client, zero extra connections
@@ -531,7 +548,7 @@ async def marketplace_search(
 async def chat(
     request: Request,
     req: ChatRequest,
-    uid: Annotated[str, Depends(require_auth)],
+    uid: Annotated[str | None, Depends(optional_auth)] = None,
 ):
     """
     Accepts the full conversation history plus the current build state from

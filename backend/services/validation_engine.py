@@ -37,6 +37,10 @@ class ValidationResult(TypedDict):
     issues:   list[str]   # Fatal — build cannot work as-is
     warnings: list[str]   # Advisory — build works but has risks or trade-offs
     passed:   list[str]   # Affirmative checks — confirmed compatible
+    skipped:  list[str]   # Fatal-tier checks that could NOT run — missing spec data on
+                           # one or both sides. A vacuous "no issues" is not the same as
+                           # a verified-compatible build; these entries make that gap
+                           # visible instead of silently reading as a pass.
 
 
 # ─── PSU transient multiplier table ──────────────────────────────────────────
@@ -282,6 +286,7 @@ def run_checks(build: dict, case: Optional[dict] = None) -> ValidationResult:
     issues:   list[str] = []
     warnings: list[str] = []
     passed:   list[str] = []
+    skipped:  list[str] = []
 
     cpu = build.get("cpu",         {}) or {}
     gpu = build.get("gpu",         {}) or {}
@@ -340,6 +345,17 @@ def run_checks(build: dict, case: Optional[dict] = None) -> ValidationResult:
                 f"(GPU factor {t_factor:.2f}×) with {headroom_pct:.0f}% headroom "
                 f"— above {_PSU_SAFETY_FACTOR:.0%} safety threshold"
             )
+    elif cpu_name and gpu_name and psu.get("name"):
+        # All three components are present but one is missing its tdp/rating field —
+        # this is NOT "no PSU issue found", it's "could not check at all".
+        missing_fields = [
+            label for label, v in (("CPU tdp", cpu_tdp), ("GPU tdp", gpu_tdp), ("PSU rating", psu_rating))
+            if v is None
+        ]
+        skipped.append(
+            f"PSU TRANSIENT MARGIN NOT VERIFIED: missing {', '.join(missing_fields)} — "
+            "cannot confirm the PSU covers peak transient load."
+        )
 
     # ── Check 2 — CPU ↔ Motherboard Socket ──────────────────────────────────
     # Read the explicit socket spec first; when a component omits it (common for
@@ -360,6 +376,15 @@ def run_checks(build: dict, case: Optional[dict] = None) -> ValidationResult:
                 f"SOCKET MISMATCH: CPU requires {cpu_socket}, "
                 f"motherboard has {mb_socket}"
             )
+    elif cpu_name and mb_name:
+        # Both components are present but neither an explicit spec nor name/chipset
+        # inference could resolve one side's socket — this is the exact gap that let
+        # unrecognised LLM-invented parts through with no fatal check ever firing.
+        side = "CPU" if not cpu_socket else "motherboard"
+        skipped.append(
+            f"SOCKET COMPATIBILITY NOT VERIFIED: could not determine the {side}'s socket "
+            "from its spec or model name."
+        )
 
     # ── Check 3 — BIOS Flash Advisory ───────────────────────────────────────
     # platform / matched_ch / cpu_gen were computed once at the top of run_checks.
@@ -390,6 +415,12 @@ def run_checks(build: dict, case: Optional[dict] = None) -> ValidationResult:
                 f"{mb_type} ({mb_type_source}). {ram_type} modules are physically "
                 f"keyed differently and will not fit a {mb_type} board."
             )
+    elif ram.get("name") and mb_name:
+        side = "RAM" if not ram_type else "motherboard"
+        skipped.append(
+            f"MEMORY TYPE NOT VERIFIED: could not determine the {side}'s DDR generation "
+            "from its spec or the board's chipset."
+        )
 
     # ── Check 5 — Form Factor Fit ────────────────────────────────────────────
     # When a case component is present, validate that the motherboard form factor
@@ -608,6 +639,7 @@ def run_checks(build: dict, case: Optional[dict] = None) -> ValidationResult:
         issues=issues,
         warnings=warnings,
         passed=passed,
+        skipped=skipped,
     )
 
 

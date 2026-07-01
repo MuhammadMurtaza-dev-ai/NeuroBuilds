@@ -226,17 +226,17 @@ def run_allocation(
             specs = component.get("specs", {}) or {}
             entry: dict = {
                 "name":  component.get("name", ""),
-                "price": _safe_int(specs.get("price"), default=0),
+                "price": _safe_int(specs.get("launch_msrp_usd"), default=0),
                 "specs": specs,
             }
             # Promote TDP / wattage to top-level so compatibility_node can read them
             # without diving into the nested specs dict.
-            if slot == "cpu" and specs.get("tdp"):
-                entry["tdp"] = int(specs["tdp"])
-            elif slot == "gpu" and specs.get("tdp"):
-                entry["tdp"] = int(specs["tdp"])
-            elif slot == "psu" and specs.get("wattage"):
-                entry["rating"] = int(specs["wattage"])
+            if slot == "cpu" and specs.get("tdp_w"):
+                entry["tdp"] = int(specs["tdp_w"])
+            elif slot == "gpu" and specs.get("tdp_w"):
+                entry["tdp"] = int(specs["tdp_w"])
+            elif slot == "psu" and specs.get("wattage_w"):
+                entry["rating"] = int(specs["wattage_w"])
 
             build[slot] = entry
             slot_log.append(SlotResult(
@@ -304,8 +304,10 @@ def _query_best_component(
     Query hardware_specs for the highest-performance component within a price ceiling.
 
     Primary   : ORDER BY performance_score DESC — maximises objective capability score.
-    Fallback  : ORDER BY specs.price DESC — highest-priced = best-within-budget proxy,
-                used when performance_score field is absent from the collection schema.
+    Fallback  : ORDER BY specs.launch_msrp_usd DESC — highest-priced = best-within-budget
+                proxy, used when performance_score field is absent from the collection
+                schema (the hardware_catalog seed data has no performance_score field,
+                so every query currently takes this fallback path).
 
     The $nin filter on the name field ensures previously rejected components are
     not re-selected during retry passes.  ``compat_filter`` (from _compat_filter)
@@ -318,8 +320,8 @@ def _query_best_component(
     """
     category = _SLOT_CATEGORY.get(slot, slot.upper())
     query: dict = {
-        "category":    category,
-        "specs.price": {"$lte": ceiling, "$gt": 0},
+        "category":               category,
+        "specs.launch_msrp_usd":  {"$lte": ceiling, "$gt": 0},
     }
     if excluded_names:
         query["name"] = {"$nin": excluded_names}
@@ -340,7 +342,7 @@ def _query_best_component(
         doc = collection.find_one(
             query,
             {"embedding": 0},
-            sort=[("specs.price", -1)],
+            sort=[("specs.launch_msrp_usd", -1)],
         )
         return doc, None
 

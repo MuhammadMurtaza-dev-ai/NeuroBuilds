@@ -35,6 +35,33 @@ logger = logging.getLogger(__name__)
 _bearer_scheme = HTTPBearer(auto_error=False)
 
 
+async def optional_auth(
+    request: Request,
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(_bearer_scheme),
+    ] = None,
+) -> str | None:
+    """Verify a Firebase ID token when one is provided, but allow anonymous access."""
+    if not credentials:
+        return None
+
+    if not firebase_admin._apps:  # type: ignore[attr-defined]
+        return None
+
+    token = credentials.credentials
+
+    try:
+        decoded: dict = await asyncio.to_thread(
+            fb_auth.verify_id_token, token, check_revoked=True
+        )
+    except Exception:
+        return None
+
+    request.state.uid = decoded["uid"]
+    return decoded["uid"]
+
+
 async def require_auth(
     request: Request,
     credentials: Annotated[

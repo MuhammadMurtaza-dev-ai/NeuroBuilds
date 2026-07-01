@@ -2,7 +2,10 @@
 NeuroBuilds — AI Blog Automator Router
 
 Python migration of blog-automator/ (TypeScript) into the FastAPI backend.
-All LLM calls replaced with Gemini via services.gemini_manager.
+LLM calls (draft + critique) go through agent.py's _ainvoke_resilient — the
+same Groq-primary / Gemini-fallback chain (with hard timeouts + circuit
+breakers) used by the AI build assistant, so the automator doesn't burn the
+small free-tier Gemini quota on its own.
 
 Endpoints (all require `role: admin` via require_admin dependency):
 
@@ -16,8 +19,8 @@ Endpoints (all require `role: admin` via require_admin dependency):
 
 Pipeline stages:
     [1] Research    — Tavily web search (top 5 results, same key as agent.py)
-    [2] Draft       — Gemini writer LLM (GEMINI_MODEL from env)
-    [3] Critique    — Gemini critic LLM (same model; JSON response)
+    [2] Draft       — writer LLM via _ainvoke_resilient (Groq primary, Gemini fallback)
+    [3] Critique    — critic LLM via _ainvoke_resilient (same chain; JSON response)
         If score < 75 AND iterations < MAX_CRITIQUE_ITERATIONS → back to [2]
     [4] Publish     — Creates Firestore `blogs` doc, status "pending_review",
                       authorType "ai_agent". Admin reviews via existing
@@ -46,9 +49,10 @@ from pydantic import BaseModel, field_validator
 
 import firebase_admin
 from firebase_admin import firestore as fb_firestore
+from langchain_core.messages import HumanMessage, SystemMessage
 
+from agent import _ainvoke_resilient
 from services.auth_guard import require_admin
-from services.gemini_manager import gemini_client
 
 logger = logging.getLogger(__name__)
 
@@ -239,11 +243,6 @@ async def _draft_stage(
     *,
     writer_system: str = _WRITER_SYSTEM,
 ) -> str:
-    if gemini_client is None:
-        raise RuntimeError(
-            "Gemini client is not initialised — check GOOGLE_API_KEY."
-        )
-
     is_revision = bool(prior_draft and feedback)
 
     if is_revision:
@@ -264,16 +263,13 @@ async def _draft_stage(
             "Write a complete, publication-ready blog post on this topic using the research above.",
         ])
 
-    model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-    result = await gemini_client.generate_text(
-        user_message,
-        model=model,
-        system_prompt=writer_system,
-        max_tokens=4096,
+    result = await _ainvoke_resilient(
+        [SystemMessage(content=writer_system), HumanMessage(content=user_message)],
         temperature=0.7,
+        max_tokens=4096,
     )
-
-    draft = result["text"].strip()
+    content = result.content
+    draft = (content if isinstance(content, str) else str(content)).strip()
     if len(draft) < 200:
         raise RuntimeError(
             f"Draft suspiciously short ({len(draft)} chars) — check model output."
@@ -332,19 +328,18 @@ def _parse_critique(raw: str) -> dict:
 
 
 async def _critic_stage(draft: str, *, critic_system: str = _CRITIC_SYSTEM) -> dict:
-    if gemini_client is None:
-        raise RuntimeError("Gemini client is not initialised.")
-
-    model  = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-    result = await gemini_client.generate_text(
-        f"Please critique the following blog post draft:\n\n{draft}",
-        model=model,
-        system_prompt=critic_system,
-        max_tokens=1024,
+    result = await _ainvoke_resilient(
+        [
+            SystemMessage(content=critic_system),
+            HumanMessage(content=f"Please critique the following blog post draft:\n\n{draft}"),
+        ],
         temperature=0.2,
+        max_tokens=1024,
     )
+    content = result.content
+    raw_text = content if isinstance(content, str) else str(content)
 
-    report = _parse_critique(result["text"])
+    report = _parse_critique(raw_text)
     logger.info(
         "blog_automator: critic score=%d requires_revision=%s",
         report["score"], report["requiresRevision"],

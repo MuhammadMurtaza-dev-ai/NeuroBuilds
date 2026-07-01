@@ -5,7 +5,7 @@ import { db } from '../Firebase';
 import { useMarketplace, DEFAULT_FILTERS } from '../hooks/useMarketplace';
 import type { MarketplaceFilters } from '../hooks/useMarketplace';
 import { useAuth } from '../hooks/useAuth';
-import { useAdvertisements } from '../hooks/useAdvertisements';
+import { useAdvertisements, isFeaturedActive } from '../hooks/useAdvertisements';
 import {
   getPakistanProvinces,
   getCitiesForProvince,
@@ -355,8 +355,10 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
   const isAllView = viewMode === 'all';
 
   // ── Sponsored ad slots: 4 featured (top) + 4 normal (after first 6 listings) ──
-  const featuredAds = gridAds.filter(a => a.featured).slice(0, 4);
-  const normalAds = gridAds.filter(a => !a.featured).slice(0, 4);
+  // A featured ad whose featuredUntil has lapsed falls back into the normal slot
+  // automatically — no backend sweep needed, isFeaturedActive re-evaluates live.
+  const featuredAds = gridAds.filter(isFeaturedActive).slice(0, 4);
+  const normalAds = gridAds.filter(a => !isFeaturedActive(a)).slice(0, 4);
 
   const controlsProps = {
     filters,
@@ -507,7 +509,7 @@ export default function MarketplacePage({ onOpenAuth }: Props) {
                 </div>
               ) : filteredListings.length > 0 ? (
                 <div className={gridClass}>
-                  {featuredAds.map(ad => <MarketplaceAdCard key={`ad-f-${ad.id}`} ad={ad} />)}
+                  {featuredAds.map(ad => <MarketplaceAdCard key={`ad-f-${ad.id}`} ad={ad} featured />)}
                   {filteredListings.slice(0, 6).map(renderListingCard)}
                   {normalAds.map(ad => <MarketplaceAdCard key={`ad-n-${ad.id}`} ad={ad} />)}
                   {filteredListings.slice(6).map(renderListingCard)}

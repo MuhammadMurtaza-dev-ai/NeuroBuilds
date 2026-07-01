@@ -47,7 +47,12 @@ from pydantic import BaseModel, Field, field_validator
 from pymongo import MongoClient
 
 from services.selection_engine import AllocationResult, run_allocation
-from services.validation_engine import ValidationResult, run_checks
+from services.validation_engine import (
+    ValidationResult,
+    required_ddr,
+    required_socket,
+    run_checks,
+)
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -67,6 +72,15 @@ def _get_mongo_client() -> MongoClient:
         _mongo_client = MongoClient(
             os.environ["MONGODB_ATLAS_URI"],
             serverSelectionTimeoutMS=5_000,
+            connectTimeoutMS=5_000,
+            # PyMongo's socketTimeoutMS defaults to None (no timeout). Without this,
+            # a mid-query network stall (Atlas blip, dropped connection) hangs the
+            # calling thread FOREVER instead of raising — wedging one thread of the
+            # shared asyncio default executor at a time (the same pool backing
+            # asyncio.to_thread and LangGraph's sync-node offload) until every
+            # blocking Mongo call in the process stalls too. This is what causes the
+            # backend to go unresponsive on every request until it's force-restarted.
+            socketTimeoutMS=int(os.environ.get("MONGO_SOCKET_TIMEOUT_MS", "10000")),
         )
         logger.info("agent: module-level MongoClient initialised")
     return _mongo_client
@@ -172,7 +186,7 @@ class BuildBlock(BaseModel):
 # only embedding provider (Groq has no embeddings API), so RAG / semantic-cache
 # paths still depend on GOOGLE_API_KEY regardless of this ordering.
 
-def _make_gemini_llm(*, temperature: float) -> ChatGoogleGenerativeAI:
+def _make_gemini_llm(*, temperature: float, max_tokens: Optional[int] = None) -> ChatGoogleGenerativeAI:
     # NOTE: do NOT pass a low `timeout` here — google-genai forwards it as the gRPC
     # deadline and rejects small values with 400 "deadline too short", which would
     # trip the breaker on every call. Wall-clock bounding is done by asyncio.wait_for
@@ -180,12 +194,13 @@ def _make_gemini_llm(*, temperature: float) -> ChatGoogleGenerativeAI:
     return ChatGoogleGenerativeAI(
         model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
         temperature=temperature,
+        max_output_tokens=max_tokens,
         google_api_key=os.environ.get("GOOGLE_API_KEY", ""),
         max_retries=int(os.environ.get("GEMINI_MAX_RETRIES", "2")),
     )
 
 
-def _make_groq_llm(*, temperature: float):
+def _make_groq_llm(*, temperature: float, max_tokens: Optional[int] = None):
     """Primary OpenAI-compatible provider (Groq default). None if unconfigured."""
     key = os.environ.get("FALLBACK_LLM_API_KEY", "")
     if not key:
@@ -203,6 +218,7 @@ def _make_groq_llm(*, temperature: float):
         api_key=key,
         base_url=os.environ.get("FALLBACK_LLM_BASE_URL", "https://api.groq.com/openai/v1"),
         temperature=temperature,
+        max_tokens=max_tokens,
         max_retries=1,
         timeout=40,
     )
@@ -244,10 +260,10 @@ def _trip_gemini_breaker(exc: object) -> None:
     logger.warning("Gemini circuit breaker tripped for %.0fs (%s)", cd, str(exc)[:80])
 
 
-async def _ainvoke_resilient(messages, *, temperature: float):
+async def _ainvoke_resilient(messages, *, temperature: float, max_tokens: Optional[int] = None):
     """Primary Groq (hard-bounded, breaker-gated) → Gemini fallback (breaker-gated)."""
     if _groq_usable():
-        groq = _make_groq_llm(temperature=temperature)
+        groq = _make_groq_llm(temperature=temperature, max_tokens=max_tokens)
         if groq is not None:
             try:
                 return await asyncio.wait_for(
@@ -260,7 +276,7 @@ async def _ainvoke_resilient(messages, *, temperature: float):
     if _gemini_usable():
         try:
             return await asyncio.wait_for(
-                _make_gemini_llm(temperature=temperature).ainvoke(messages),
+                _make_gemini_llm(temperature=temperature, max_tokens=max_tokens).ainvoke(messages),
                 timeout=_GEMINI_HARD_TIMEOUT,
             )
         except (Exception, asyncio.TimeoutError) as exc:
@@ -415,13 +431,25 @@ async def market_node(state: BuildState) -> dict:
     services/market_intel.py and stored in MongoDB. Read-only reference context
     for Layer D — the response_node is forbidden from doing arithmetic on it.
     Degrades to an empty string when no snapshot exists or Mongo is unreachable.
+
+    read_latest() is a synchronous pymongo call. Unlike sync functions passed to
+    add_node (which LangGraph auto-offloads to a thread), this runs inline inside
+    an async def node, so calling it directly would block the event loop for the
+    ENTIRE process on any stall — not just this request. Offload it to a thread
+    with a hard timeout, same reasoning as rag_node.
     """
     try:
         from services.market_intel import format_brief, read_latest
-        client  = _get_mongo_client()
-        db_name = os.environ.get("MONGODB_DATABASE", "neurobuilds")
-        snapshot = read_latest(client, db_name)
-        ctx = format_brief(snapshot)
+
+        def _read() -> str:
+            client  = _get_mongo_client()
+            db_name = os.environ.get("MONGODB_DATABASE", "neurobuilds")
+            return format_brief(read_latest(client, db_name))
+
+        ctx = await asyncio.wait_for(
+            asyncio.to_thread(_read),
+            timeout=float(os.environ.get("MARKET_TIMEOUT_S", "6")),
+        )
         logger.info("market_node: %s", "snapshot loaded" if ctx else "no snapshot available")
     except Exception as exc:
         logger.warning("market_node: market intel unavailable — %s", exc)
@@ -605,7 +633,7 @@ async def explicit_parts_node(state: BuildState) -> dict:
 # All budget arithmetic and DB-backed selection logic lives in that module.
 # The LLM never touches these numbers or selects component names.
 
-def budget_allocation_node(state: BuildState) -> dict:
+async def budget_allocation_node(state: BuildState) -> dict:
     """
     Calls selection_engine.run_allocation() to deterministically fill unfilled
     component slots from hardware_specs, then stores the resulting report for
@@ -614,6 +642,13 @@ def budget_allocation_node(state: BuildState) -> dict:
     On retry (allocation_attempt > 0), the excluded_components dict (populated
     by compatibility_node on the previous pass) is forwarded to run_allocation()
     so incompatible parts are filtered from DB queries via a $nin clause.
+
+    A plain sync function here would be auto-offloaded by LangGraph to the
+    shared default thread-pool executor (the same pool asyncio.to_thread draws
+    from elsewhere in this module) — but with no bound, a stalled Mongo query
+    would occupy that thread forever, one hang at a time exhausting the pool
+    until every blocking call in the process stalls. asyncio.wait_for bounds it
+    explicitly and degrades gracefully like the other Mongo-touching nodes.
     """
     intent   = state.get("build_intent") or {}
     build    = dict(state.get("active_build") or {})
@@ -623,25 +658,33 @@ def budget_allocation_node(state: BuildState) -> dict:
     budget   = intent.get("budget_usd")
     use_case = intent.get("use_case") or "general"
 
-    try:
+    def _allocate() -> AllocationResult:
         client = _get_mongo_client()
+        # NOTE: this is MONGODB_CATALOG_COLLECTION ("hardware_catalog"), not
+        # MONGODB_COLLECTION ("hardware_specs"). hardware_specs is the RAG/
+        # embedding collection rag_node queries (schema: component_type, flat
+        # fields, no `category`/`specs.launch_msrp_usd`) — pointing the
+        # deterministic allocator at it meant every query matched zero
+        # documents, silently forcing every build onto the LLM-guessed
+        # hybrid_fill path instead of a real DB-backed pick.
         collection = client[
-            os.environ.get("MONGODB_DATABASE",  "neurobuilds")
+            os.environ.get("MONGODB_DATABASE",          "neurobuilds")
         ][
-            os.environ.get("MONGODB_COLLECTION", "hardware_specs")
+            os.environ.get("MONGODB_CATALOG_COLLECTION", "hardware_catalog")
         ]
-    except Exception as exc:
-        logger.warning("budget_allocation_node: cannot connect to MongoDB — %s", exc)
-        collection = None
-
-    if collection is not None:
-        result: AllocationResult = run_allocation(
+        return run_allocation(
             budget=budget,
             use_case=use_case,
             build=build,
             collection=collection,
             attempt=attempt,
             excluded=excluded,
+        )
+
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(_allocate),
+            timeout=float(os.environ.get("MONGO_QUERY_TIMEOUT_S", "10")),
         )
         updated_build = result["build"]
         report        = result["report"]
@@ -651,8 +694,9 @@ def budget_allocation_node(state: BuildState) -> dict:
             attempt,
             sum(1 for s in result["slot_log"] if s["selected"]),
         )
-    else:
-        # MongoDB unavailable — keep existing build, generate report from it
+    except (Exception, asyncio.TimeoutError) as exc:
+        # MongoDB unreachable/timed out — keep existing build, generate report from it
+        logger.warning("budget_allocation_node: allocation unavailable — %s", exc)
         from services.selection_engine import build_selection_report, ALLOCATION_WEIGHTS
         weights = ALLOCATION_WEIGHTS.get(use_case, ALLOCATION_WEIGHTS["general"])
         updated_build = build
@@ -663,6 +707,31 @@ def budget_allocation_node(state: BuildState) -> dict:
         "selection_report":   report,
         "allocation_attempt": attempt + 1,
     }
+
+
+# ─── Coherence enforcement for LLM-invented motherboard/RAM ──────────────────
+#
+# hybrid_fill_node / edit_node's system prompts ASK the LLM to match socket/RAM
+# type to the anchor CPU, but an instruction is not a guarantee — the LLM can
+# still emit a board/RAM with no socket spec or a mismatched one, which lets a
+# fatal mismatch slip past compatibility_node's guarded checks (they only fire
+# when both sides resolve a value; see validation_engine's "skipped" checks).
+# This deterministically OVERWRITES the invented slot's socket/DDR spec to match
+# the already-chosen CPU/board, rather than trusting the LLM's free-text spec.
+# Called only for slots the LLM just added (never for explicit_parts_node, which
+# seeds parts the user explicitly named verbatim).
+
+def _enforce_socket_ddr_coherence(slot: str, build: dict) -> None:
+    if slot == "motherboard":
+        socket = required_socket(build.get("cpu") or {})
+        if socket:
+            build[slot].setdefault("specs", {})
+            build[slot]["specs"]["socket"] = socket
+    elif slot == "ram":
+        ddr = required_ddr(build)
+        if ddr:
+            build[slot].setdefault("specs", {})
+            build[slot]["specs"]["type"] = ddr
 
 
 # ─── Node 4.5 — Hybrid Fill (Layer A — LLM proposes, code merges) ─────────────
@@ -729,12 +798,36 @@ async def hybrid_fill_node(state: BuildState) -> dict:
             # Drop empty/None fields so the emitted block stays compact.
             entry = {k: v for k, v in comp.items() if v not in (None, "", {})}
             build[slot] = entry
+            _enforce_socket_ddr_coherence(slot, build)
             added += 1
         logger.info("hybrid_fill_node: proposed %d/%d empty slot(s)", added, len(missing))
     except Exception as exc:
         logger.warning("hybrid_fill_node: proposal failed — %s", exc)
 
     return {"active_build": build}
+
+
+# ─── Shared report formatter (compatibility_node + edit_node) ────────────────
+
+def _format_validation_report(result: ValidationResult) -> list[str]:
+    """Renders a ValidationResult into the narrative lines Layer D cites verbatim."""
+    lines: list[str] = []
+    if result["issues"]:
+        lines.append("⚠  COMPATIBILITY ISSUES:")
+        lines.extend(f"   ✗  {i}" for i in result["issues"])
+    if result["warnings"]:
+        lines.append("⡇  ADVISORIES:")
+        lines.extend(f"   △  {w}" for w in result["warnings"])
+    if result.get("skipped"):
+        # Distinct from "passed" — these checks could not run at all (missing
+        # spec data), so the build is UNVERIFIED on that point, not confirmed
+        # compatible. Surfacing this prevents a false sense of confidence.
+        lines.append("❓  NOT VERIFIED (missing data):")
+        lines.extend(f"   ?  {s}" for s in result["skipped"])
+    if result["passed"]:
+        lines.append("✓  CHECKS PASSED:")
+        lines.extend(f"   ✓  {p}" for p in result["passed"])
+    return lines
 
 
 # ─── Node 5 — Compatibility Validator (Layer C) ──────────────────────────────
@@ -762,22 +855,13 @@ def compatibility_node(state: BuildState) -> dict:
     result: ValidationResult = run_checks(build, case=case)
 
     # Build the narrative report for Layer D
-    report_lines: list[str] = []
-    if not result["issues"] and not result["warnings"] and not result["passed"]:
-        report_lines.append(
+    if not result["issues"] and not result["warnings"] and not result["passed"] and not result.get("skipped"):
+        report_lines = [
             "No active build components to validate. "
             "Recommend components based on user requirements."
-        )
+        ]
     else:
-        if result["issues"]:
-            report_lines.append("⚠  COMPATIBILITY ISSUES:")
-            report_lines.extend(f"   ✗  {i}" for i in result["issues"])
-        if result["warnings"]:
-            report_lines.append("⡇  ADVISORIES:")
-            report_lines.extend(f"   △  {w}" for w in result["warnings"])
-        if result["passed"]:
-            report_lines.append("✓  CHECKS PASSED:")
-            report_lines.extend(f"   ✓  {p}" for p in result["passed"])
+        report_lines = _format_validation_report(result)
 
     report = "\n".join(report_lines)
 
@@ -974,7 +1058,10 @@ _STRONG_BUILD = (
 )
 _SPEC_SIGNALS = (
     "$", " usd", "dollar", "budget", "1080p", "1440p", "4k", "gaming pc",
-    "gaming rig", "workstation",
+    "gaming rig", "workstation", "cheaper", "less expensive", "lower price",
+    "lower cost", "reduce cost", "cut cost", "more expensive", "pricier",
+    "higher budget", "bigger budget", "increase budget", "lower budget",
+    "reduce budget", "smaller budget",
 )
 _QUESTION_STARTS = (
     "is ", "are ", "what", "how", "why", "which", "should", "can ", "could",
@@ -1083,6 +1170,7 @@ async def edit_node(state: BuildState) -> dict:
             for slot, comp in proposal.model_dump(exclude_none=True).items():
                 if isinstance(comp, dict) and comp.get("name"):
                     build[slot] = {k: v for k, v in comp.items() if v not in (None, "", {})}
+                    _enforce_socket_ddr_coherence(slot, build)
         except Exception as exc:
             logger.warning("edit_node: proposal failed — %s", exc)
 
@@ -1091,15 +1179,7 @@ async def edit_node(state: BuildState) -> dict:
     lines: list[str] = []
     if removed:
         lines.append(f"Removed: {', '.join(removed)}")
-    if result["issues"]:
-        lines.append("⚠  COMPATIBILITY ISSUES:")
-        lines.extend(f"   ✗  {i}" for i in result["issues"])
-    if result["warnings"]:
-        lines.append("⡇  ADVISORIES:")
-        lines.extend(f"   △  {w}" for w in result["warnings"])
-    if result["passed"]:
-        lines.append("✓  CHECKS PASSED:")
-        lines.extend(f"   ✓  {p}" for p in result["passed"])
+    lines.extend(_format_validation_report(result))
 
     logger.info("edit_node: removed=%s ok=%s issues=%d", removed, result["ok"], len(result["issues"]))
     return {
@@ -1309,6 +1389,12 @@ async def run_pipeline(
     # the BuildCanvas. The narration above already refused to present it.
     if not final_state.get("validation_failed"):
         build_out = _serialise_build(final_state.get("active_build") or initial_state["active_build"])
+        # Diagnostic: makes it possible to tell, from the server log alone, whether
+        # a slot missing on the frontend was ever in the deterministic build (a
+        # hybrid_fill / state-capture bug) or was never filled at all (in which case
+        # any mention of it in the narrated prose is the LLM inventing a component
+        # response_node was explicitly told never to invent).
+        logger.info("run_pipeline: emitting build slots=%s", sorted(build_out.keys()))
         if build_out:
             yield f"\n\n```json\n{json.dumps({'build': build_out})}\n```\n"
 
@@ -1383,11 +1469,20 @@ WHAT YOU MUST DO:
   • Use the BUDGET ANALYSIS and COMPATIBILITY ANALYSIS as your sole source of truth.
   • When citing numbers (prices, wattages, percentages, tier scores), quote verbatim.
   • Explain the components that were selected by the deterministic allocation engine.
+  • If the COMPATIBILITY ANALYSIS has a "NOT VERIFIED" section, tell the user plainly
+    that those specific checks could not be confirmed (missing spec data) — do NOT
+    imply the build is fully validated when some checks were skipped.
 
 WHAT YOU MUST NEVER DO:
   • Suggest or change specific component names or model numbers. All hardware was
     selected by the deterministic budget_allocation_node from the MongoDB database.
     Your job is to explain WHY those choices are good, not to pick alternatives.
+  • Name, price, or spec ANY component (motherboard, storage, case, cooler, or
+    otherwise) that does not appear by name inside the CURRENT BUILD STATE JSON
+    block below. If a slot is absent from that JSON, it was NOT selected — say so
+    plainly ("no storage drive selected yet") instead of inventing one. This is
+    the single most important rule: the JSON block is the ONLY valid source for
+    which components exist. Do not fill a gap with plausible-sounding hardware.
   • Recalculate, re-derive, or approximate any figure already present in the reports.
   • Perform socket compatibility checks — the compatibility engine already did this.
   • Perform PSU power or budget arithmetic — the selection engine already did this.

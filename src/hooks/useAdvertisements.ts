@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore'
+import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore'
 import { db } from '../Firebase'
 
 export interface Advertisement {
@@ -14,6 +14,15 @@ export interface Advertisement {
   tagline?: string
   /** Promotes the ad into the premium top block of the marketplace grid. */
   featured?: boolean
+  /** When `featured` expires — set alongside `featured: true` for a fixed 7/14/30-day run. */
+  featuredUntil?: Timestamp | null
+}
+
+/** True when the ad is marked featured AND its featured window hasn't lapsed. */
+export function isFeaturedActive(ad: Advertisement): boolean {
+  if (!ad.featured) return false
+  if (!ad.featuredUntil) return true
+  return ad.featuredUntil.toDate().getTime() > Date.now()
 }
 
 export function useAdvertisements(placement: string) {

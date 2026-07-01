@@ -3,9 +3,10 @@ import type { Advertisement } from '../../hooks/useAdvertisements';
 
 interface Props {
   ad: Advertisement;
+  featured?: boolean;
 }
 
-export default function MarketplaceAdCard({ ad }: Props) {
+export default function MarketplaceAdCard({ ad, featured }: Props) {
   const isPurple = ad.accent === 'purple';
   const accentText = isPurple ? 'text-accent-purple' : 'text-primary';
   const accentBorder = isPurple ? 'hover:border-accent-purple/50' : 'hover:border-primary/50';
@@ -31,6 +32,14 @@ export default function MarketplaceAdCard({ ad }: Props) {
       rel="noopener noreferrer sponsored"
       className={`glass-panel rounded-[2rem] border border-border-glass ${accentBorder} transition-all group flex flex-col cursor-pointer relative overflow-hidden`}
     >
+      {/* Featured badge */}
+      {featured && (
+        <div className="absolute top-4 left-4 z-10 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest font-mono backdrop-blur-sm border text-amber-300 border-amber-400/40 bg-amber-400/10">
+          <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+          FEATURED
+        </div>
+      )}
+
       {/* Sponsored badge */}
       <div className={`absolute top-4 right-4 z-10 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest font-mono backdrop-blur-sm border ${
         isPurple
