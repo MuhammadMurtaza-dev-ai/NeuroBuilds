@@ -845,11 +845,11 @@ python tests/evaluation_suite.py
 - **Location search API exposure**: `GET /api/marketplace/search?area=&city=&limit=` is live in `main.py`. The frontend still uses Firestore client-side filtering; wire it to this endpoint when ready.
 - **`pakistanGeoLocations.ts` ↔ backend sync**: area centroids in `src/data/pakistanGeoLocations.ts` and `backend/services/location_search.py`'s `_AREA_CENTROIDS` are manually kept in sync — no automated check.
 - **YouTube proxy vs client-side**: `GET /api/components/reviews` is a server-side YouTube proxy (7-day MongoDB TTL cache). The frontend `src/services/youtubeService.ts` still calls the YouTube API directly via `VITE_YOUTUBE_API_KEY`. Wire `ListingDetailModal` / `SharedBuildPage` to the backend proxy when ready to avoid exposing the API key client-side.
-- **JS bundle size**: Production build outputs a single 991 kB JS chunk (> 500 kB Vite threshold). Needs route-based code splitting (`React.lazy` + `Suspense`) or `rollupOptions.output.manualChunks` to pass Lighthouse performance budget.
+- **JS bundle size** — *resolved*: routes are now lazy-loaded via `React.lazy` + `Suspense` in `App.tsx` (only `HomePage` + layout chrome stay eager), and `vite.config.ts` splits `firebase` / `react-vendor` / `react-router` / `icons` into long-lived vendor chunks via `rollupOptions.output.manualChunks`. No chunk exceeds the 500 kB Vite threshold; ~350 kB of route code (Admin, Marketplace, Community, Chat, Blog, …) is deferred off the initial paint. Keep new pages lazy-imported in `App.tsx` to preserve this.
 
 ## Known Lint Errors & Technical Debt
 
-**Build status**: TypeScript compiles clean (`tsc -b` passes). ESLint reports **43 errors, 4 warnings** as of last audit.
+**Build status**: TypeScript compiles clean (`tsc -b` passes) and ESLint is **clean (0 errors, 0 warnings)** as of the latest audit — the codebase has been cleaned up since the tables below were written, so most rows in the sub-sections that follow are now historical/resolved. Re-run `npm run lint` before treating any specific row as still-open.
 
 > Regression fixed (this branch): adding `storage`/`case` to `ActiveBuild` broke `tsc` because `SharedBuildPage.COMPONENT_CONFIG` (a `Record<keyof ActiveBuild, …>`) no longer had every key — both slots were added there. Two pre-existing `tsc` breakers were also fixed at the same time: `MarketIntelPanel`'s `CategoryStat` was missing the `avgViews` field the backend already returns, and `ListingDetailModal` imported `updateDoc` without using it. Keep `SharedBuildPage.COMPONENT_CONFIG` and `BuildCanvasCard.ROWS` in sync with the `ActiveBuild` slot list.
 

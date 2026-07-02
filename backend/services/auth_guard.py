@@ -22,6 +22,7 @@ Usage
 
 import asyncio
 import logging
+import os
 from typing import Annotated
 
 import firebase_admin
@@ -33,6 +34,34 @@ logger = logging.getLogger(__name__)
 
 # auto_error=False lets us return a clean 401 instead of FastAPI's default 403
 _bearer_scheme = HTTPBearer(auto_error=False)
+
+# verify_id_token(check_revoked=True) makes a network call to Google's Identity
+# Toolkit API (accounts:lookup) on top of the local cert/signature check. The
+# underlying requests/urllib3 session has no timeout of its own, so a transient
+# DNS/network blip reaching that host causes several retries with backoff that
+# can run 20-30+ seconds — long past the frontend's own request timeout, which
+# then misreports it as "backend unreachable" even though the server is up and
+# every other endpoint is responding fine. Bound it here, matching the hard-
+# timeout pattern already used for Gemini/Mongo calls elsewhere in the backend.
+_FIREBASE_AUTH_TIMEOUT_S = float(os.getenv("FIREBASE_AUTH_TIMEOUT_S", "10"))
+
+
+async def _verify_id_token(token: str) -> dict:
+    """asyncio.wait_for-bounded wrapper around fb_auth.verify_id_token."""
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(fb_auth.verify_id_token, token, check_revoked=True),
+            timeout=_FIREBASE_AUTH_TIMEOUT_S,
+        )
+    except asyncio.TimeoutError:
+        logger.warning(
+            "Firebase token verification timed out after %.0fs (network issue "
+            "reaching Google's Identity Toolkit API?).", _FIREBASE_AUTH_TIMEOUT_S,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not verify token — the auth service network call timed out. Retry shortly.",
+        )
 
 
 async def optional_auth(
@@ -52,9 +81,7 @@ async def optional_auth(
     token = credentials.credentials
 
     try:
-        decoded: dict = await asyncio.to_thread(
-            fb_auth.verify_id_token, token, check_revoked=True
-        )
+        decoded: dict = await _verify_id_token(token)
     except Exception:
         return None
 
@@ -102,11 +129,13 @@ async def require_auth(
     token = credentials.credentials
 
     try:
-        # verify_id_token performs blocking network I/O (cert fetch + revocation
-        # check). Run it off the event loop so concurrent requests don't serialise.
-        decoded: dict = await asyncio.to_thread(
-            fb_auth.verify_id_token, token, check_revoked=True
-        )
+        # _verify_id_token performs blocking network I/O (cert fetch + revocation
+        # check) off the event loop, bounded by FIREBASE_AUTH_TIMEOUT_S so a
+        # network hiccup fails fast instead of hanging past the client's own
+        # request timeout.
+        decoded: dict = await _verify_id_token(token)
+    except HTTPException:
+        raise
     except fb_auth.RevokedIdTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -182,12 +211,14 @@ async def require_admin(
 
     # ── 2. Cryptographically verify the ID token ───────────────────────────────
     try:
-        # Blocking network I/O (cert fetch + revocation check) — offload to a
-        # thread so it doesn't freeze the event loop for other requests.
-        decoded: dict = await asyncio.to_thread(
-            fb_auth.verify_id_token, token, check_revoked=True
-        )
+        # Blocking network I/O (cert fetch + revocation check) — offloaded to a
+        # thread and bounded by FIREBASE_AUTH_TIMEOUT_S so a network hiccup
+        # reaching Google fails fast instead of hanging past the client's own
+        # request timeout.
+        decoded: dict = await _verify_id_token(token)
 
+    except HTTPException:
+        raise
     except fb_auth.RevokedIdTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

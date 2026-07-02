@@ -3,6 +3,23 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        // Split the largest third-party libraries into their own long-lived
+        // vendor chunks so a change to app code doesn't invalidate them and the
+        // initial route no longer pulls the entire dependency graph.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('firebase') || id.includes('@firebase')) return 'firebase'
+          if (id.includes('react-router')) return 'react-router'
+          if (id.includes('lucide-react')) return 'icons'
+          if (id.includes('/react-dom/') || id.includes('/react/') || id.includes('/scheduler/'))
+            return 'react-vendor'
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({

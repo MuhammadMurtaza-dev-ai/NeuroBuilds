@@ -1,5 +1,5 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import './App.css'
 import SplashScreen from './components/SplashScreen'
 import { CountryProvider } from './context/CountryContext'
@@ -7,26 +7,39 @@ import { ChatProvider } from './context/ChatContext'
 import { ThemeProvider } from './context/ThemeContext'
 import ErrorBoundary from './components/ErrorBoundary'
 
-// Layout Components
+// Layout Components (eager — always mounted on the critical paint path)
 import Navbar from './components/Navbar/Navbar'
 import Footer from './components/Footer/Footer'
 import AuthModal from './components/AuthModal/AuthModal'
 import ChatSidebar from './components/Chat/ChatSidebar'
 
-// Page Components
+// Landing page stays eager so the initial route paints without a chunk round-trip.
 import HomePage from './pages/HomePage'
-import BlogPage from './pages/BlogPage'
-import MarketplacePage from './pages/MarketplacePage'
-import CommunityPage from './pages/CommunityPage'
-import ChatPage from './pages/ChatPage'
-import Dashboard from './components/Dashboard/Dashboard'
-import ProfilePage from './pages/ProfilePage'
-import DevSeedPage from './pages/DevSeedPage'
-import PricingPage from './pages/PricingPage'
-import SharedBuildPage from './pages/SharedBuildPage'
-import AdminPage from './pages/AdminPage'
 import AdminProtectedRoute from './components/Admin/AdminProtectedRoute'
-import SellerProfilePage from './pages/SellerProfilePage'
+
+// Route pages are lazy-loaded so each ships in its own chunk instead of the
+// single monolithic bundle. Behaviour is unchanged — the components are identical,
+// only their module boundary moves.
+const BlogPage = lazy(() => import('./pages/BlogPage'))
+const MarketplacePage = lazy(() => import('./pages/MarketplacePage'))
+const CommunityPage = lazy(() => import('./pages/CommunityPage'))
+const ChatPage = lazy(() => import('./pages/ChatPage'))
+const Dashboard = lazy(() => import('./components/Dashboard/Dashboard'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const DevSeedPage = lazy(() => import('./pages/DevSeedPage'))
+const PricingPage = lazy(() => import('./pages/PricingPage'))
+const SharedBuildPage = lazy(() => import('./pages/SharedBuildPage'))
+const AdminPage = lazy(() => import('./pages/AdminPage'))
+const SellerProfilePage = lazy(() => import('./pages/SellerProfilePage'))
+
+/** Minimal loader shown while a lazy route chunk is fetched. */
+function RouteFallback() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+    </div>
+  )
+}
 
 function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
@@ -59,6 +72,7 @@ function App() {
           initialMode={authModalMode}
         />
       )}
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/chat" element={<ChatPage />} />
@@ -75,6 +89,7 @@ function App() {
         </Route>
         {import.meta.env.DEV && <Route path="/dev/seed" element={<DevSeedPage />} />}
       </Routes>
+      </Suspense>
       {!isSharePage && <Footer />}
       </ChatProvider>
     </CountryProvider>

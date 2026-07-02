@@ -407,7 +407,9 @@ export function useAIAssistant() {
 
     isStreamingRef.current = false;
     setIsStreaming(false);
-  }, []); // stable — all mutable state is accessed through refs
+    // getIdTokenForRequest is itself useCallback([]) — stable identity, so listing
+    // it keeps sendMessage's identity stable while satisfying exhaustive-deps.
+  }, [getIdTokenForRequest]); // stable — all mutable state is accessed through refs
 
   const loadSession = useCallback((msgs: ChatMessage[], build: ActiveBuild) => {
     setMessages(msgs);
